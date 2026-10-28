@@ -1,0 +1,1069 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#0f5f6a"><link rel="manifest" href="manifest.webmanifest"><link rel="icon" href="favicon-32.png"><link rel="apple-touch-icon" href="apple-touch-icon.png"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="MR Follow-up"><meta name="apple-mobile-web-app-status-bar-style" content="default"><style>:root{padding-bottom:env(safe-area-inset-bottom,0px)}</style><title>MR Follow-up</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans+Condensed:wght@500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+/* Layout: a records-desk tool. Sticky header with tabs; each tab is one work surface. */
+:root{
+  --bg:#eef2f3; --surface:#ffffff; --sunk:#f6f8f9; --ink:#13232a; --muted:#5a6b72; --line:#d6dfe2;
+  --accent:#0f5f6a; --accent-ink:#ffffff; --accent-soft:#dcecee; --bar:#2f7d87;
+  --late:#b42318; --late-soft:#fdecea; --warn:#a15c07; --warn-soft:#fdf3e1; --ok:#087443; --ok-soft:#e3f5ec; --info:#2f4fb5; --info-soft:#e8edfb; --na:#aab6bb;
+  --f-display:"IBM Plex Sans Condensed","Arial Narrow",system-ui,sans-serif;
+  --f-body:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --f-mono:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0e1619; --surface:#152025; --sunk:#111b1f; --ink:#e2ebed; --muted:#93a5ab; --line:#26363c;
+  --accent:#5fb7c1; --accent-ink:#06191c; --accent-soft:#183a40; --bar:#5fb7c1;
+  --late:#f97a6e; --late-soft:#3a1714; --warn:#f2b44a; --warn-soft:#372611; --ok:#4fcf8f; --ok-soft:#12301f; --info:#93acff; --info-soft:#1b2546; --na:#4b5a60; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0e1619; --surface:#152025; --sunk:#111b1f; --ink:#e2ebed; --muted:#93a5ab; --line:#26363c;
+  --accent:#5fb7c1; --accent-ink:#06191c; --accent-soft:#183a40; --bar:#5fb7c1;
+  --late:#f97a6e; --late-soft:#3a1714; --warn:#f2b44a; --warn-soft:#372611; --ok:#4fcf8f; --ok-soft:#12301f; --info:#93acff; --info-soft:#1b2546; --na:#4b5a60; color-scheme:dark}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:14px;line-height:1.45}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--surface)}
+.wrap{max-width:1200px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+header{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--surface);border-bottom:1px solid var(--line)}
+.hrow{display:flex;align-items:center;gap:16px;flex-wrap:wrap;padding-block:10px}
+.brand{display:flex;align-items:baseline;gap:10px}
+.brand b{font-family:var(--f-display);font-size:20px;font-weight:600;letter-spacing:.01em}
+.brand span{color:var(--muted);font-size:12px}
+nav{display:flex;gap:2px;margin-left:auto;flex-wrap:wrap}
+nav button{font:500 13px var(--f-body);background:none;border:0;color:var(--muted);padding:8px 11px;border-radius:6px;cursor:pointer;display:inline-flex;gap:6px;align-items:center}
+nav button[aria-selected="true"]{background:var(--accent-soft);color:var(--ink)}
+nav button:hover{color:var(--ink)}
+.badge{font:600 11px var(--f-mono);background:var(--late);color:var(--surface);border-radius:999px;padding:1px 6px;min-width:18px;text-align:center}
+.badge.n{background:var(--accent);color:var(--accent-ink)}
+.qwrap{max-height:340px;overflow:auto}
+.qwrap th{position:sticky;top:0;z-index:1}
+tr.q-active td{background:var(--accent-soft)}
+.seg{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.seg button{display:grid;gap:2px;text-align:left;font:inherit;color:var(--ink);background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:10px 14px;cursor:pointer;position:relative}
+.seg button b{font-family:var(--f-display);font-size:16px;font-weight:600}
+.seg button span{color:var(--muted);font-size:12px}
+.seg button[aria-selected="true"]{border-color:var(--accent);box-shadow:inset 0 0 0 1px var(--accent);background:var(--accent-soft)}
+.seg button em{position:absolute;top:10px;right:12px;font-style:normal}
+.result{display:grid;grid-template-columns:1fr 1fr;gap:10px;max-width:520px}
+.result button{font:600 16px var(--f-body);padding:16px;border-radius:8px;border:1.5px solid var(--line);background:var(--surface);color:var(--muted);cursor:pointer}
+.result button[aria-checked="true"][data-r="complete"]{background:var(--ok-soft);border-color:var(--ok);color:var(--ok)}
+.result button[aria-checked="true"][data-r="incomplete"]{background:var(--late-soft);border-color:var(--late);color:var(--late)}
+.p-quick{background:var(--info-soft);color:var(--info)} .p-full{background:var(--sunk);color:var(--muted);border:1px solid var(--line)}
+main{padding-block:20px 48px}
+.tabview{display:grid;gap:18px}
+h2{font-family:var(--f-display);font-weight:600;font-size:18px;margin:0;text-wrap:balance}
+h3{font-family:var(--f-display);font-weight:600;font-size:15px;margin:0}
+.lede{color:var(--muted);margin:2px 0 0;max-width:75ch}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:16px;display:grid;gap:14px;min-width:0;align-content:start}
+.banner{border:1px dashed var(--warn);background:var(--warn-soft);border-radius:8px;padding:10px 14px;display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+.banner b{color:var(--warn)}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}
+.stat{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:12px 14px;text-align:left;font:inherit;color:inherit;min-width:0}
+button.stat{cursor:pointer}
+.stat[aria-pressed="true"]{outline:2px solid var(--accent);outline-offset:-2px}
+.stat .n{font-family:var(--f-display);font-size:28px;font-weight:600;font-variant-numeric:tabular-nums;line-height:1.1}
+.stat .l{color:var(--muted);font-size:11.5px;text-transform:uppercase;letter-spacing:.06em}
+.stat .s{color:var(--muted);font-size:12px}
+.stat.late .n{color:var(--late)} .stat.ok .n{color:var(--ok)} .stat.info .n{color:var(--info)} .stat.warn .n{color:var(--warn)}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px}
+.cols2{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,460px),1fr));gap:18px;align-items:start}
+label.f,.f{display:grid;gap:4px;font-size:12px;color:var(--muted);font-weight:500;min-width:0}
+input,select,textarea{font:14px var(--f-body);color:var(--ink);background:var(--sunk);border:1px solid var(--line);border-radius:6px;padding:8px 10px;width:100%;min-width:0}
+input[type=checkbox]{width:auto}
+input[readonly]{color:var(--muted)}
+textarea{resize:vertical}
+input:focus,select:focus,textarea:focus,button:focus-visible,a:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+.mono{font-family:var(--f-mono);font-variant-numeric:tabular-nums}
+.btn{font:500 13px var(--f-body);border:1px solid var(--line);background:var(--surface);color:var(--ink);padding:7px 12px;border-radius:6px;cursor:pointer;white-space:nowrap;text-decoration:none;display:inline-flex;align-items:center;gap:6px}
+.btn:hover{border-color:var(--accent)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.btn.sm{padding:4px 8px;font-size:12px}
+.btn.danger{color:var(--late)}
+.btn.okb{color:var(--ok);border-color:var(--ok)}
+.btn[disabled]{opacity:.45;cursor:not-allowed}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.spacer{flex:1}
+.ac{position:relative}
+.ac-list{position:absolute;z-index:4;left:0;right:0;top:100%;margin-top:2px;background:var(--surface);border:1px solid var(--line);border-radius:6px;max-height:260px;overflow:auto;box-shadow:0 8px 24px rgb(0 0 0 / .14)}
+.ac-list button{display:block;width:100%;text-align:left;background:none;border:0;padding:7px 10px;font:inherit;color:var(--ink);cursor:pointer}
+.ac-list button:hover,.ac-list button.hi{background:var(--accent-soft)}
+.ac-list small{display:block;color:var(--muted);font-family:var(--f-mono);font-size:11.5px}
+.emailline{font-size:12.5px;color:var(--muted);min-height:18px;word-break:break-all}
+.emailline .mono{color:var(--ink)}
+.chips{display:flex;gap:6px;flex-wrap:wrap}
+.chip{display:inline-flex;align-items:center;gap:6px;background:var(--sunk);border:1px solid var(--line);border-radius:999px;padding:3px 4px 3px 10px;font-size:12.5px;max-width:100%}
+.chip .d{display:inline-flex;gap:2px}
+.chip .d button{font:600 11px var(--f-mono);width:22px;height:20px;border-radius:4px;border:1px solid var(--line);background:var(--surface);color:var(--muted);cursor:pointer}
+.chip .d button[aria-pressed="true"]{background:var(--late-soft);border-color:var(--late);color:var(--late)}
+.chip .x{border:0;background:none;color:var(--muted);cursor:pointer;font-size:15px;padding:0 6px;line-height:1}
+.tablewrap{overflow-x:auto;border:1px solid var(--line);border-radius:8px;background:var(--surface)}
+table{border-collapse:collapse;width:100%;font-size:13px}
+th{font:600 11px var(--f-body);text-transform:uppercase;letter-spacing:.06em;color:var(--muted);text-align:left;padding:9px 10px;background:var(--sunk);border-bottom:1px solid var(--line);white-space:nowrap}
+th.r,td.r{text-align:right}
+td{padding:8px 10px;border-bottom:1px solid var(--line);vertical-align:top}
+tr:last-child td{border-bottom:0}
+tr.is-late td:first-child{box-shadow:inset 3px 0 0 var(--late)}
+tr.is-due td:first-child{box-shadow:inset 3px 0 0 var(--warn)}
+.pill{display:inline-block;font:600 10.5px var(--f-body);letter-spacing:.04em;text-transform:uppercase;padding:2px 8px;border-radius:999px;white-space:nowrap}
+.p-open{background:var(--sunk);color:var(--muted);border:1px solid var(--line)}
+.p-e1{background:var(--info-soft);color:var(--info)} .p-e2{background:var(--warn-soft);color:var(--warn)} .p-done{background:var(--ok-soft);color:var(--ok)} .p-late{background:var(--late-soft);color:var(--late)} .p-due{background:var(--warn-soft);color:var(--warn)}
+.p-strong{background:var(--ok-soft);color:var(--ok)} .p-check{background:var(--warn-soft);color:var(--warn)} .p-none{background:var(--late-soft);color:var(--late)} .p-ver{background:var(--accent-soft);color:var(--accent)} .p-pend{background:var(--sunk);color:var(--muted);border:1px solid var(--line)}
+.defs{margin:0;padding-left:16px;display:grid;gap:2px}
+.defs li{max-width:46ch}
+.dm{font-family:var(--f-mono);font-size:11.5px;color:var(--late)}
+.muted{color:var(--muted)} .small{font-size:12px}
+.acts{display:flex;gap:4px;flex-wrap:wrap;min-width:190px}
+.confirm{display:inline-flex;gap:4px;align-items:center;font-size:12px}
+.tl{display:grid;gap:1px;font-size:12px;white-space:nowrap}
+.tl .mono{font-size:12px}
+dialog{border:1px solid var(--line);border-radius:10px;background:var(--surface);color:var(--ink);padding:0;width:min(680px,calc(100vw - 32px));max-height:calc(100vh - 40px)}
+dialog::backdrop{background:rgb(10 20 24 / .45)}
+.dlg{padding:18px;display:grid;gap:12px}
+.dlg pre{white-space:pre-wrap;word-break:break-word;background:var(--sunk);border:1px solid var(--line);border-radius:6px;padding:12px;font:12.5px/1.5 var(--f-mono);max-height:38vh;overflow:auto;margin:0}
+.toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:9px 10px 9px 16px;border-radius:6px;font-size:13px;z-index:20;display:flex;gap:12px;align-items:center;max-width:calc(100vw - 32px)}
+.toast button{background:none;border:1px solid var(--bg);color:var(--bg);border-radius:4px;font:600 12px var(--f-body);padding:3px 8px;cursor:pointer}
+.drop{border:1.5px dashed var(--line);border-radius:8px;padding:14px;display:grid;gap:8px;background:var(--sunk)}
+.kv{display:grid;grid-template-columns:max-content 1fr;gap:4px 14px;font-size:13px;margin:0}
+.kv dt{color:var(--muted)} .kv dd{margin:0;min-width:0;word-break:break-word}
+/* audit form */
+.crits{display:grid;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.crow{display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:10px;align-items:center;padding:6px 10px;border-bottom:1px solid var(--line)}
+.crow:nth-child(even){background:var(--sunk)}
+.crow:last-child{border-bottom:0}
+.crow.has0 .cn{color:var(--late);font-weight:500}
+.cn{font-size:13px;min-width:0}
+.cells{display:inline-flex;gap:4px}
+.cell{font:600 12px var(--f-mono);width:52px;height:30px;border-radius:5px;border:1px solid var(--line);background:var(--surface);color:var(--muted);cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:4px}
+.cell.s1{background:var(--ok-soft);border-color:var(--ok);color:var(--ok)}
+.cell.s0{background:var(--late-soft);border-color:var(--late);color:var(--late)}
+.rq{display:inline-flex;gap:2px}
+.rq button{font:500 11px var(--f-body);border:1px solid var(--line);background:none;color:var(--muted);border-radius:4px;padding:3px 6px;cursor:pointer}
+.legend{display:flex;gap:12px;flex-wrap:wrap;font-size:12px;color:var(--muted);align-items:center}
+.sw{display:inline-block;width:10px;height:10px;border-radius:2px;vertical-align:-1px;margin-right:4px}
+/* charts */
+.bar{height:8px;background:var(--sunk);border-radius:4px;overflow:hidden;min-width:60px}
+.bar i{display:block;height:100%;background:var(--bar);border-radius:0 4px 4px 0}
+.bar.late i{background:var(--late)}
+.stack{display:flex;height:14px;border-radius:4px;overflow:hidden;gap:2px;background:var(--surface)}
+.stack i{display:block;height:100%}
+.trend svg{width:100%;height:auto;display:block}
+.trend text{fill:var(--muted);font:11px var(--f-mono)}
+.trend .val{fill:var(--ink);font-weight:500}
+.trend .gl{stroke:var(--line)}
+.trend rect.col{fill:var(--bar)}
+.trend rect.col:hover{opacity:.8}
+.flow{display:flex;flex-wrap:wrap;gap:6px;align-items:center;font-size:12.5px}
+.flow span.st{border:1px solid var(--line);border-radius:6px;padding:5px 9px;background:var(--sunk)}
+.flow span.ar{color:var(--muted);font-size:11.5px}
+.guide ol{margin:0;padding-left:20px;display:grid;gap:8px;max-width:80ch}
+.guide li b{font-weight:600}
+.aufoot{position:sticky;bottom:0;background:var(--surface);padding-block:10px;border-top:1px solid var(--line);z-index:2}
+@media (max-width:700px){.aufoot{position:static}nav{margin-left:0;width:100%;flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none}nav::-webkit-scrollbar{display:none}nav button{flex:none}.brand span{display:none}.hrow{padding-block:8px}.crow{grid-template-columns:1fr}.cell{width:58px}}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+
+<header><div class="wrap hrow">
+  <div class="brand"><b>MR Follow-up</b><span>Medical records audit</span></div>
+  <nav role="tablist" id="nav">
+    <button role="tab" data-tab="files" id="tab-files">Stalled files <span class="badge" id="navBadge" hidden></span></button>
+    <button role="tab" data-tab="audit" id="tab-audit">Audit <span class="badge n" id="auBadge" title="Files waiting to audit" hidden></span></button>
+    <button role="tab" data-tab="dashboard" id="tab-dashboard">Dashboard</button>
+    <button role="tab" data-tab="doctors" id="tab-doctors">Doctors</button>
+    <button role="tab" data-tab="data" id="tab-data">Data</button>
+    <button role="tab" data-tab="guide" id="tab-guide">Guide</button>
+  </nav>
+</div></header>
+
+<div class="wrap"><main>
+  <div class="banner" id="sampleBanner" hidden style="margin-bottom:18px"><b>Sample data.</b><span>The files, doctors and figures shown are invented examples. Import your Excel audit and contacts list to replace them.</span><button class="btn sm" data-go="data" type="button">Import files</button></div>
+
+  <!-- ================= STALLED FILES ================= -->
+  <section id="view-files" class="tabview">
+    <div class="row"><div><h2>Stalled files</h2><p class="lede" id="rulesLede"></p></div><span class="spacer"></span><button class="btn" id="addManual" type="button">Add a file manually</button></div>
+    <div class="stats" id="alerts"></div>
+    <div class="panel">
+      <div class="row">
+        <select id="fStatus" style="max-width:200px" aria-label="Show">
+          <option value="action">Needs action</option><option value="active">All not completed</option><option value="need1">1st email not sent</option><option value="need2">2nd reminder due</option><option value="late">Delinquent</option><option value="waiting">Waiting (within 3 days)</option><option value="done">Completed</option><option value="all">Everything</option>
+        </select>
+        <input id="q" placeholder="Search file, doctor, department" style="max-width:280px" aria-label="Search">
+        <span class="spacer"></span><span class="small muted" id="regCount"></span>
+      </div>
+      <div class="tablewrap"><table>
+        <thead><tr><th>File</th><th>Doctor</th><th>Deficiencies</th><th>Timeline</th><th>Status</th><th>Actions</th></tr></thead>
+        <tbody id="rows"></tbody>
+      </table></div>
+    </div>
+  </section>
+
+  <!-- ================= AUDIT ================= -->
+  <section id="view-audit" class="tabview" hidden>
+    <div class="seg" role="tablist" aria-label="Audit type">
+      <button type="button" role="tab" data-mode="full" id="modeFull"><b>Full audit</b><span>40 standards × Timely · Appropriate · Complete</span><em class="badge n" id="qcFull" hidden></em></button>
+      <button type="button" role="tab" data-mode="quick" id="modeQuick"><b>Quick audit</b><span>File complete or not</span><em class="badge n" id="qcQuick" hidden></em></button>
+    </div>
+    <div class="panel" id="queuePanel">
+      <div class="row"><div><h2>Waiting to audit</h2><p class="lede" id="qLede"></p></div><span class="spacer"></span>
+        <input id="qQ" placeholder="Search file, doctor, department" style="max-width:240px" aria-label="Search worklist">
+        <select id="qDept" style="max-width:190px" aria-label="Department"></select></div>
+      <div class="row small"><span class="muted">Discharged from</span><input id="qFrom" type="date" style="max-width:160px" aria-label="Discharged from"><span class="muted">to</span><input id="qTo" type="date" style="max-width:160px" aria-label="Discharged to"><button class="btn sm" id="qDateClr" type="button">Clear dates</button></div>
+      <div class="row">
+        <button class="btn sm danger" id="qDelSel" type="button" disabled>Remove selected</button>
+        <button class="btn sm danger" id="qDelAll" type="button">Remove all</button>
+        <span id="qDelConfirm" class="confirm" hidden><span id="qDelText"></span> <button class="btn sm danger" id="qDelYes" type="button">Yes, remove</button><button class="btn sm" id="qDelNo" type="button">Cancel</button></span>
+        <span class="spacer"></span><span class="small muted" id="qSelInfo"></span>
+      </div>
+      <div class="tablewrap qwrap" id="qWrap"><table>
+        <thead><tr><th style="width:34px"><input type="checkbox" id="qAll" aria-label="Select all files shown"></th><th>File</th><th>Admitted</th><th>Discharged</th><th class="r">LOS</th><th>Department</th><th>Doctor</th><th></th></tr></thead>
+        <tbody id="qRows"></tbody>
+      </table></div>
+    </div>
+    <form class="panel" id="auForm" autocomplete="off">
+      <div class="row"><div><h2 id="auTitle">New audit</h2><p class="lede" id="auLede"></p></div></div>
+      <div class="grid">
+        <label class="f">File number *<input id="aFile" class="mono" inputmode="numeric" required></label>
+        <label class="f">Admission date<input id="aAdm" type="date"></label>
+        <label class="f">Discharge date *<input id="aDis" type="date" required></label>
+        <label class="f">LOS (days)<input id="aLos" class="mono" readonly tabindex="-1"></label>
+      </div>
+      <div class="grid">
+        <label class="f">Department *<input id="aDept" list="dlDept" required></label>
+        <label class="f">Ward<input id="aWard" list="dlWard"></label>
+        <div class="f ac"><label class="f" for="aDoc">Doctor in charge *</label><input id="aDoc" required placeholder="Type a name"><div class="ac-list" id="aDocList" hidden></div><div class="emailline" id="aDocLine"></div></div>
+        <label class="f">Discharge to<input id="aTo" list="dlTo"></label>
+      </div>
+      <div class="grid">
+        <label class="f">Audit date<input id="aDate" type="date"></label>
+        <label class="f">Auditor<input id="aAuditor"></label>
+        <label class="f" style="align-content:end"><span class="row" style="color:var(--ink);font-size:13px"><input type="checkbox" id="aPending"> Audit not final (pending)</span></label>
+      </div>
+      <div id="quickOnly" hidden style="display:grid;gap:12px">
+        <h3>Result</h3>
+        <div class="result" role="radiogroup" aria-label="Result">
+          <button type="button" role="radio" data-r="complete" id="rComplete" aria-checked="false">✓ Complete</button>
+          <button type="button" role="radio" data-r="incomplete" id="rIncomplete" aria-checked="false">✗ Not complete</button>
+        </div>
+        <label class="f">What is missing (optional, goes into the email)<textarea id="aNote" rows="2" placeholder="e.g. Discharge summary not signed"></textarea></label>
+      </div>
+      <div id="fullOnly" style="display:grid;gap:14px">
+      <div class="row">
+        <h3>Standards</h3><span class="legend"><span><span class="sw" style="background:var(--ok)"></span>✓ met</span><span><span class="sw" style="background:var(--late)"></span>✗ deficient</span><span><span class="sw" style="background:var(--na)"></span>NA</span><span>Click a box to cycle NA → ✓ → ✗</span></span>
+        <span class="spacer"></span>
+        <button class="btn sm" type="button" id="allOk">Set all to ✓</button><button class="btn sm" type="button" id="allNa">Set all to NA</button>
+      </div>
+      <div class="crits" id="crits"></div>
+      </div>
+      <div class="row aufoot">
+        <button class="btn primary" type="submit" id="auSave">Save audit</button><button class="btn" type="button" id="auCancel">Clear form</button>
+        <span class="small" id="auCount"></span><span class="spacer"></span><span class="small" id="auMsg"></span>
+      </div>
+    </form>
+    <div class="panel">
+      <div class="row"><div><h2>Audited files</h2><p class="lede" id="auListLede"></p></div><span class="spacer"></span>
+        <input id="auQ" placeholder="Search file, doctor, department" style="max-width:240px" aria-label="Search audits">
+        <select id="auType" style="max-width:130px" aria-label="Audit type"><option value="">Both types</option><option value="full">Full</option><option value="quick">Quick</option></select>
+        <select id="auPeriod" style="max-width:150px" aria-label="Period"></select>
+        <button class="btn" type="button" id="exportAudits">Export to Excel</button></div>
+      <div class="row small"><span class="muted">Discharged from</span><input id="auFrom" type="date" style="max-width:160px" aria-label="Discharged from"><span class="muted">to</span><input id="auTo" type="date" style="max-width:160px" aria-label="Discharged to"><button class="btn sm" id="auDateClr" type="button">Clear dates</button>
+        <span class="spacer"></span><button class="btn sm danger" id="auDelShown" type="button">Delete shown</button>
+        <span id="auDelConfirm" class="confirm" hidden><span id="auDelText"></span> <button class="btn sm danger" id="auDelYes" type="button">Yes, delete</button><button class="btn sm" id="auDelNo" type="button">Cancel</button></span></div>
+      <div class="tablewrap"><table>
+        <thead><tr><th>File</th><th>Type</th><th>Discharged</th><th>Department</th><th>Doctor</th><th class="r">LOS</th><th>Deficient</th><th>Status</th><th></th></tr></thead>
+        <tbody id="auRows"></tbody>
+      </table></div>
+      <div class="row" id="auMore"></div>
+    </div>
+  </section>
+
+  <!-- ================= DASHBOARD ================= -->
+  <section id="view-dashboard" class="tabview" hidden>
+    <div class="row"><div><h2>Medical Records Completion Dashboard</h2><p class="lede" id="dLede"></p></div><span class="spacer"></span>
+      <button class="btn" type="button" id="copyReport">Copy report summary</button><button class="btn" type="button" id="exportDash">Export to Excel</button></div>
+    <div class="panel" style="padding:12px 16px"><div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(170px,1fr))">
+      <label class="f">Audit type<select id="dType"><option value="full">Full audit</option><option value="quick">Quick audit</option><option value="">Both together</option></select></label>
+      <label class="f">Period (by discharge)<select id="dPeriod"></select></label>
+      <label class="f">Department<select id="dDept"></select></label>
+      <label class="f">Doctor<select id="dDoc"></select></label>
+      <div class="f"><label class="f" for="dPct">Sample (% of files)</label><div class="row" style="flex-wrap:nowrap;gap:6px"><input id="dPct" type="number" min="1" max="100" step="1" value="100" class="mono" style="max-width:84px" list="dlPct"><button class="btn sm" id="dReshuffle" type="button" title="Draw a different random sample">New sample</button></div><datalist id="dlPct"><option value="10"><option value="25"><option value="35"><option value="50"><option value="70"><option value="100"></datalist></div>
+      <div class="f" style="align-content:end"><button class="btn" type="button" id="dReset">Reset filters</button></div>
+    </div></div>
+    <div class="stats" id="dKpi"></div>
+    <div class="stats" id="dKpi2"></div>
+    <div class="cols2">
+      <div class="panel"><h3>File status</h3><div id="dStatus"></div></div>
+      <div class="panel"><h3>Completion rate by month</h3><div class="trend" id="dTrend"></div></div>
+    </div>
+    <div class="cols2" id="dFullBlock">
+      <div class="panel"><div class="row"><h3>Deficient requirements</h3><span class="small muted" id="dFullNote"></span><span class="spacer"></span><label class="small muted row"><input type="checkbox" id="dAllReq"> Show all standards</label></div><div class="tablewrap" id="dReq"></div></div>
+      <div class="panel"><h3>Compliance by dimension</h3><p class="lede small">Share of scored boxes marked ✓, across all standards.</p><div id="dDims"></div>
+      </div>
+    </div>
+    <div class="cols2">
+      <div class="panel"><h3>Length of stay</h3><div class="tablewrap" id="dLos"></div></div>
+      <div class="panel"><h3>Audits by type</h3><div class="tablewrap" id="dTypes"></div></div>
+    </div>
+    <div class="cols2">
+      <div class="panel"><h3>Performance by department</h3><div class="tablewrap" id="dDeptT"></div></div>
+      <div class="panel"><h3>Incomplete files by doctor</h3><div class="tablewrap" id="dDocT"></div></div>
+    </div>
+    <div class="cols2">
+      <div class="panel"><h3>Email follow-up</h3><div class="tablewrap" id="dFu"></div></div>
+      <div class="panel"><h3>Doctor response to reminder emails</h3><div class="tablewrap" id="dResp"></div></div>
+    </div>
+  </section>
+
+  <!-- ================= DOCTORS ================= -->
+  <section id="view-doctors" class="tabview" hidden>
+    <div class="panel">
+      <div class="row">
+        <div><h2>Doctor directory</h2><p class="lede">Each doctor is matched to the contacts list by name. Confirm a match once and every email to that doctor uses it. Unconfirmed matches are flagged before sending.</p></div>
+        <span class="spacer"></span><button class="btn primary" id="confirmStrong" type="button">Confirm all strong matches</button>
+      </div>
+      <div class="row small" id="docSummary"></div>
+      <div class="tablewrap"><table>
+        <thead><tr><th>Doctor</th><th>Emp. IDs</th><th class="r">Files</th><th>Match in contacts</th><th>Status</th><th>Actions</th></tr></thead>
+        <tbody id="docRows"></tbody>
+      </table></div>
+    </div>
+  </section>
+
+  <!-- ================= DATA ================= -->
+  <section id="view-data" class="tabview" hidden>
+    <div class="cols2">
+      <div class="panel">
+        <h3>Import Excel audit (MR.xlsx)</h3>
+        <div class="drop"><input type="file" id="inAudit" accept=".xlsx,.xls"><span class="small muted">Reads Sheet1: file number, dates, LOS, department, ward, doctor, discharge to, all T/A/C scores, and the email and status columns. Patient names are skipped. Importing the same file again updates it rather than duplicating.</span></div>
+        <dl class="kv" id="auditInfo"></dl>
+      </div>
+      <div class="panel">
+        <h3>Import contacts (Name, Email)</h3>
+        <div class="drop"><input type="file" id="inContacts" accept=".xlsx,.xls,.csv"><span class="small muted">First sheet with columns Name and Email.</span></div>
+        <dl class="kv" id="contactInfo"></dl>
+      </div>
+    </div>
+    <div class="panel">
+      <h3>Quick audit files</h3>
+      <p class="lede small" style="margin:0">Choose the slot that matches the file. Column names such as Registration_No or File No, and DoctorInCharge or Doctor, are recognised. Patient names are not read.</p>
+      <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(min(100%,240px),1fr))">
+        <div class="drop"><b class="small">1 · Audited, with status columns</b><input type="file" id="inQuick" accept=".xlsx,.xls"><span class="small muted">Like AUG2222.xlsx. compelet = Complete. incompelet, or an email without compelet = Not complete, and goes to Stalled files with its email dates. No status = Pending.</span></div>
+        <div class="drop" style="border-color:var(--ok)"><b class="small" style="color:var(--ok)">2 · Audited and complete</b><input type="file" id="inQuickDone" accept=".xlsx,.xls,.csv"><span class="small muted">Every file in the sheet is saved as Complete, whatever its columns say. Nothing goes to Stalled files. A file already in the system is updated to Complete.</span></div>
+        <div class="drop"><b class="small">3 · Not audited yet (worklist)</b><input type="file" id="inQueueQ" accept=".xlsx,.xls,.csv"><span class="small muted">Files wait on Audit → Quick audit with details filled in. Mark each ✓ or ✗ there.</span></div>
+      </div>
+      <dl class="kv" id="quickInfo"></dl>
+    </div>
+    <div class="panel">
+      <h3>Full audit worklist</h3>
+      <div class="drop"><b class="small">Full audit files not audited yet</b><input type="file" id="inQueue" accept=".xlsx,.xls,.csv"><span class="small muted">Files wait on Audit → Full audit with file number, dates, LOS, department and doctor filled in. Files already audited or already listed are skipped.</span></div>
+      <dl class="kv" id="queueInfo"></dl>
+      <div class="row"><button class="btn sm" data-go="audit" type="button">Open the worklist</button><button class="btn sm danger" id="qClear" type="button">Empty the worklist</button><span id="qClearConfirm" class="confirm" hidden>Remove all files from the worklist? <button class="btn sm danger" id="qClearYes" type="button">Yes, empty it</button><button class="btn sm" id="qClearNo" type="button">Cancel</button></span></div>
+    </div>
+    <div class="panel">
+      <h3>Follow-up rules and email</h3>
+      <div class="grid">
+        <label class="f">2nd reminder due (days after 1st email)<input id="sRemind" type="number" min="1" max="30"></label>
+        <label class="f">Delinquent after (days after 1st email)<input id="sDelinq" type="number" min="1" max="60"></label>
+        <label class="f">Default auditor<input id="sAuditor"></label>
+        <label class="f">Email signature<textarea id="sSender" rows="2"></textarea></label>
+      </div>
+      <div class="row"><button class="btn" type="button" id="notifyBtn">Turn on desktop alerts</button><span class="small muted" id="notifyMsg">Shows a desktop notification when 2nd reminders are due or files turn delinquent, while this page is open.</span></div>
+    </div>
+    <div class="panel">
+      <h3>Backup</h3>
+      <p class="lede">All data lives in this browser only and is never sent to a server. Clearing browser data erases it. Save a backup at least weekly.</p>
+      <div class="row"><button class="btn primary" id="bkFile" type="button">Download backup file</button><button class="btn" id="bkShow" type="button">Copy backup as text</button><label class="btn" for="bkIn">Restore from file</label><input type="file" id="bkIn" accept=".json,.txt" hidden><button class="btn" id="bkRestore" type="button">Restore from pasted text</button></div>
+      <div class="small muted" id="bkLast"></div>
+      <textarea id="bkText" rows="4" class="mono" placeholder="Paste a backup here to restore" hidden></textarea>
+    </div>
+    <div class="panel" style="border-color:var(--late)">
+      <h3 style="color:var(--late)">Start fresh</h3>
+      <p class="lede">Deletes data from this browser so you can begin again. Download a backup first if you may need any of it.</p>
+      <dl class="kv" id="wipeCounts"></dl>
+      <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(min(100%,280px),1fr))">
+        <div class="drop"><b class="small">Erase audit data, keep setup</b><span class="small muted">Deletes all audits (full and quick), stalled files, worklists and import history. Keeps the contacts list, confirmed doctor emails and your settings, so you do not redo the doctor matching.</span><button class="btn danger" id="wipeData" type="button">Erase audit data</button></div>
+        <div class="drop"><b class="small">Erase everything</b><span class="small muted">Deletes all of the above plus contacts, doctor confirmations and backup history. Only your settings (reminder days, signature, auditor) stay.</span><button class="btn danger" id="wipeAll" type="button">Erase everything</button></div>
+      </div>
+      <div id="wipeConfirm" class="row" hidden style="background:var(--late-soft);border-radius:6px;padding:10px 12px"><span id="wipeText" style="font-weight:500"></span><span class="spacer"></span><button class="btn sm" id="wipeBk" type="button">Download backup first</button><button class="btn sm danger" id="wipeYes" type="button">Yes, erase</button><button class="btn sm" id="wipeNo" type="button">Cancel</button></div>
+    </div>
+  </section>
+
+  <!-- ================= GUIDE ================= -->
+  <section id="view-guide" class="tabview guide" hidden>
+    <div class="panel">
+      <h2>How a file moves</h2>
+      <div class="flow" id="flow"></div>
+    </div>
+    <div class="cols2">
+      <div class="panel"><h3>First time setup</h3><ol>
+        <li><b>Data → Import Excel audit.</b> Loads your past audits, emails sent and statuses, so the dashboard starts with your history.</li>
+        <li><b>Data → Import contacts.</b> Loads doctor emails.</li>
+        <li><b>Doctors → Confirm all strong matches,</b> then review the rows marked Check or No match and pick the right contact. Done once; new doctors appear here as they are audited.</li>
+        <li><b>Data → Download backup file.</b> Repeat weekly.</li>
+      </ol></div>
+      <div class="panel"><h3>Every day</h3><ol>
+        <li><b>Data → Import files to audit</b> loads the list of discharged files not audited yet. They wait on the Audit tab with file number, dates, LOS, department and doctor ready.</li>
+        <li><b>Quick audit</b> (Audit tab → Quick audit): for files checked only for completion. Press ✓ Complete or ✗ Not complete. Not complete goes to Stalled files with the same emails and reminders.</li>
+        <li><b>Audit tab:</b> press Audit on a file in the worklist (or type a file number). Press "Set all to ✓", then click the boxes that are NA or deficient (✗). Save.</li>
+        <li><b>Stalled files tab</b> opens on what needs action today. Press <b>Send 1st email</b>: Outlook opens with the message ready, and the date is recorded. If Outlook did not open, press Undo.</li>
+        <li>After 3 days the file appears under <b>2nd reminder due</b>. Press <b>Send 2nd reminder</b>.</li>
+        <li>When the doctor completes the documentation, press <b>Completed</b>. The file leaves the list and counts as closed after email.</li>
+        <li>Files not completed 7 days after the 1st email turn <b>Delinquent</b> (red).</li>
+      </ol></div>
+    </div>
+    <div class="panel"><h3>Quarterly report</h3><ol>
+      <li>Dashboard → Period → choose the quarter (for example Q3 2026).</li>
+      <li>Filter by department or doctor if needed.</li>
+      <li>"Copy report summary" gives the key figures as text. "Export to Excel" saves every table for the report.</li>
+    </ol>
+    <p class="small muted" style="margin:0">Downloads and the Outlook button may be blocked when this page runs inside Claude. Use the local copy (MR-Followup.html) opened in Chrome or Edge for daily work.</p></div>
+  </section>
+</main></div>
+
+<datalist id="dlDept"></datalist><datalist id="dlWard"></datalist><datalist id="dlTo"></datalist>
+
+<dialog id="mailDlg"><div class="dlg">
+  <div class="row"><h2 id="mTitle">Email</h2><span class="spacer"></span><button class="btn sm" id="mClose" type="button">Close</button></div>
+  <div class="small" id="mWarn"></div>
+  <label class="f">To<input id="mTo" class="mono" type="email"></label>
+  <div class="small"><span class="muted">Subject </span><span id="mSubj"></span></div>
+  <pre id="mBody"></pre>
+  <div class="row"><button class="btn primary" id="mSend" type="button">Open in Outlook and record</button><button class="btn" id="mCopy" type="button">Copy message</button><span class="spacer"></span><button class="btn" id="mMark" type="button">Record as sent only</button></div>
+</div></dialog>
+
+<dialog id="addDlg"><form class="dlg" id="newForm" autocomplete="off">
+  <div class="row"><h2>Add a stalled file manually</h2><span class="spacer"></span><button class="btn sm" id="addClose" type="button">Close</button></div>
+  <p class="lede small" style="margin:0">For files that were not entered through the Audit tab. If the file number is already audited, its details fill in.</p>
+  <div class="grid">
+    <label class="f">File number<input id="fFile" class="mono" required inputmode="numeric"></label>
+    <label class="f">Department<input id="fDept" list="dlDept"></label>
+    <label class="f">Discharge date<input id="fDis" type="date"></label>
+  </div>
+  <div class="grid">
+    <div class="f ac"><label class="f" for="fDoc">Doctor</label><input id="fDoc" placeholder="Type a name"><div class="ac-list" id="docList" hidden></div><div class="emailline" id="fEmailLine"></div></div>
+    <label class="f">Email<input id="fEmail" class="mono" type="email"></label>
+  </div>
+  <div class="f ac"><label class="f" for="fCrit">Deficiency</label><input id="fCrit" placeholder="Type a standard"><div class="ac-list" id="critList" hidden></div></div>
+  <div class="chips" id="fChips"></div>
+  <label class="f">Note (optional)<textarea id="fNote" rows="2"></textarea></label>
+  <div class="row"><button class="btn primary" type="submit">Add to stalled files</button><span class="small" id="fMsg"></span></div>
+</form></dialog>
+<div class="toast" id="toast" hidden><span id="toastMsg"></span><button id="toastUndo" type="button" hidden>Undo</button></div>
+
+<script>
+const DIMS={T:'Timely',A:'Appropriate',C:'Complete'};
+const DEFAULT_CRITERIA=["3.6.sufficient information of the patient and his care provider","4.1.1.Patient full names (Three Names)","3.21. multidisciplinary team","4.3.16.patient EDU BY Physician","4.3.16.patient EDU BY Nurses","4.3.18. Transfer sumary from unit to unit","Patient discharge instruction","Multidisiplinary care plan","Patient discharge planning","4.3.3 DOCTOR Assessment","4.3.5. Progress Note","4.3.6. The plan of care","4.3.17. Transfer to Another facility","4.3.10. Operative notes","Health educator","Dietition","Physiotherapist","Social Worker","4.3.24. VTE","4.3.11. pre Anesthesia","4.3.21. Discharge Summary","4.3.22. Death Summary","4.3.2.PT history and Physical Examination","4.3.4. Physician Orders","4.3.23. Laboratory","4.3.23. Radiology","4.3.7.Consultation","4.2.1.Upload all forms&No grammatical/spelling errors","4.3.25. Histopathology reports","4.3.13. Nursing pre-operative Checklist","4.3.9. General Consent and Informed Consent","4.3.12. Nursing assessment","4.2.2.Medical Record entries o be completed and dated","4.2.3. Abbreviations and Symbols","4.2.5.Corrections or Overwriting of Errors.","4.3.1.1.Documentation by Medical staff","4.3.1.2 Documentation by Nursing Staff","4.3.14. When additional or specialized assessments are required","4.3.15. Verbal and Telephone Orders","4.2.4. Late entries"];
+const KEY='mr-followup.v2';
+const $=s=>document.querySelector(s);
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const DAY=864e5;
+const today=()=>{const d=new Date();d.setHours(0,0,0,0);return d};
+const dt=iso=>new Date(iso+'T00:00:00');
+const known=iso=>!!iso&&iso!=='?';
+const fmtD=iso=>{if(!iso)return '—';if(iso==='?')return 'date unknown';const d=dt(iso);return isNaN(d)?'—':d.toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'})};
+const fmtS=iso=>{if(!known(iso))return iso==='?'?'date unknown':'—';return dt(iso).toLocaleDateString('en-GB',{day:'2-digit',month:'short'})};
+const isoDay=d=>{const x=new Date(d);if(isNaN(x))return '';return new Date(x.getTime()-x.getTimezoneOffset()*6e4).toISOString().slice(0,10)};
+const addDays=(iso,n)=>isoDay(dt(iso).getTime()+n*DAY);
+const daysSince=iso=>Math.round((today()-dt(iso))/DAY);
+const daysBetween=(a,b)=>Math.round((dt(b)-dt(a))/DAY);
+const uid=()=>Math.random().toString(36).slice(2,10)+Date.now().toString(36).slice(-3);
+const pct=(a,b)=>b?Math.round(a/b*1000)/10:0;
+const pctS=(a,b)=>b?pct(a,b).toFixed(1)+'%':'—';
+const normC=s=>String(s).replace(/ /g,' ').replace(/\s+/g,' ').trim().toLowerCase();
+const inFrame=(()=>{try{return window.self!==window.top}catch(e){return true}})();
+
+/* ---------- name matching ---------- */
+function toks(s){s=String(s).replace(/\(.*?\)/g,' ').replace(/\(.*$/,' ').replace(/empid.*$/i,' ').replace(/^\s*dr\.?\s*/i,' ').toLowerCase().replace(/[^a-z]+/g,' ').trim();
+  return s.split(' ').filter(Boolean).map(t=>t.replace(/^(al|el)(?=[a-z]{3})/,'')).filter(t=>t.length>1&&t!=='dr'&&t!=='al'&&t!=='bin')}
+function lev(a,b){const m=a.length,n=b.length;if(!m||!n)return 0;let p=Array.from({length:n+1},(_,j)=>j);for(let i=1;i<=m;i++){const c=[i];for(let j=1;j<=n;j++)c[j]=Math.min(p[j]+1,c[j-1]+1,p[j-1]+(a[i-1]===b[j-1]?0:1));p=c}return 1-p[n]/Math.max(m,n)}
+function score(A,B){if(!A.length||!B.length)return 0;const bj=B.join('');let tot=0;
+  for(const a of A){let best=0;for(const b of B)best=Math.max(best,lev(a,b));if(best<0.8&&bj.includes(a))best=0.9;tot+=best}
+  const ts=tot/A.length,first=lev(A[0],B[0]),last=Math.max(...B.map(b=>lev(A[A.length-1],b)));
+  return Math.min(ts,(first+last)/4+ts/2)}
+const docKey=s=>toks(s).join(' ');
+const cleanDocName=s=>{const n=String(s).replace(/\(.*$/,'').replace(/empid.*$/i,'').replace(/^\s*dr\.?\s*/i,'').replace(/\s+/g,' ').trim().toLowerCase().replace(/\b[a-z]/g,c=>c.toUpperCase());return n?'Dr. '+n:''};
+const empIds=s=>{const m=String(s).match(/empid\s*:?\s*(\d+)/i);return m?[String(+m[1])]:[]};
+const band=s=>s>=0.9?'strong':s>=0.75?'check':'none';
+
+/* ---------- state ---------- */
+function blankState(){return {v:2,sample:false,settings:{remindDays:3,delinqDays:7,sender:'Abdullah Almutairi\nMedical Record Coordinator',auditor:'Abdullah',notify:false},criteria:DEFAULT_CRITERIA.slice(),audits:[],fu:[],contacts:[],contactsReal:false,doctors:{},imports:[],queue:[]}}
+function seed(){
+  const s=blankState();s.sample=true;
+  s.contacts=[{name:'Dr. Lina Example Haddad',email:'lhaddad@example.org'},{name:'Dr. Omar Sample Rashed',email:'orashed@example.org'},{name:'Dr. Huda Demo Qahtani',email:'hqahtani@example.org'}];
+  let r=11;const rnd=()=>(r=(r*16807)%2147483647)/2147483647;
+  const docs=s.contacts.map(c=>c.name),depts=['OBS & GYN','PEDIATRIC','GENERAL SURGERY'],wards=['3RD FLOOR A','NURSERY','5TH FLOOR.B'];
+  const N=s.criteria.length,t=today().getTime();
+  for(let i=0;i<48;i++){const k=i%3,disD=new Date(t-(3+i*2)*DAY),los=Math.floor(rnd()*4);
+    let sc='';for(let c=0;c<N;c++)sc+=rnd()<0.62?'111':'---';
+    if(i%5===1){const arr=sc.split('');let pos;do{pos=Math.floor(rnd()*N)*3}while(arr[pos]==='-');arr[pos+2]='0';if(i%10===1)arr[pos]='0';sc=arr.join('')}
+    s.audits.push({id:'sa'+i,fileNo:String(900100+i),adm:isoDay(disD.getTime()-los*DAY),dis:isoDay(disD),los,dept:depts[k],ward:wards[k],doc:docs[k],dischargeTo:'Normal Discharge',auditor:'Sample',auditDate:isoDay(disD.getTime()+DAY),sc,pending:i===4,src:'sample'})}
+  const stages=[[null,null,null],[5,null,null],[1,null,null],[10,6,null],[16,12,9],[22,18,15],[30,26,20],[36,null,31],[44,40,38],[50,null,47]];
+  s.audits.filter(a=>a.sc.includes('0')).forEach((a,i)=>{const st=stages[i%stages.length];const ago=d=>d==null?'':isoDay(t-d*DAY);
+    s.fu.push({id:'sf'+i,auditId:a.id,fileNo:a.fileNo,dept:a.dept,dis:a.dis,doctor:a.doc,doctorKey:docKey(a.doc),email:s.contacts.find(c=>c.name===a.doc).email,emailVerified:true,defs:[],note:'',
+      status:st[2]!=null?'done':st[1]!=null?'e2':st[0]!=null?'e1':'open',e1:ago(st[0]),e2:ago(st[1]),done:ago(st[2]),delinqFlag:false,created:a.auditDate,src:'sample'})});
+  return s}
+let S;
+function load(){try{const r=localStorage.getItem(KEY);if(r){const o=JSON.parse(r);if(o&&o.v===2)return o}}catch(e){}return null}
+function save(){try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){toast('Could not save in this browser. Download a backup now to keep your work.')}}
+S=load()||seed();
+if(!Array.isArray(S.queue))S.queue=[];
+if(S.sample)S.fu.forEach(f=>{if(!f.defs.length){const a=S.audits.find(x=>x.id===f.auditId);if(a)f.defs=defsOf(a)}});
+function leaveSample(){if(!S.sample)return;const keep={settings:S.settings};S=blankState();S.settings=keep.settings}
+
+/* ---------- scores ---------- */
+function defsOf(a){const out=[];for(let i=0;i<S.criteria.length;i++){const d=[];for(let j=0;j<3;j++)if(a.sc[i*3+j]==='0')d.push('TAC'[j]);if(d.length)out.push({c:S.criteria[i],d})}return out}
+const hasZero=a=>(a.sc||'').includes('0');
+const isQuick=a=>a.type==='quick';
+const typeOf=a=>a.type||'full';
+function critIndex(name){const n=normC(name);let i=S.criteria.findIndex(c=>normC(c)===n);
+  if(i<0){S.criteria.push(String(name).replace(/\s+/g,' ').trim());S.audits.forEach(a=>{if(!isQuick(a))a.sc+='---'});i=S.criteria.length-1}return i}
+
+/* ---------- follow-up logic ---------- */
+const R=()=>S.settings.remindDays,D=()=>S.settings.delinqDays;
+let fuIdx=new Map();
+function indexFu(){fuIdx=new Map();for(const f of S.fu)if(f.auditId)fuIdx.set(f.auditId,f)}
+const fuLate=f=>f.status!=='done'&&(f.delinqFlag||(known(f.e1)&&daysSince(f.e1)>D()));
+const fuEverLate=f=>f.delinqFlag||(known(f.e1)&&(f.status==='done'?(known(f.done)&&daysBetween(f.e1,f.done)>D()):daysSince(f.e1)>D()));
+function fuStage(f){if(f.status==='done')return 'done';if(fuLate(f))return 'late';if(f.status==='open')return 'need1';
+  if(f.status==='e1'&&(!known(f.e1)||daysSince(f.e1)>=R()))return 'need2';return 'waiting'}
+function auditStatus(a){if(a.pending)return 'Pending';const f=fuIdx.get(a.id);if(f&&f.status!=='done')return fuLate(f)?'Delinquent':'Incomplete';if(isQuick(a)&&a.result==='incomplete'&&!f)return 'Incomplete';return 'Complete'}
+const firstPassOk=a=>isQuick(a)?(a.result==='complete'&&!a.pending&&!fuIdx.get(a.id)):!hasZero(a);
+const actionCount=()=>S.fu.filter(f=>['need1','need2','late'].includes(fuStage(f))).length;
+
+/* ---------- doctors ---------- */
+function rebuildDoctors(){
+  const old=S.doctors||{};const Dd={};
+  const add=(raw,count)=>{const k=docKey(raw);if(!k)return;const o=Dd[k]||(Dd[k]={key:k,name:cleanDocName(raw)||raw,raw:[],ids:[],files:0});
+    if(!o.raw.includes(raw))o.raw.push(raw);empIds(raw).forEach(i=>{if(!o.ids.includes(i))o.ids.push(i)});if(count)o.files++};
+  S.audits.forEach(a=>add(a.doc,true));S.fu.forEach(f=>{if(!f.auditId&&f.doctor)add(f.doctor,false)});
+  const C=S.contacts.map(c=>({...c,t:toks(c.name)}));
+  for(const k in Dd){const o=Dd[k];
+    if(old[k]?.sugg&&old[k].contactsN===C.length){o.sugg=old[k].sugg}else{const A=k.split(' ');let best=null,bs=0;for(const c of C){const s=score(A,c.t);if(s>bs){bs=s;best=c}}o.sugg=best?{name:best.name,email:best.email,score:+bs.toFixed(2)}:null}
+    o.contactsN=C.length;if(old[k]?.verified)o.verified=old[k].verified}
+  for(const k in old)if(!Dd[k]&&old[k].verified)Dd[k]=old[k];
+  S.doctors=Dd}
+function doctorEmail(key){const o=S.doctors[key];if(!o)return null;if(o.verified)return {email:o.verified.email,verified:true};if(o.sugg&&o.sugg.score>=0.75)return {email:o.sugg.email,verified:false};return null}
+function docName(key,raw){return S.doctors[key]?.name||cleanDocName(raw)||raw||'—'}
+function applyEmailToFu(key){const e=doctorEmail(key);S.fu.forEach(f=>{if(f.doctorKey===key&&f.status!=='done'&&(!f.emailManual)){f.email=e?.email||'';f.emailVerified=!!e?.verified}})}
+
+/* ---------- Excel import ---------- */
+async function readWB(file){const buf=await file.arrayBuffer();return XLSX.read(buf,{type:'array',cellDates:true})}
+function importAudit(wb,fileName){
+  const ws=wb.Sheets['Sheet1']||wb.Sheets[wb.SheetNames[0]];
+  const A=XLSX.utils.sheet_to_json(ws,{header:1,raw:true,defval:null});
+  const hi=A.findIndex(r=>r&&r.some(v=>normC(v||'')==='registration_no'));
+  if(hi<0)throw new Error('Could not find a "Registration_No" column in the first sheet.');
+  const H=A[hi].map(v=>v==null?'':String(v).replace(/ /g,' ').replace(/\s+/g,' ').trim());const sub=A[hi+1]||[];
+  const col=(...ns)=>{for(const n of ns){const i=H.findIndex(h=>h.toLowerCase()===n.toLowerCase());if(i>=0)return i}return -1};
+  const c={reg:col('Registration_No'),adm:col('Admission Date'),dis:col('Discharge Date'),los:col('LOS'),dept:col('Department_Name'),ward:col('Ward Name'),doc:col('DoctorInCharge'),to:col('Discharge To'),staff:col('staff name'),e1:col('First Email'),e2:col('Second Email'),inc:col('incompelet','incomplete'),com:col('compelet','complete'),del:col('delinquent')};
+  if(c.doc<0||c.dis<0)throw new Error('Could not find "DoctorInCharge" or "Discharge Date" columns.');
+  const crit=[];for(let i=0;i<H.length-2;i++)if(H[i]&&String(sub[i]).trim()==='T'&&String(sub[i+1]).trim()==='A'&&String(sub[i+2]).trim()==='C')crit.push({i,ci:critIndex(H[i])});
+  if(!crit.length)throw new Error('This file has no standards (T/A/C) columns. For a completion-only file, use "Import quick audit".');
+  const N=S.criteria.length;const has=v=>v!=null&&String(v).trim()!=='';
+  const byKey=new Map(S.audits.filter(a=>!isQuick(a)).map(a=>[a.fileNo+'|'+a.dis,a]));
+  let added=0,updated=0,fuAdded=0;
+  for(let r=hi+2;r<A.length;r++){const X=A[r];if(!X||!has(X[c.reg]))continue;
+    const sc=Array(N*3).fill('-');
+    for(const k of crit)for(let j=0;j<3;j++){const v=String(X[k.i+j]??'').trim();sc[k.ci*3+j]=v==='0'?'0':v==='1'?'1':'-'}
+    const dis=X[c.dis]?isoDay(X[c.dis]):'',adm=X[c.adm]?isoDay(X[c.adm]):'';
+    const losV=c.los>=0&&typeof X[c.los]==='number'?X[c.los]:(adm&&dis?Math.max(0,daysBetween(adm,dis)):null);
+    const inc=c.inc>=0&&has(X[c.inc]),com=c.com>=0&&has(X[c.com]),del=c.del>=0&&has(X[c.del]),e1=c.e1>=0&&has(X[c.e1]),e2=c.e2>=0&&has(X[c.e2]);
+    const key=String(X[c.reg]).trim()+'|'+dis;let a=byKey.get(key);
+    const data={fileNo:String(X[c.reg]).trim(),adm,dis,los:losV,dept:String(X[c.dept]??'').trim(),ward:String(X[c.ward]??'').trim(),doc:String(X[c.doc]??'').replace(/\s+/g,' ').trim(),dischargeTo:String(X[c.to]??'').trim(),auditor:String(X[c.staff]??'').trim(),auditDate:'',sc:sc.join(''),pending:!inc&&!com&&!del&&!e1,src:'excel',type:'full'};
+    if(a){if(a.src==='site')continue;Object.assign(a,data);updated++}else{a={id:uid(),...data};S.audits.push(a);byKey.set(key,a);added++}
+    if((inc||e1)&&!S.fu.some(f=>f.auditId===a.id)){
+      const e2v=e2?(X[c.e2] instanceof Date?isoDay(X[c.e2]):'?'):'';
+      S.fu.push({id:uid(),auditId:a.id,fileNo:a.fileNo,dept:a.dept,dis:a.dis,doctor:a.doc,doctorKey:docKey(a.doc),email:'',emailVerified:false,defs:defsOf(a),note:'',
+        status:com?'done':e2?'e2':e1?'e1':'open',e1:e1?'?':'',e2:e2v,done:com?'?':'',delinqFlag:del,created:isoDay(new Date()),src:'excel'});fuAdded++}}
+  dropFromQueue('full',new Set(byKey.keys()));S.imports.push({file:fileName,date:isoDay(new Date()),added,updated});
+  return {added,updated,fuAdded}}
+function parseContacts(wb){
+  const ws=wb.Sheets[wb.SheetNames[0]];const A=XLSX.utils.sheet_to_json(ws,{defval:''});
+  const pick=(o,n)=>{const k=Object.keys(o).find(k=>k.trim().toLowerCase()===n);return k?String(o[k]).trim():''};
+  const out=A.map(o=>({name:pick(o,'name').replace(/\s+/g,' '),email:pick(o,'email').toLowerCase()})).filter(x=>x.name&&x.email.includes('@'));
+  if(!out.length)throw new Error('No rows with Name and Email were found in the first sheet.');return out}
+
+/* ---------- autocomplete ---------- */
+function ac(input,list,source,onPick){let items=[],hi=-1;
+  const show=()=>{items=source(input.value.trim()).slice(0,12);hi=-1;
+    list.innerHTML=items.map((it,i)=>`<button type="button" data-i="${i}">${esc(it.label)}${it.sub?`<small>${esc(it.sub)}</small>`:''}</button>`).join('');list.hidden=!items.length};
+  input.addEventListener('input',show);input.addEventListener('focus',show);
+  input.addEventListener('keydown',e=>{if(list.hidden)return;const bs=[...list.children];
+    if(e.key==='ArrowDown'||e.key==='ArrowUp'){e.preventDefault();hi=(hi+(e.key==='ArrowDown'?1:-1)+bs.length)%bs.length;bs.forEach((b,i)=>b.classList.toggle('hi',i===hi))}
+    else if(e.key==='Enter'&&hi>=0){e.preventDefault();pick(hi)}else if(e.key==='Escape')list.hidden=true});
+  const pick=i=>{list.hidden=true;onPick(items[i])};
+  list.addEventListener('mousedown',e=>{const b=e.target.closest('button');if(b){e.preventDefault();pick(+b.dataset.i)}});
+  input.addEventListener('blur',()=>setTimeout(()=>list.hidden=true,150))}
+function doctorSource(q){const Q=q.toLowerCase();if(Q.length<2)return [];const out=[],seen=new Set();
+  for(const o of Object.values(S.doctors)){if(o.name.toLowerCase().includes(Q)||o.raw?.some(r=>r.toLowerCase().includes(Q))){const e=doctorEmail(o.key);out.push({label:o.name,sub:e?(e.email+(e.verified?'  ✓ confirmed':'  · unconfirmed')):'no email match yet',doc:o});if(e)seen.add(e.email)}}
+  for(const c of S.contacts){if(seen.has(c.email))continue;if(c.name.toLowerCase().includes(Q)||c.email.includes(Q))out.push({label:c.name,sub:c.email+'  · contacts list',contact:c})}
+  return out}
+function emailLine(el,email,verified,name){el.innerHTML=email?`<span class="mono">${esc(email)}</span> ${verified?'<span class="pill p-ver">confirmed</span>':'<span class="pill p-check">unconfirmed</span>'}`:(name?'<span style="color:var(--late)">No email found yet. Confirm it under Doctors, or add it when sending.</span>':'')}
+
+/* ---------- email ---------- */
+function buildMail(f){const second=f.status!=='open';const name=f.doctor||'Doctor';
+  const defs=f.defs.length?f.defs:(()=>{const a=S.audits.find(x=>x.id===f.auditId);return a?defsOf(a):[]})();
+  const lines=defs.map(x=>`  - ${x.c}${x.d.length?' ('+x.d.map(d=>DIMS[d]).join(', ')+')':''}`);
+  const subj=`${second?'2nd reminder: ':''}Incomplete medical record - File No. ${f.fileNo}`;
+  const deadline=known(f.e1)?fmtD(addDays(f.e1,D())):fmtD(addDays(isoDay(new Date()),D()));
+  const body=`Dear ${name},\n\n${second?'This is a second reminder. The medical record below is still incomplete.':'The medical record below was found incomplete during the documentation audit.'}\n\nFile No.: ${f.fileNo}\nDepartment: ${f.dept||'-'}\nDischarge date: ${fmtD(f.dis)}\n\nDeficient documentation:\n${lines.join('\n')||(f.note?'  - '+f.note:'  - Medical record documentation is incomplete')}${f.note&&lines.length?`\n\nNote: ${f.note}`:''}\n\nKindly complete the documentation ${second?'as soon as possible':'within '+D()+' days'}. If not completed by ${deadline}, the record will be classified as delinquent.\n\nBest regards,\n${S.settings.sender}`;
+  return {subj,body}}
+function openMailto(to,subj,body){const a=document.createElement('a');a.href=`mailto:${encodeURIComponent(to)}?subject=${encodeURIComponent(subj)}&body=${encodeURIComponent(body)}`;a.rel='noopener';document.body.appendChild(a);a.click();a.remove()}
+function recordSent(f){const snap={status:f.status,e1:f.e1,e2:f.e2,last:f.last};const d=isoDay(new Date());
+  if(f.status==='open'){f.status='e1';f.e1=d}else if(f.status==='e1'){f.status='e2';f.e2=d}else f.last=d;
+  save();renderAll();return ()=>{Object.assign(f,snap);save();renderAll()}}
+function sendEmail(f){if(!f.email){openPreview(f);return}
+  const {subj,body}=buildMail(f);const label=f.status==='open'?'1st email':f.status==='e1'?'2nd reminder':'Reminder';
+  openMailto(f.email,subj,body);const undo=recordSent(f);
+  toast(`${label} for file ${f.fileNo} recorded. Outlook should open now.`,undo)}
+let mailF=null;
+function openPreview(f){mailF=f;const {subj,body}=buildMail(f);
+  $('#mTitle').textContent=f.status==='open'?'1st email':f.status==='e1'?'2nd reminder':'Reminder';
+  $('#mTo').value=f.email||'';$('#mSubj').textContent=subj;$('#mBody').textContent=body;
+  $('#mWarn').innerHTML=!f.email?'<span class="pill p-none">No email address</span> Type the doctor\'s email above.':(!f.emailVerified?'<span class="pill p-check">Unconfirmed match</span> Check this address belongs to the doctor before sending.':'');
+  $('#mailDlg').showModal()}
+$('#mTo').addEventListener('change',()=>{if(!mailF)return;mailF.email=$('#mTo').value.trim().toLowerCase();mailF.emailVerified=true;mailF.emailManual=true;save();openPreview(mailF)});
+$('#mClose').onclick=()=>$('#mailDlg').close();
+$('#mSend').onclick=()=>{const f=mailF;if(!f)return;f.email=$('#mTo').value.trim().toLowerCase();if(!f.email){toast('Add an email address first');return}$('#mailDlg').close();sendEmail(f)};
+$('#mMark').onclick=()=>{const f=mailF;if(!f)return;$('#mailDlg').close();const undo=recordSent(f);toast('Recorded as sent',undo)};
+$('#mCopy').onclick=async()=>{const t=`To: ${$('#mTo').value}\nSubject: ${$('#mSubj').textContent}\n\n${$('#mBody').textContent}`;
+  try{await navigator.clipboard.writeText(t);toast('Message copied')}catch(e){const s=getSelection(),rg=document.createRange();rg.selectNodeContents($('#mBody'));s.removeAllRanges();s.addRange(rg);toast('Press Ctrl+C to copy')}};
+
+/* ---------- STALLED FILES ---------- */
+const STAGE={need1:['1st email not sent','p-open'],waiting:['Waiting','p-e1'],need2:['2nd reminder due','p-due'],late:['Delinquent','p-late'],done:['Completed','p-done']};
+function renderFiles(){
+  $('#rulesLede').textContent=`2nd reminder is due ${R()} days after the 1st email. A file not completed ${D()} days after the 1st email becomes delinquent.`;
+  const st=S.fu.map(f=>[f,fuStage(f)]);const cnt=k=>st.filter(x=>x[1]===k).length;
+  const mStart=isoDay(new Date(today().getFullYear(),today().getMonth(),1));
+  const doneMonth=S.fu.filter(f=>f.status==='done'&&known(f.done)&&f.done>=mStart).length;
+  const sel=$('#fStatus').value;
+  const cards=[['need1','Send 1st email',cnt('need1'),'',''],['need2','2nd reminder due',cnt('need2'),'warn',`${R()}+ days since 1st email`],['late','Delinquent',cnt('late'),'late',`${D()}+ days since 1st email`],['waiting','Waiting',cnt('waiting'),'info',`emailed, within ${R()} days`],['done','Completed this month',doneMonth,'ok','']];
+  $('#alerts').innerHTML=cards.map(([k,l,n,c,s])=>`<button type="button" class="stat ${c}" data-f="${k}" aria-pressed="${sel===k}"><div class="n">${n}</div><div class="l">${l}</div>${s?`<div class="s">${s}</div>`:''}</button>`).join('');
+  const q=$('#q').value.trim().toLowerCase();
+  let L=st.filter(([f,s])=>{if(sel==='action'&&!['need1','need2','late'].includes(s))return false;if(sel==='active'&&s==='done')return false;if(['need1','need2','late','waiting','done'].includes(sel)&&s!==sel)return false;
+    if(q&&!(f.fileNo+' '+f.doctor+' '+f.dept+' '+f.email).toLowerCase().includes(q))return false;return true});
+  const order={late:0,need2:1,need1:2,waiting:3,done:4};
+  L.sort((a,b)=>(order[a[1]]-order[b[1]])||String(a[0].e1||a[0].dis).localeCompare(String(b[0].e1||b[0].dis)));
+  const shown=L.slice(0,300);
+  $('#regCount').textContent=`${L.length} file${L.length===1?'':'s'}${L.length>300?' (first 300 shown)':''}`;
+  $('#rows').innerHTML=shown.length?shown.map(([f,s])=>{const [sl,sc]=STAGE[s];
+    const tl=[`<span><span class="muted">Discharged</span> <span class="mono">${fmtS(f.dis)}</span></span>`];
+    if(f.e1)tl.push(`<span><span class="muted">1st email</span> <span class="mono">${fmtS(f.e1)}</span></span>`);
+    if(f.e2)tl.push(`<span><span class="muted">2nd email</span> <span class="mono">${fmtS(f.e2)}</span></span>`);
+    if(s!=='done'&&known(f.e1)){if(f.status==='e1'){const d=R()-daysSince(f.e1);tl.push(`<span style="color:var(--${d<=0?'warn':'muted'})">2nd reminder ${d>0?'in '+d+' day'+(d>1?'s':''):'due now'}</span>`)}
+      const dd=D()-daysSince(f.e1);tl.push(`<span style="color:var(--${dd<0?'late':dd<=2?'warn':'muted'})">${dd<0?'Delinquent for '+(-dd)+' day'+(-dd>1?'s':''):'Delinquent after '+fmtS(addDays(f.e1,D()))}</span>`)}
+    if(f.done)tl.push(`<span><span class="muted">Completed</span> <span class="mono">${fmtS(f.done)}</span></span>`);
+    const btn=s==='done'?'':f.status==='open'?`<button class="btn sm primary" data-act="send">Send 1st email</button>`:f.status==='e1'?`<button class="btn sm ${s==='waiting'?'':'primary'}" data-act="send">Send 2nd reminder</button>`:`<button class="btn sm" data-act="send">Email again</button>`;
+    return `<tr class="${s==='late'?'is-late':s==='need2'?'is-due':''}" data-id="${f.id}">
+      <td><div class="mono" style="font-weight:500">${esc(f.fileNo)}</div><div class="small muted">${esc(f.dept||'')}</div>${f.kind==='quick'?'<span class="pill p-quick">Quick</span>':''}</td>
+      <td><div>${esc(f.doctor?docName(f.doctorKey,f.doctor):'—')}</div><div class="small mono ${f.email?'':'muted'}" style="word-break:break-all">${esc(f.email||'no email')}</div>${f.email&&!f.emailVerified?'<span class="pill p-check">unconfirmed</span>':''}</td>
+      <td>${defsHtml(f)}</td>
+      <td><div class="tl">${tl.join('')}</div></td>
+      <td><span class="pill ${sc}">${sl}</span>${s==='late'&&f.status==='e1'?'<div style="margin-top:4px"><span class="pill p-due">2nd not sent</span></div>':''}</td>
+      <td><div class="acts">${btn}${s!=='done'?'<button class="btn sm okb" data-act="done">Completed</button>':'<button class="btn sm" data-act="reopen">Reopen</button>'}<button class="btn sm" data-act="preview">Preview</button><button class="btn sm danger" data-act="del" title="Delete">Delete</button><span class="confirm" hidden>Delete? <button class="btn sm danger" data-act="delyes">Yes</button><button class="btn sm" data-act="delno">No</button></span></div></td></tr>`}).join('')
+    :`<tr><td colspan="6" class="muted" style="padding:18px">${S.fu.length?(sel==='action'?'Nothing needs action today.':'No files match this filter.'):'No stalled files yet. Files with a ✗ in the Audit tab appear here automatically.'}</td></tr>`;
+  const n=actionCount();$('#navBadge').hidden=!n;$('#navBadge').textContent=n;
+  document.title=n?`(${n}) MR Follow-up`:'MR Follow-up'}
+function defsHtml(f){const defs=f.defs.length?f.defs:[];if(!defs.length&&!f.note)return f.kind==='quick'?'<span class="small">Not complete</span>':'<span class="muted small">See audit</span>';
+  return `<ul class="defs">${defs.map(x=>`<li>${esc(x.c)} ${x.d.length?`<span class="dm">${x.d.join('·')}</span>`:''}</li>`).join('')}</ul>${f.note?`<div class="small muted" style="margin-top:4px">${esc(f.note)}</div>`:''}`}
+$('#rows').addEventListener('click',e=>{const b=e.target.closest('button[data-act]');if(!b)return;const tr=b.closest('tr'),f=S.fu.find(x=>x.id===tr.dataset.id);if(!f)return;const a=b.dataset.act;
+  if(a==='send')sendEmail(f);
+  if(a==='preview')openPreview(f);
+  if(a==='done'){const snap={status:f.status,done:f.done};f.status='done';f.done=isoDay(new Date());save();renderAll();toast(`File ${f.fileNo} completed and removed from the list`,()=>{Object.assign(f,snap);save();renderAll()})}
+  if(a==='reopen'){f.status=f.e2?'e2':f.e1?'e1':'open';f.done='';save();renderAll();toast(`File ${f.fileNo} reopened`)}
+  if(a==='del'){tr.querySelector('.confirm').hidden=false;b.hidden=true}
+  if(a==='delno'){tr.querySelector('.confirm').hidden=true;tr.querySelector('[data-act="del"]').hidden=false}
+  if(a==='delyes'){const i=S.fu.indexOf(f);S.fu.splice(i,1);save();renderAll();toast(`File ${f.fileNo} deleted`,()=>{S.fu.splice(i,0,f);save();renderAll()})}});
+$('#alerts').addEventListener('click',e=>{const b=e.target.closest('.stat');if(!b)return;$('#fStatus').value=$('#fStatus').value===b.dataset.f?'action':b.dataset.f;renderFiles()});
+$('#q').addEventListener('input',renderFiles);$('#fStatus').addEventListener('change',renderFiles);
+
+/* manual add */
+let fDefs=[],fDocKey='',fVerified=false;
+$('#addManual').onclick=()=>{$('#newForm').reset();fDefs=[];fDocKey='';renderChips();$('#fEmailLine').textContent='';$('#fMsg').textContent='';$('#addDlg').showModal()};
+$('#addClose').onclick=()=>$('#addDlg').close();
+function setFDoctor(name,key,email,verified){$('#fDoc').value=name;fDocKey=key;$('#fEmail').value=email||'';fVerified=!!verified;emailLine($('#fEmailLine'),email,verified,name)}
+function renderChips(){$('#fChips').innerHTML=fDefs.map((x,i)=>`<span class="chip">${esc(x.c)}<span class="d">${['T','A','C'].map(d=>`<button type="button" title="${DIMS[d]}" aria-pressed="${x.d.includes(d)}" data-i="${i}" data-d="${d}">${d}</button>`).join('')}</span><button type="button" class="x" data-x="${i}" aria-label="Remove">×</button></span>`).join('')}
+ac($('#fDoc'),$('#docList'),doctorSource,it=>{if(it.doc){const e=doctorEmail(it.doc.key);setFDoctor(it.doc.name,it.doc.key,e?.email,e?.verified)}else setFDoctor(it.contact.name,docKey(it.contact.name),it.contact.email,true)});
+$('#fDoc').addEventListener('input',()=>{fDocKey='';$('#fEmailLine').textContent=''});
+$('#fEmail').addEventListener('input',()=>{fVerified=true});
+ac($('#fCrit'),$('#critList'),q=>{const Q=q.toLowerCase();return S.criteria.filter(c=>!Q||c.toLowerCase().includes(Q)).filter(c=>!fDefs.some(x=>x.c===c)).map(c=>({label:c,c}))},it=>{fDefs.push({c:it.c,d:['C']});renderChips();$('#fCrit').value=''});
+$('#fChips').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;if(b.dataset.x!=null)fDefs.splice(+b.dataset.x,1);else{const x=fDefs[+b.dataset.i],d=b.dataset.d;x.d=x.d.includes(d)?x.d.filter(y=>y!==d):[...x.d,d].sort((a,b)=>'TAC'.indexOf(a)-'TAC'.indexOf(b))}renderChips()});
+$('#fFile').addEventListener('change',()=>{const no=$('#fFile').value.trim();const a=S.audits.filter(x=>x.fileNo===no).sort((x,y)=>y.dis.localeCompare(x.dis))[0];
+  if(!a){$('#fMsg').textContent='';return}$('#fDept').value=a.dept;$('#fDis').value=a.dis;const k=docKey(a.doc),e=doctorEmail(k);setFDoctor(docName(k,a.doc),k,e?.email,e?.verified);
+  fDefs=defsOf(a);renderChips();$('#fMsg').textContent='Filled from the audit.'});
+$('#newForm').addEventListener('submit',e=>{e.preventDefault();const no=$('#fFile').value.trim();if(!no)return;
+  if(!fDefs.length&&!$('#fNote').value.trim()){$('#fMsg').textContent='Add a deficiency or a note.';return}
+  if(S.fu.some(r=>r.fileNo===no&&r.status!=='done')){$('#fMsg').textContent=`File ${no} is already in the stalled list.`;return}
+  leaveSample();const name=$('#fDoc').value.trim();const a=S.audits.filter(x=>x.fileNo===no).sort((x,y)=>y.dis.localeCompare(x.dis))[0];
+  S.fu.unshift({id:uid(),auditId:a&&!S.fu.some(f=>f.auditId===a.id)?a.id:null,fileNo:no,dept:$('#fDept').value.trim(),dis:$('#fDis').value,doctor:name,doctorKey:fDocKey||docKey(name),email:$('#fEmail').value.trim().toLowerCase(),emailVerified:fVerified,emailManual:fVerified&&!fDocKey,defs:fDefs,note:$('#fNote').value.trim(),status:'open',e1:'',e2:'',done:'',delinqFlag:false,created:isoDay(new Date()),src:'manual'});
+  rebuildDoctors();save();$('#addDlg').close();$('#fStatus').value='action';renderAll();toast(`File ${no} added`)});
+
+/* ---------- AUDIT ---------- */
+let form={id:null,sc:[]};
+function blankSc(){return Array(S.criteria.length*3).fill('-')}
+function renderCrits(){const sc=form.sc;
+  $('#crits').innerHTML=S.criteria.map((c,i)=>{const cells=[0,1,2].map(j=>{const v=sc[i*3+j];return `<button type="button" class="cell ${v==='1'?'s1':v==='0'?'s0':''}" data-i="${i*3+j}" title="${DIMS['TAC'[j]]}" aria-label="${esc(c)} ${DIMS['TAC'[j]]}: ${v==='1'?'met':v==='0'?'deficient':'not applicable'}">${'TAC'[j]} ${v==='1'?'✓':v==='0'?'✗':'NA'}</button>`}).join('');
+    const z=sc.slice(i*3,i*3+3).includes('0');
+    return `<div class="crow ${z?'has0':''}"><span class="cn">${esc(c)}</span><span class="cells">${cells}</span><span class="rq"><button type="button" data-row="${i}" data-v="1">✓ all</button><button type="button" data-row="${i}" data-v="-">NA</button></span></div>`}).join('');
+  updCount()}
+function updCount(){if(auMode==='quick'){$('#auCount').innerHTML=form.result==='complete'?'<span style="color:var(--ok)">Complete</span>':form.result==='incomplete'?'<b style="color:var(--late)">Not complete</b>':'Choose Complete or Not complete';return}const sc=form.sc;let z=0,app=0;for(let i=0;i<S.criteria.length;i++){const s=sc.slice(i*3,i*3+3);if(s.includes('0'))z++;if(s.some(v=>v!=='-'))app++}
+  $('#auCount').innerHTML=`${app} of ${S.criteria.length} standards scored · ${z?`<b style="color:var(--late)">${z} deficient</b>`:'<span style="color:var(--ok)">no deficiencies</span>'}`}
+$('#crits').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;
+  if(b.dataset.i!=null){const i=+b.dataset.i;form.sc[i]=form.sc[i]==='-'?'1':form.sc[i]==='1'?'0':'-'}
+  else if(b.dataset.row!=null){const r=+b.dataset.row;for(let j=0;j<3;j++)form.sc[r*3+j]=b.dataset.v}
+  renderCrits()});
+$('#allOk').onclick=()=>{form.sc=form.sc.map(()=>'1');renderCrits()};
+$('#allNa').onclick=()=>{form.sc=blankSc();renderCrits()};
+function los(){const a=$('#aAdm').value,d=$('#aDis').value;$('#aLos').value=a&&d?Math.max(0,daysBetween(a,d)):''}
+$('#aAdm').addEventListener('change',los);$('#aDis').addEventListener('change',los);
+ac($('#aDoc'),$('#aDocList'),doctorSource,it=>{const nm=it.doc?it.doc.name:it.contact.name;$('#aDoc').value=nm;const k=it.doc?it.doc.key:docKey(nm);const e=it.doc?doctorEmail(k):{email:it.contact.email,verified:true};emailLine($('#aDocLine'),e?.email,e?.verified,nm)});
+let auMode='full';
+const LEDE={full:'Fill the file details, then score each standard. Any ✗ sends the file to Stalled files automatically. Patient names are not stored; the file number identifies the record.',quick:'Fill the file details and mark the file Complete or Not complete. Not complete sends it to Stalled files automatically. In the worklist above you can mark a file complete with one tap.'};
+function setMode(m,keep){auMode=m==='quick'?'quick':'full';S.settings.auMode=auMode;save();
+  $('#modeFull').setAttribute('aria-selected',auMode==='full');$('#modeQuick').setAttribute('aria-selected',auMode==='quick');
+  $('#quickOnly').hidden=auMode!=='quick';$('#fullOnly').hidden=auMode==='quick';$('#auLede').textContent=LEDE[auMode];
+  $('#qDelConfirm').hidden=true;qPending=null;if(!keep)resetAudit();renderQueue();updCount()}
+document.querySelectorAll('.seg button').forEach(b=>b.onclick=()=>{if(b.dataset.mode!==auMode){setMode(b.dataset.mode);$('#auMsg').textContent=''}});
+function renderResult(){['complete','incomplete'].forEach(r=>$('#r'+(r==='complete'?'Complete':'Incomplete')).setAttribute('aria-checked',form.result===r));updCount()}
+$('#quickOnly').addEventListener('click',e=>{const b=e.target.closest('[data-r]');if(!b)return;form.result=form.result===b.dataset.r?null:b.dataset.r;if(form.result)$('#aPending').checked=false;renderResult();if(form.result==='incomplete')$('#aNote').focus()});
+function resetAudit(){form={id:null,sc:blankSc(),result:null};$('#auForm').reset();$('#aDate').value=isoDay(new Date());$('#aAuditor').value=S.settings.auditor||'';$('#aDocLine').textContent='';$('#auTitle').textContent=auMode==='quick'?'New quick audit':'New audit';$('#auSave').textContent='Save audit';renderCrits();renderResult()}
+function editAudit(a){setTimeout(()=>{if(isQuick(a)&&a.pending&&!form.result)$('#auMsg').innerHTML='<span style="color:var(--warn)">This file is pending. Choose Complete or Not complete, then save.</span>'},0);if(typeOf(a)!==auMode)setMode(typeOf(a),true);form={id:a.id,sc:isQuick(a)?blankSc():a.sc.split(''),result:a.result||null};$('#aFile').value=a.fileNo;$('#aAdm').value=a.adm||'';$('#aDis').value=a.dis||'';$('#aLos').value=a.los??'';$('#aDept').value=a.dept;$('#aWard').value=a.ward;$('#aDoc').value=a.doc;$('#aTo').value=a.dischargeTo||'';$('#aDate').value=a.auditDate||'';$('#aAuditor').value=a.auditor||'';$('#aPending').checked=!!a.pending;$('#aNote').value=a.note||'';renderResult();
+  const e=doctorEmail(docKey(a.doc));emailLine($('#aDocLine'),e?.email,e?.verified,a.doc);$('#auTitle').textContent=`Editing file ${a.fileNo}`;$('#auSave').textContent='Save changes';$('#auMsg').textContent='';renderCrits();$('#auForm').scrollIntoView({behavior:'smooth',block:'start'})}
+$('#auCancel').onclick=()=>{resetAudit();$('#auMsg').textContent=''};
+$('#auForm').addEventListener('submit',e=>{e.preventDefault();
+  const fileNo=$('#aFile').value.trim(),dis=$('#aDis').value,adm=$('#aAdm').value,dept=$('#aDept').value.trim(),doc=$('#aDoc').value.trim(),pend=$('#aPending').checked,quick=auMode==='quick';
+  const msg=t=>{$('#auMsg').innerHTML=`<span style="color:var(--late)">${esc(t)}</span>`};
+  if(!fileNo||!dis||!dept||!doc)return msg('Fill file number, discharge date, department and doctor.');
+  if(adm&&adm>dis)return msg('Admission date is after the discharge date.');
+  if(quick){if(!form.result&&!pend)return msg('Choose Complete or Not complete.')}else if(!form.sc.some(v=>v!=='-'))return msg('Score at least one standard.');
+  const dup=S.audits.find(a=>a.fileNo===fileNo&&a.dis===dis&&typeOf(a)===auMode&&a.id!==form.id);if(dup)return msg(`File ${fileNo} with this discharge date already has a ${quick?'quick':'full'} audit. Edit it from the list below.`);
+  leaveSample();
+  let a=form.id?S.audits.find(x=>x.id===form.id):null;if(!a){a={id:uid(),src:'site'};S.audits.push(a)}
+  Object.assign(a,{type:auMode,fileNo,adm,dis,los:adm?Math.max(0,daysBetween(adm,dis)):null,dept,ward:$('#aWard').value.trim(),doc,dischargeTo:$('#aTo').value.trim(),auditor:$('#aAuditor').value.trim(),auditDate:$('#aDate').value,pending:pend},
+    quick?{sc:'',result:form.result||'',note:$('#aNote').value.trim()}:{sc:form.sc.join('')});
+  rebuildDoctors();const defs=defsOf(a);let f=S.fu.find(x=>x.auditId===a.id);const k=docKey(doc);let note='';
+  const needs=quick?(a.result==='incomplete'&&!pend):(defs.length&&!pend);
+  if(needs){
+    if(!f){const em=doctorEmail(k);f={id:uid(),auditId:a.id,kind:auMode,fileNo,dept,dis,doctor:docName(k,doc),doctorKey:k,email:em?.email||'',emailVerified:!!em?.verified,defs,note:quick?a.note:'',status:'open',e1:'',e2:'',done:'',delinqFlag:false,created:isoDay(new Date()),src:'site'};S.fu.unshift(f);note='new'}
+    else if(f.status!=='done'){Object.assign(f,{fileNo,dept,dis,defs,doctor:docName(k,doc),doctorKey:k});if(quick)f.note=a.note;if(!f.emailManual){const em=doctorEmail(k);f.email=em?.email||'';f.emailVerified=!!em?.verified}note='upd'}}
+  else if(f&&f.status==='open'&&!pend){S.fu.splice(S.fu.indexOf(f),1);f=null;note='removed'}
+  else if(f&&quick&&a.result==='complete'&&f.status!=='done'){f.status='done';f.done=isoDay(new Date());note='closed'}
+  const qid=form.queueId;S.queue=S.queue.filter(q=>q.id!==qid&&!((q.type||'full')===auMode&&q.fileNo===fileNo&&(!q.dis||q.dis===dis)));
+  save();const id=f?.id;resetAudit();renderAll();
+  $('#auMsg').innerHTML=note==='new'?`<span>Saved. File ${esc(fileNo)} ${quick?'is not complete':`has ${defs.length} deficient standard${defs.length>1?'s':''}`} and was added to Stalled files.</span> <button class="btn sm primary" type="button" data-send="${id}">Send 1st email now</button>`:note==='upd'?`Saved. The stalled file for ${esc(fileNo)} was updated.`:note==='removed'?`Saved as complete. File ${esc(fileNo)} was removed from Stalled files.`:note==='closed'?`Saved as complete. The stalled file for ${esc(fileNo)} was marked completed.`:a.pending?`Saved as pending.`:`<span style="color:var(--ok)">Saved. File ${esc(fileNo)} is complete.</span>`;
+  $('#aFile').focus()});
+$('#auMsg').addEventListener('click',e=>{const b=e.target.closest('[data-send]');if(!b)return;const f=S.fu.find(x=>x.id===b.dataset.send);if(f){sendEmail(f);$('#auMsg').textContent=''}});
+let auLimit=100;
+function periodOptions(sel,withAll=true){const ms=[...new Set(S.audits.map(a=>(a.dis||'').slice(0,7)).filter(Boolean))].sort().reverse();
+  const qs=[...new Set(ms.map(m=>`${m.slice(0,4)}-Q${Math.ceil(+m.slice(5,7)/3)}`))];const cur=sel.value;
+  sel.innerHTML=(withAll?'<option value="">All periods</option>':'')+qs.map(q=>`<option value="${q}">${q.slice(5)} ${q.slice(0,4)}</option>`).join('')+ms.map(m=>`<option value="${m}">${dt(m+'-01').toLocaleDateString('en-GB',{month:'short',year:'numeric'})}</option>`).join('');
+  if([...sel.options].some(o=>o.value===cur))sel.value=cur}
+const inPeriod=(a,p)=>{if(!p)return true;const m=(a.dis||'').slice(0,7);if(p.includes('Q'))return m.slice(0,4)===p.slice(0,4)&&Math.ceil(+m.slice(5,7)/3)===+p.slice(6);return m===p};
+function renderAudits(){periodOptions($('#auPeriod'));
+  const q=$('#auQ').value.trim().toLowerCase(),p=$('#auPeriod').value,ty=$('#auType').value,fr=$('#auFrom').value,to=$('#auTo').value;
+  const L=S.audits.filter(a=>inPeriod(a,p)&&(!ty||typeOf(a)===ty)&&(!fr||(a.dis&&a.dis>=fr))&&(!to||(a.dis&&a.dis<=to))&&(!q||(a.fileNo+' '+a.doc+' '+a.dept).toLowerCase().includes(q))).sort((a,b)=>(b.dis||'').localeCompare(a.dis||''));
+  auShown=L;$('#auListLede').textContent=`${L.length} audited file${L.length===1?'':'s'}`;$('#auDelShown').textContent=`Delete shown (${L.length})`;$('#auDelShown').disabled=!L.length;
+  const pill={Complete:'p-done',Incomplete:'p-e1',Delinquent:'p-late',Pending:'p-pend'};
+  $('#auRows').innerHTML=L.length?L.slice(0,auLimit).map(a=>{const st=auditStatus(a),z=defsOf(a).length;
+    return `<tr data-id="${a.id}"><td class="mono">${esc(a.fileNo)}</td><td>${isQuick(a)?'<span class="pill p-quick">Quick</span>':'<span class="pill p-full">Full</span>'}</td><td class="mono">${fmtD(a.dis)}</td><td>${esc(a.dept)}</td><td>${esc(docName(docKey(a.doc),a.doc))}</td><td class="r mono">${a.los??'—'}</td><td class="mono">${isQuick(a)?(a.result==='incomplete'?'<span style="color:var(--late)">✗</span>':a.result==='complete'?'✓':'—'):z?`<span style="color:var(--late)">${z}</span>`:'0'}</td><td><span class="pill ${pill[st]}">${st}</span></td><td><div class="acts" style="min-width:0">${isQuick(a)&&a.pending?'<button class="btn sm okb" data-act="qok" title="Mark complete">✓</button><button class="btn sm danger" data-act="qno" title="Mark not complete">✗</button>':''}<button class="btn sm" data-act="edit">Edit</button><button class="btn sm danger" data-act="del">Delete</button><span class="confirm" hidden>Delete audit? <button class="btn sm danger" data-act="delyes">Yes</button><button class="btn sm" data-act="delno">No</button></span></div></td></tr>`}).join('')
+    :`<tr><td colspan="9" class="muted" style="padding:18px">No audits yet. Enter one above, or import your Excel file under Data.</td></tr>`;
+  $('#auMore').innerHTML=L.length>auLimit?`<button class="btn" type="button" id="auMoreBtn">Show ${Math.min(100,L.length-auLimit)} more of ${L.length-auLimit}</button>`:'';
+  const opts=(k)=>[...new Set(S.audits.map(a=>a[k]).filter(Boolean))].sort().map(v=>`<option value="${esc(v)}">`).join('');
+  $('#dlDept').innerHTML=opts('dept');$('#dlWard').innerHTML=opts('ward');$('#dlTo').innerHTML=[...new Set(['Normal Discharge','DAMA','Transfer to other Facility','Death',...S.audits.map(a=>a.dischargeTo).filter(Boolean)])].map(v=>`<option value="${esc(v)}">`).join('')}
+$('#auMore').addEventListener('click',e=>{if(e.target.id==='auMoreBtn'){auLimit+=100;renderAudits()}});
+$('#auQ').addEventListener('input',()=>{auLimit=100;renderAudits()});$('#auPeriod').addEventListener('change',()=>{auLimit=100;renderAudits()});$('#auType').addEventListener('change',()=>{auLimit=100;renderAudits()});
+let auShown=[];['#auFrom','#auTo'].forEach(x=>$(x).addEventListener('change',()=>{auLimit=100;$('#auDelConfirm').hidden=true;renderAudits()}));
+$('#auDateClr').onclick=()=>{$('#auFrom').value='';$('#auTo').value='';renderAudits()};
+$('#auDelShown').onclick=()=>{const n=auShown.length;if(!n)return;const fu=S.fu.filter(f=>auShown.some(a=>a.id===f.auditId)).length;
+  $('#auDelText').textContent=`Delete ${n} audit${n>1?'s':''}${fu?` and ${fu} stalled file${fu>1?'s':''}`:''}${n===S.audits.length?' (every audit you have)':''}?`;$('#auDelConfirm').hidden=false};
+$('#auDelNo').onclick=()=>{$('#auDelConfirm').hidden=true};
+$('#auDelYes').onclick=()=>{$('#auDelConfirm').hidden=true;const ids=new Set(auShown.map(a=>a.id));const oldA=S.audits.slice(),oldF=S.fu.slice();
+  S.audits=S.audits.filter(a=>!ids.has(a.id));S.fu=S.fu.filter(f=>!f.auditId||!ids.has(f.auditId));if(ids.has(form.id))resetAudit();rebuildDoctors();save();renderAll();
+  toast(`${ids.size} audit${ids.size>1?'s':''} deleted`,()=>{S.audits=oldA;S.fu=oldF;rebuildDoctors();save();renderAll()})};
+$('#auRows').addEventListener('click',e=>{const b=e.target.closest('button[data-act]');if(!b)return;const tr=b.closest('tr'),a=S.audits.find(x=>x.id===tr.dataset.id);if(!a)return;
+  if(b.dataset.act==='qok'){a.result='complete';a.pending=false;a.auditDate=a.auditDate||isoDay(new Date());save();renderAll();toast(`File ${a.fileNo} saved as complete`,()=>{a.result='';a.pending=true;save();renderAll()})}
+  if(b.dataset.act==='qno'){editAudit(a);form.result='incomplete';$('#aPending').checked=false;renderResult();$('#auMsg').textContent='Add what is missing (optional), then save.';setTimeout(()=>$('#aNote').focus(),300)}
+  if(b.dataset.act==='edit')editAudit(a);
+  if(b.dataset.act==='del'){tr.querySelector('.confirm').hidden=false;b.hidden=true}
+  if(b.dataset.act==='delno'){tr.querySelector('.confirm').hidden=true;tr.querySelector('[data-act="del"]').hidden=false}
+  if(b.dataset.act==='delyes'){const fu=S.fu.filter(f=>f.auditId===a.id);S.audits=S.audits.filter(x=>x!==a);S.fu=S.fu.filter(f=>f.auditId!==a.id);save();renderAll();
+    toast(`Audit ${a.fileNo} deleted`,()=>{S.audits.push(a);S.fu.push(...fu);save();renderAll()})}});
+function downloadWB(wb,name){try{XLSX.writeFile(wb,name);if(inFrame)toast('If nothing downloaded, use the local copy MR-Followup.html. Downloads are blocked inside Claude.')}catch(e){toast('Download failed: '+e.message)}}
+$('#exportAudits').onclick=()=>{const N=S.criteria.length;
+  const h1=['NU','Registration_No','Admission Date','Discharge Date','LOS','Department_Name','Ward Name','DoctorInCharge','Discharge To','staff name','First Email','Second Email','incompelet','compelet','delinquent'];const h2=Array(h1.length).fill('');
+  S.criteria.forEach(c=>{h1.push(c,'','');h2.push('T','A','C')});const rows=[h1,h2];
+  S.audits.filter(a=>!isQuick(a)).sort((a,b)=>(a.dis||'').localeCompare(b.dis||'')).forEach((a,i)=>{const f=S.fu.find(x=>x.auditId===a.id);const st=auditStatus(a);
+    const r=[i+1,isNaN(+a.fileNo)?a.fileNo:+a.fileNo,a.adm?dt(a.adm):'',a.dis?dt(a.dis):'',a.los??'',a.dept,a.ward,a.doc,a.dischargeTo,a.auditor,f?.e1?(known(f.e1)?dt(f.e1):'SEND'):'',f?.e2?(known(f.e2)?dt(f.e2):'SEND'):'',f?'incompelet':'',st==='Complete'?'compelet':'',f&&fuEverLate(f)?'delinquent':''];
+    for(let k=0;k<N*3;k++){const v=a.sc[k];r.push(v==='1'?1:v==='0'?0:'NA')}rows.push(r)});
+  const ws=XLSX.utils.aoa_to_sheet(rows,{cellDates:true});const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'Full audit');
+  const qr=[['NU','Registration_No','Admission Date','Discharge Date','LOS','Department_Name','Ward Name','DoctorInCharge','Discharge To','staff name','First Email','Status','Second Email','Status','incompelet','compelet','delinquent','Note']];
+  S.audits.filter(isQuick).sort((a,b)=>(a.dis||'').localeCompare(b.dis||'')).forEach((a,i)=>{const f=S.fu.find(x=>x.auditId===a.id);const st=auditStatus(a);
+    qr.push([i+1,isNaN(+a.fileNo)?a.fileNo:+a.fileNo,a.adm?dt(a.adm):'',a.dis?dt(a.dis):'',a.los??'',a.dept,a.ward,a.doc,a.dischargeTo,a.auditor,f?.e1?(known(f.e1)?dt(f.e1):'SEND'):'','',f?.e2?(known(f.e2)?dt(f.e2):'SEND'):'','',(f||a.result==='incomplete')?'incompelet':'',st==='Complete'?'compelet':'',f&&fuEverLate(f)?'delinquent':'',a.note||''])});
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(qr,{cellDates:true}),'Quick audit');downloadWB(wb,`MR-audit-${isoDay(new Date())}.xlsx`)};
+
+/* ---------- DASHBOARD ---------- */
+let lastDash=null;
+function dashFilters(){periodOptions($('#dPeriod'));
+  const dsel=$('#dDept'),cd=dsel.value;const depts=[...new Set(S.audits.map(a=>a.dept).filter(Boolean))].sort();
+  dsel.innerHTML='<option value="">All departments</option>'+depts.map(d=>`<option>${esc(d)}</option>`).join('');if(depts.includes(cd))dsel.value=cd;
+  const osel=$('#dDoc'),co=osel.value;const docs=Object.values(S.doctors).filter(o=>o.files).sort((a,b)=>a.name.localeCompare(b.name));
+  osel.innerHTML='<option value="">All doctors</option>'+docs.map(o=>`<option value="${esc(o.key)}">${esc(o.name)}</option>`).join('');if(docs.some(o=>o.key===co))osel.value=co}
+function computeDash(){
+  const ty=$('#dType').value,p=$('#dPeriod').value,dp=$('#dDept').value,dk=$('#dDoc').value;
+  const A0=S.audits.filter(a=>(!ty||typeOf(a)===ty)&&inPeriod(a,p)&&(!dp||a.dept===dp)&&(!dk||docKey(a.doc)===dk));
+  const pc=samplePct();let A=A0;
+  if(pc<100&&A0.length){const n=Math.max(1,Math.round(A0.length*pc/100));const seed=S.settings.sampleSeed||1;A=A0.map(a=>[hash(a.id+'|'+seed),a]).sort((x,y)=>x[0]-y[0]).slice(0,n).map(x=>x[1])}
+  const st=A.map(a=>auditStatus(a));const c=k=>st.filter(s=>s===k).length;
+  const total=A.length,complete=c('Complete'),late=c('Delinquent'),incomplete=c('Incomplete')+late,pending=c('Pending');
+  const firstPass=A.filter(firstPassOk).length;const AF=A.filter(a=>!isQuick(a));
+  const types=['full','quick'].map(t=>{const idx=A.map((a,i)=>i).filter(i=>typeOf(A[i])===t);const cc=k=>idx.filter(i=>st[i]===k).length;return {t,files:idx.length,complete:cc('Complete'),inc:cc('Incomplete')+cc('Delinquent'),late:cc('Delinquent'),pending:cc('Pending')}}).filter(x=>x.files);
+  const L=A.map(a=>a.los).filter(v=>typeof v==='number').sort((x,y)=>x-y);
+  const losAvg=L.length?L.reduce((s,v)=>s+v,0)/L.length:0,losMed=L.length?(L.length%2?L[(L.length-1)/2]:(L[L.length/2-1]+L[L.length/2])/2):0,losMax=L.length?L[L.length-1]:0,bed=L.reduce((s,v)=>s+v,0);
+  const req=S.criteria.map((name,i)=>{let miss=0,app=0;for(const a of AF){const s=a.sc.substr(i*3,3);if(s.includes('0'))miss++;if(/[01]/.test(s))app++}return {name,miss,ok:app-miss,app,comp:app?(app-miss)/app:null}});
+  const dims=[0,1,2].map(j=>{let o=0,z=0;for(const a of AF)for(let i=0;i<S.criteria.length;i++){const v=a.sc[i*3+j];if(v==='1')o++;else if(v==='0')z++}return {k:'TAC'[j],o,z}});
+  const grp=(keyF,nameF)=>{const m=new Map();A.forEach((a,i)=>{const k=keyF(a);const g=m.get(k)||{key:k,name:nameF(a),files:0,inc:0,losS:0,losN:0};g.files++;if(st[i]==='Incomplete'||st[i]==='Delinquent')g.inc++;if(typeof a.los==='number'){g.losS+=a.los;g.losN++}m.set(k,g)});return [...m.values()]};
+  const depts=grp(a=>a.dept||'—',a=>a.dept||'—').sort((a,b)=>a.name.localeCompare(b.name));
+  const docs=grp(a=>docKey(a.doc),a=>docName(docKey(a.doc),a.doc)).filter(g=>g.inc).sort((a,b)=>b.inc-a.inc||b.inc/b.files-a.inc/a.files);
+  const bands=[['0 - 1 day',0,1],['2 - 3 days',2,3],['4 - 7 days',4,7],['8 - 14 days',8,14],['15+ days',15,1e9]].map(([l,mi,ma])=>({l,n:L.filter(v=>v>=mi&&v<=ma).length}));
+  const months=[...new Set(A.map(a=>(a.dis||'').slice(0,7)).filter(Boolean))].sort().map(m=>{const idx=A.map((a,i)=>i).filter(i=>(A[i].dis||'').startsWith(m));const done=idx.filter(i=>st[i]==='Complete').length;return {m,files:idx.length,done,rate:idx.length?done/idx.length:0}});
+  const ids=new Set(A.map(a=>a.id));
+  const F=S.fu.filter(f=>f.auditId?ids.has(f.auditId):(inPeriod({dis:f.dis},p)&&(!dp||f.dept===dp)&&(!dk||f.doctorKey===dk)));
+  const em=F.filter(f=>f.e1),e2=F.filter(f=>f.e2),resp=em.filter(f=>f.status==='done'),noresp=em.filter(f=>f.status!=='done'),esc_=F.filter(fuEverLate),noemail=F.filter(f=>f.status==='open');
+  const gaps=e2.filter(f=>known(f.e1)&&known(f.e2)).map(f=>daysBetween(f.e1,f.e2));
+  const byDoc=new Map();em.forEach(f=>{const g=byDoc.get(f.doctorKey)||{name:docName(f.doctorKey,f.doctor),sent:0,resp:0};g.sent++;if(f.status==='done')g.resp++;byDoc.set(f.doctorKey,g)});
+  const respDocs=[...byDoc.values()].sort((a,b)=>b.sent-a.sent||a.name.localeCompare(b.name));
+  return {pc,popN:A0.length,sample:A,ty,AFn:AF.length,types,p,dp,dk,total,complete,incomplete,late,pending,firstPass,losAvg,losMed,losMax,bed,req,dims,depts,docs,bands,months,
+    fu:{F:F.length,em:em.length,e2:e2.length,resp:resp.length,noresp:noresp.length,esc:esc_.length,noemail:noemail.length,gap:gaps.length?gaps.reduce((s,v)=>s+v,0)/gaps.length:null,docs:byDoc.size,docsAll:respDocs.filter(g=>g.resp===g.sent).length},respDocs}}
+function bar(v,max,cls=''){return `<div class="bar ${cls}" title="${v}"><i style="width:${max?Math.max(2,v/max*100):0}%"></i></div>`}
+function hash(str){let h=2166136261;for(let i=0;i<str.length;i++){h^=str.charCodeAt(i);h=Math.imul(h,16777619)}return h>>>0}
+function samplePct(){const v=Math.round(+$('#dPct').value);return v>=1&&v<=100?v:100}
+const sampleLabel=d=>d.pc<100?`Sample ${d.pc}% (${d.total} of ${d.popN} files)`:'All files (100%)';
+function typeLabel(){return {full:'Full audit',quick:'Quick audit','':'Full + quick audits'}[$('#dType').value]}
+function periodLabel(){const s=$('#dPeriod');return s.options[s.selectedIndex]?.text||'All periods'}
+function renderDash(){dashFilters();const d=computeDash();lastDash=d;
+  $('#dLede').innerHTML=`${esc(typeLabel())} · ${esc(periodLabel())} · ${esc(d.dp||'all departments')} · ${esc(d.dk?docName(d.dk):'all doctors')} · ${d.pc<100?`<b style="color:var(--accent)">random sample ${d.pc}%: ${d.total} of ${d.popN} files</b>`:`${d.total} files`}`;
+  const tile=(n,l,s,c='')=>`<div class="stat ${c}"><div class="n">${n}</div><div class="l">${l}</div>${s?`<div class="s">${s}</div>`:''}</div>`;
+  $('#dKpi').innerHTML=tile(d.total,'Total files')+tile(d.complete,'Complete',pctS(d.complete,d.total),'ok')+tile(d.incomplete,'Incomplete',`${d.late} of them delinquent`,'warn')+tile(d.pending,'Pending','audit not final')+tile(d.late,'Delinquent',pctS(d.late,d.total),'late');
+  $('#dKpi2').innerHTML=tile(pctS(d.complete,d.total),'Completion rate','complete ÷ total')+tile(pctS(d.firstPass,d.total),'Complete at audit','complete on first review')+tile(d.losAvg.toFixed(2),'Avg LOS (days)',`median ${d.losMed}`)+tile(d.losMax,'Max LOS (days)')+tile(d.bed,'Total bed-days');
+  const segs=[['Complete',d.complete,'var(--ok)'],['Incomplete',d.incomplete-d.late,'var(--warn)'],['Delinquent',d.late,'var(--late)'],['Pending',d.pending,'var(--na)']];
+  $('#dStatus').innerHTML=d.total?`<div class="stack" role="img" aria-label="File status">${segs.filter(s=>s[1]).map(s=>`<i style="width:${s[1]/d.total*100}%;background:${s[2]}" title="${s[0]}: ${s[1]} (${pctS(s[1],d.total)})"></i>`).join('')}</div>
+    <table style="margin-top:6px"><tbody>${segs.map(s=>`<tr><td><span class="sw" style="background:${s[2]}"></span>${s[0]}</td><td class="r mono">${s[1]}</td><td class="r mono muted">${pctS(s[1],d.total)}</td></tr>`).join('')}</tbody></table>`:'<p class="muted">No files in this selection.</p>';
+  // trend
+  const M=d.months;if(M.length){const W=Math.max(320,M.length*70),H=200,pl=34,pb=26,pt=22,cw=(W-pl-8)/M.length,bw=Math.min(40,cw*0.6),y=v=>pt+(H-pt-pb)*(1-v);
+    $('#dTrend').innerHTML=`<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Completion rate by month">${[0,.5,1].map(g=>`<line class="gl" x1="${pl}" x2="${W-8}" y1="${y(g)}" y2="${y(g)}"/><text x="${pl-6}" y="${y(g)+4}" text-anchor="end">${g*100}%</text>`).join('')}
+      ${M.map((m,i)=>{const x=pl+i*cw+(cw-bw)/2;const lab=dt(m.m+'-01').toLocaleDateString('en-GB',{month:'short',year:'2-digit'});return `<rect class="col" x="${x}" y="${y(m.rate)}" width="${bw}" height="${Math.max(0,y(0)-y(m.rate))}" rx="3"><title>${lab}: ${(m.rate*100).toFixed(1)}% complete (${m.done} of ${m.files})</title></rect><text class="val" x="${x+bw/2}" y="${y(m.rate)-6}" text-anchor="middle">${(m.rate*100).toFixed(0)}%</text><text x="${x+bw/2}" y="${H-8}" text-anchor="middle">${lab}</text>`}).join('')}</svg><p class="small muted" style="margin:4px 0 0">Hover a bar for file counts.</p>`}else $('#dTrend').innerHTML='<p class="muted">No data.</p>';
+  $('#dFullBlock').hidden=!d.AFn;$('#dFullNote').textContent=d.ty===''&&d.AFn?`full audits only (${d.AFn} files)`:'';
+  $('#dTypes').innerHTML=`<table><thead><tr><th>Type</th><th class="r">Files</th><th class="r">Complete</th><th class="r">Incomplete</th><th class="r">Delinquent</th><th class="r">Pending</th><th class="r">Rate</th></tr></thead><tbody>${d.types.map(x=>`<tr><td>${x.t==='quick'?'Quick audit':'Full audit'}</td><td class="r mono">${x.files}</td><td class="r mono">${x.complete}</td><td class="r mono">${x.inc}</td><td class="r mono">${x.late}</td><td class="r mono">${x.pending}</td><td class="r mono">${pctS(x.complete,x.files)}</td></tr>`).join('')||'<tr><td colspan="7" class="muted">No data.</td></tr>'}</tbody></table>`;
+  const R2=$('#dAllReq').checked?d.req.filter(r=>r.app):d.req.filter(r=>r.miss);R2.sort((a,b)=>b.miss-a.miss||(a.comp??1)-(b.comp??1));const mx=Math.max(1,...R2.map(r=>r.miss));
+  $('#dReq').innerHTML=`<table><thead><tr><th>Requirement / form</th><th class="r">Missing</th><th class="r">Complete</th><th class="r">Compliance</th><th></th></tr></thead><tbody>${R2.length?R2.map(r=>`<tr><td>${esc(r.name)}</td><td class="r mono" style="${r.miss?'color:var(--late)':''}">${r.miss}</td><td class="r mono">${r.ok}</td><td class="r mono">${r.comp==null?'—':(r.comp*100).toFixed(1)+'%'}</td><td style="width:90px">${bar(r.miss,mx,'late')}</td></tr>`).join(''):'<tr><td colspan="5" class="muted">No deficient requirements in this selection.</td></tr>'}</tbody></table>`;
+  $('#dDims').innerHTML=`<div class="grid" style="grid-template-columns:repeat(3,minmax(0,1fr));gap:8px">${d.dims.map(x=>`<div class="stat"><div class="n">${x.o+x.z?((x.o/(x.o+x.z))*100).toFixed(1)+'%':'—'}</div><div class="l">${DIMS[x.k]}</div><div class="s mono">${x.z} ✗ of ${x.o+x.z}</div></div>`).join('')}</div>`;
+  const bm=Math.max(1,...d.bands.map(b=>b.n));const nL=d.bands.reduce((s,b)=>s+b.n,0);
+  $('#dLos').innerHTML=`<table><thead><tr><th>LOS band</th><th class="r">Files</th><th class="r">%</th><th></th></tr></thead><tbody>${d.bands.map(b=>`<tr><td>${b.l}</td><td class="r mono">${b.n}</td><td class="r mono">${pctS(b.n,nL)}</td><td style="width:110px">${bar(b.n,bm)}</td></tr>`).join('')}</tbody></table>`;
+  $('#dDeptT').innerHTML=`<table><thead><tr><th>Department</th><th class="r">Files</th><th class="r">Incomplete</th><th class="r">% incomplete</th><th class="r">Avg LOS</th></tr></thead><tbody>${d.depts.map(g=>`<tr><td>${esc(g.name)}</td><td class="r mono">${g.files}</td><td class="r mono" style="${g.inc?'color:var(--late)':''}">${g.inc}</td><td class="r mono">${pctS(g.inc,g.files)}</td><td class="r mono">${g.losN?(g.losS/g.losN).toFixed(2):'—'}</td></tr>`).join('')||'<tr><td colspan="5" class="muted">No data.</td></tr>'}</tbody></table>`;
+  const dm=Math.max(1,...d.docs.map(g=>g.inc));
+  $('#dDocT').innerHTML=`<table><thead><tr><th>Doctor</th><th class="r">Incomplete</th><th class="r">Total files</th><th class="r">% incomplete</th><th></th></tr></thead><tbody>${d.docs.map(g=>`<tr><td>${esc(g.name)}</td><td class="r mono">${g.inc}</td><td class="r mono">${g.files}</td><td class="r mono">${pctS(g.inc,g.files)}</td><td style="width:80px">${bar(g.inc,dm,'late')}</td></tr>`).join('')||'<tr><td colspan="5" class="muted">No incomplete files in this selection.</td></tr>'}</tbody></table>`;
+  const u=d.fu;
+  const fr=[['1st reminder email sent',u.em,pctS(u.em,d.total)+' of files'],['2nd reminder email sent',u.e2,pctS(u.e2,u.em)+' of emailed'],['Responded: completed after email',u.resp,pctS(u.resp,u.em)+' of emailed'],['No response: still incomplete after email',u.noresp,pctS(u.noresp,u.em)+' of emailed'],['Escalated to delinquent',u.esc,pctS(u.esc,u.em)+' of emailed'],['Incomplete files with no email yet',u.noemail,pctS(u.noemail,d.incomplete)+' of incomplete'],['Overall response rate',pctS(u.resp,u.em),''],['Avg days between 1st and 2nd email',u.gap==null?'—':u.gap.toFixed(1),u.gap==null?'needs recorded dates':''],['Doctors who received reminder emails',u.docs,''],['Doctors who closed all their emailed files',u.docsAll,'']];
+  $('#dFu').innerHTML=`<table><thead><tr><th>Metric</th><th class="r">Value</th><th class="r">Share</th></tr></thead><tbody>${fr.map(r=>`<tr><td>${r[0]}</td><td class="r mono">${r[1]}</td><td class="r small muted">${r[2]}</td></tr>`).join('')}</tbody></table>`;
+  $('#dResp').innerHTML=`<table><thead><tr><th>Doctor</th><th class="r">Emailed</th><th class="r">Responded</th><th class="r">Still open</th><th class="r">Response</th></tr></thead><tbody>${d.respDocs.map(g=>`<tr><td>${esc(g.name)}</td><td class="r mono">${g.sent}</td><td class="r mono">${g.resp}</td><td class="r mono" style="${g.sent-g.resp?'color:var(--late)':''}">${g.sent-g.resp}</td><td class="r mono">${pctS(g.resp,g.sent)}</td></tr>`).join('')||'<tr><td colspan="5" class="muted">No reminder emails in this selection.</td></tr>'}</tbody></table>`}
+['#dType','#dPeriod','#dDept','#dDoc','#dAllReq'].forEach(s=>$(s).addEventListener('change',renderDash));
+let pctT;$('#dPct').addEventListener('input',()=>{clearTimeout(pctT);pctT=setTimeout(()=>{S.settings.samplePct=samplePct();save();renderDash()},250)});
+$('#dPct').addEventListener('change',()=>{$('#dPct').value=samplePct();S.settings.samplePct=samplePct();save();renderDash()});
+$('#dReshuffle').onclick=()=>{if(samplePct()>=100){toast('Set a sample below 100% first');return}S.settings.sampleSeed=(Date.now()%1e9)||1;save();renderDash();toast('New random sample drawn')};
+$('#dReset').onclick=()=>{$('#dPct').value=100;S.settings.samplePct=100;$('#dType').value='full';$('#dPeriod').value='';$('#dDept').value='';$('#dDoc').value='';renderDash()};
+$('#copyReport').onclick=async()=>{const d=lastDash;if(!d)return;const top=d.req.filter(r=>r.miss).sort((a,b)=>b.miss-a.miss).slice(0,5);
+  const t=`Medical Records Completion Report\nAudit type: ${typeLabel()}\nPeriod: ${periodLabel()}\nSample: ${sampleLabel(d)}${d.dp?'\nDepartment: '+d.dp:''}${d.dk?'\nDoctor: '+docName(d.dk):''}\n\nTotal files audited: ${d.total}\nComplete: ${d.complete} (${pctS(d.complete,d.total)})\nIncomplete: ${d.incomplete} (${pctS(d.incomplete,d.total)}), of which delinquent: ${d.late}\nPending: ${d.pending}\nComplete at first audit: ${pctS(d.firstPass,d.total)}\nAverage LOS: ${d.losAvg.toFixed(2)} days (median ${d.losMed}, max ${d.losMax}); total bed-days: ${d.bed}\n\n${d.AFn?'':'(no full audits in this selection)'}Compliance by dimension (full audits): ${d.dims.map(x=>`${DIMS[x.k]} ${x.o+x.z?((x.o/(x.o+x.z))*100).toFixed(1)+'%':'—'}`).join(', ')}\n\nTop deficient requirements:\n${top.map((r,i)=>`${i+1}. ${r.name}: ${r.miss} files missing (compliance ${(r.comp*100).toFixed(1)}%)`).join('\n')||'None'}\n\nEmail follow-up:\n1st reminders sent: ${d.fu.em}\n2nd reminders sent: ${d.fu.e2}\nCompleted after email: ${d.fu.resp} (response rate ${pctS(d.fu.resp,d.fu.em)})\nStill incomplete after email: ${d.fu.noresp}\nEscalated to delinquent: ${d.fu.esc}`;
+  try{await navigator.clipboard.writeText(t);toast('Report summary copied')}catch(e){$('#bkText').hidden=false;$('#bkText').value=t;go('data');$('#bkText').select();toast('Press Ctrl+C to copy the summary')}};
+$('#exportDash').onclick=()=>{const d=lastDash;if(!d)return;const wb=XLSX.utils.book_new();const add=(n,rows)=>XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(rows),n);
+  add('Summary',[['Audit type',typeLabel()],['Sample',sampleLabel(d)],['Period',periodLabel()],['Department',d.dp||'All'],['Doctor',d.dk?docName(d.dk):'All'],[],['Total files',d.total],['Complete',d.complete],['Incomplete',d.incomplete],['Delinquent',d.late],['Pending',d.pending],['Completion rate',d.total?d.complete/d.total:0],['Complete at first audit',d.total?d.firstPass/d.total:0],['Avg LOS',+d.losAvg.toFixed(2)],['Median LOS',d.losMed],['Max LOS',d.losMax],['Total bed-days',d.bed],...d.dims.map(x=>[DIMS[x.k]+' compliance',x.o+x.z?x.o/(x.o+x.z):''])]);
+  add('Requirements',[['Requirement','Files missing','Files complete','Compliance'],...d.req.filter(r=>r.app).map(r=>[r.name,r.miss,r.ok,r.comp])]);
+  add('Departments',[['Department','Files','Incomplete','% incomplete','Avg LOS'],...d.depts.map(g=>[g.name,g.files,g.inc,g.files?g.inc/g.files:0,g.losN?+(g.losS/g.losN).toFixed(2):''])]);
+  add('Doctors',[['Doctor','Incomplete','Total files','% incomplete'],...d.docs.map(g=>[g.name,g.inc,g.files,g.inc/g.files])]);
+  add('Monthly',[['Month','Files','Complete','Completion rate'],...d.months.map(m=>[m.m,m.files,m.done,m.rate])]);
+  add('LOS',[['Band','Files'],...d.bands.map(b=>[b.l,b.n])]);
+  add('Email follow-up',[['1st reminders sent',d.fu.em],['2nd reminders sent',d.fu.e2],['Completed after email',d.fu.resp],['Still incomplete after email',d.fu.noresp],['Escalated to delinquent',d.fu.esc],['Incomplete with no email',d.fu.noemail],[],['Doctor','Emailed','Responded','Still open'],...d.respDocs.map(g=>[g.name,g.sent,g.resp,g.sent-g.resp])]);
+  if(d.pc<100)add('Sample files',[['Registration_No','Type','Discharge Date','Department','Doctor','Status'],...d.sample.map(a=>[isNaN(+a.fileNo)?a.fileNo:+a.fileNo,isQuick(a)?'Quick':'Full',a.dis,a.dept,docName(docKey(a.doc),a.doc),auditStatus(a)])]);
+  downloadWB(wb,`MR-dashboard-${(periodLabel()).replace(/\s+/g,'-')}${d.pc<100?'-sample'+d.pc:''}.xlsx`)};
+
+/* ---------- DOCTORS ---------- */
+function renderDoctors(){
+  const L=Object.values(S.doctors).sort((a,b)=>(!!a.verified-!!b.verified)||((a.sugg?.score??0)-(b.sugg?.score??0)));
+  const n={v:0,strong:0,check:0,none:0};L.forEach(o=>o.verified?n.v++:n[band(o.sugg?.score??0)]++);
+  $('#docSummary').innerHTML=L.length?`<span class="pill p-ver">${n.v} confirmed</span><span class="pill p-strong">${n.strong} strong</span><span class="pill p-check">${n.check} check</span><span class="pill p-none">${n.none} no match</span>`:'';
+  $('#confirmStrong').disabled=!n.strong;
+  $('#docRows').innerHTML=L.length?L.map(o=>{const s=o.sugg,b=band(s?.score??0);
+    const status=o.verified?'<span class="pill p-ver">Confirmed</span>':`<span class="pill p-${b}">${b==='strong'?'Strong':b==='check'?'Check':'No match'}</span>`;
+    const match=o.verified?`<div>${esc(o.verified.name)}</div><div class="small mono">${esc(o.verified.email)}</div>`:(s?`<div>${esc(s.name)}</div><div class="small mono">${esc(s.email)}</div><div class="small muted">similarity ${Math.round(s.score*100)}%</div>`:'<span class="muted">—</span>');
+    return `<tr data-k="${esc(o.key)}"><td><div>${esc(o.name)}</div>${(o.raw||[]).length>1?`<div class="small muted">${o.raw.length} spellings merged</div>`:''}</td><td class="mono small">${(o.ids||[]).join(', ')||'—'}</td><td class="r mono">${o.files||0}</td>
+    <td style="min-width:220px">${match}<div class="ac" hidden style="margin-top:6px"><input placeholder="Search contacts or type an email" class="pickIn"><div class="ac-list"></div></div></td><td>${status}</td>
+    <td><div class="acts">${!o.verified&&s?'<button class="btn sm primary" data-act="ok">Confirm</button>':''}<button class="btn sm" data-act="pick">${o.verified?'Change':'Choose other'}</button>${o.verified?'<button class="btn sm" data-act="unv">Unconfirm</button>':''}</div></td></tr>`}).join('')
+    :`<tr><td colspan="6" class="muted" style="padding:18px">No doctors yet. They appear here from audits; import the contacts list under Data to match emails.</td></tr>`}
+$('#docRows').addEventListener('click',e=>{const b=e.target.closest('button[data-act]');if(!b)return;const tr=b.closest('tr'),o=S.doctors[tr.dataset.k];if(!o)return;
+  if(b.dataset.act==='ok'){o.verified={name:o.sugg.name,email:o.sugg.email};applyEmailToFu(o.key);save();renderAll();toast('Confirmed')}
+  if(b.dataset.act==='unv'){delete o.verified;applyEmailToFu(o.key);save();renderAll()}
+  if(b.dataset.act==='pick'){const box=tr.querySelector('.ac');box.hidden=false;const inp=box.querySelector('input');
+    ac(inp,box.querySelector('.ac-list'),q=>{if(q.length<2)return [];const Q=q.toLowerCase();const r=S.contacts.filter(c=>(c.name+' '+c.email).toLowerCase().includes(Q)).map(c=>({label:c.name,sub:c.email,c}));if(/^\S+@\S+\.\S+$/.test(q))r.unshift({label:'Use this email',sub:q,c:{name:o.name,email:q.toLowerCase()}});return r},
+      it=>{o.verified={name:it.c.name,email:it.c.email};applyEmailToFu(o.key);save();renderAll();toast('Confirmed')});inp.focus()}});
+$('#confirmStrong').onclick=()=>{let n=0;for(const o of Object.values(S.doctors))if(!o.verified&&o.sugg&&o.sugg.score>=0.9){o.verified={name:o.sugg.name,email:o.sugg.email};applyEmailToFu(o.key);n++}save();renderAll();toast(`${n} doctors confirmed`)};
+
+/* ---------- DATA ---------- */
+function renderData(){
+  const ex=S.audits.filter(a=>a.src==='excel').length,si=S.audits.filter(a=>a.src==='site').length;const ds=S.audits.map(a=>a.dis).filter(Boolean).sort();
+  $('#auditInfo').innerHTML=S.audits.length&&!S.sample?`<dt>Audits stored</dt><dd class="mono">${S.audits.length} (${S.audits.filter(a=>!isQuick(a)).length} full, ${S.audits.filter(isQuick).length} quick; ${ex} from Excel, ${si} entered here)</dd><dt>Discharges</dt><dd class="mono">${fmtD(ds[0])} – ${fmtD(ds[ds.length-1])}</dd><dt>Stalled files</dt><dd class="mono">${S.fu.length}</dd>${S.imports.length?`<dt>Last import</dt><dd>${esc(S.imports[S.imports.length-1].file)}, ${fmtD(S.imports[S.imports.length-1].date)}</dd>`:''}`:'<dt>Status</dt><dd>No real data yet</dd>';
+  $('#contactInfo').innerHTML=S.contactsReal?`<dt>File</dt><dd>${esc(S.contactsFile||'')}</dd><dt>Contacts</dt><dd class="mono">${S.contacts.length}</dd>`:'<dt>Status</dt><dd>Not imported yet</dd>';
+  $('#sRemind').value=S.settings.remindDays;$('#sDelinq').value=S.settings.delinqDays;$('#sSender').value=S.settings.sender;$('#sAuditor').value=S.settings.auditor||'';
+  const qa=S.audits.filter(isQuick);$('#quickInfo').innerHTML=qa.length&&!S.sample?`<dt>Quick audits stored</dt><dd class="mono">${qa.length}</dd>${S.quickImport?`<dt>Last with statuses</dt><dd>${esc(S.quickImport.file)}, ${fmtD(S.quickImport.date)}: ${S.quickImport.added} new, ${S.quickImport.updated} updated</dd>`:''}${S.quickDone?`<dt>Last complete list</dt><dd>${esc(S.quickDone.file)}, ${fmtD(S.quickDone.date)}: ${S.quickDone.added} added, ${S.quickDone.updated} updated</dd>`:''}<dt>Quick worklist</dt><dd class="mono">${S.queue.filter(q=>q.type==='quick').length} waiting</dd>`:'<dt>Status</dt><dd>Not imported yet</dd>';
+  $('#queueInfo').innerHTML=`<dt>Waiting to audit</dt><dd class="mono">${S.queue.filter(q=>(q.type||'full')==='full').length} full · ${S.queue.filter(q=>q.type==='quick').length} quick</dd>${S.lastQueue?`<dt>Last import</dt><dd>${esc(S.lastQueue.file)}, ${fmtD(S.lastQueue.date)}: ${S.lastQueue.add} added, ${S.lastQueue.done} already audited, ${S.lastQueue.dup} already listed</dd>`:''}`;$('#qClear').disabled=!S.queue.length;
+  $('#wipeCounts').innerHTML=`<dt>Audits</dt><dd class="mono">${S.sample?0:S.audits.length}</dd><dt>Stalled files</dt><dd class="mono">${S.sample?0:S.fu.length}</dd><dt>Worklist</dt><dd class="mono">${S.queue.length}</dd><dt>Contacts</dt><dd class="mono">${S.contactsReal?S.contacts.length:0}</dd><dt>Confirmed doctors</dt><dd class="mono">${Object.values(S.doctors).filter(o=>o.verified).length}</dd>`;
+  $('#bkLast').textContent=S.lastBackup?`Last backup: ${fmtD(S.lastBackup)}${daysSince(S.lastBackup)>7?' (more than a week ago)':''}`:'No backup yet.';
+  $('#notifyBtn').textContent=S.settings.notify?'Desktop alerts on':'Turn on desktop alerts'}
+$('#inAudit').onchange=async e=>{const f=e.target.files[0];if(!f)return;try{const wb=await readWB(f);leaveSample();const r=importAudit(wb,f.name);indexFu();rebuildDoctors();S.fu.forEach(x=>{if(!x.email&&!x.emailManual){const em=doctorEmail(x.doctorKey);if(em){x.email=em.email;x.emailVerified=em.verified}}});
+  save();renderAll();toast(`Imported: ${r.added} new, ${r.updated} updated, ${r.fuAdded} stalled files`)}catch(err){toast(err.message||'Could not read this file')}e.target.value=''};
+$('#inContacts').onchange=async e=>{const f=e.target.files[0];if(!f)return;try{const c=parseContacts(await readWB(f));leaveSample();S.contacts=c;S.contactsReal=true;S.contactsFile=f.name;
+  rebuildDoctors();Object.keys(S.doctors).forEach(applyEmailToFu);save();renderAll();toast(`Imported ${c.length} contacts`)}catch(err){toast(err.message||'Could not read this file')}e.target.value=''};
+$('#sRemind').onchange=e=>{S.settings.remindDays=Math.max(1,Math.min(30,parseInt(e.target.value)||3));save();renderAll()};
+$('#sDelinq').onchange=e=>{S.settings.delinqDays=Math.max(1,Math.min(60,parseInt(e.target.value)||7));save();renderAll()};
+$('#sSender').onchange=e=>{S.settings.sender=e.target.value.trim()||S.settings.sender;save()};
+$('#sAuditor').onchange=e=>{S.settings.auditor=e.target.value.trim();save()};
+const isMobile=/Android|iPhone|iPad|iPod/i.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
+$('#bkFile').onclick=async()=>{const name=`MR-followup-backup-${isoDay(new Date())}.json`;
+  if(isMobile&&navigator.canShare){try{const file=new File([JSON.stringify(S)],name,{type:'application/json'});if(navigator.canShare({files:[file]})){await navigator.share({files:[file],title:'MR Follow-up backup'});S.lastBackup=isoDay(new Date());save();renderData();toast('Backup shared. Save it to Files, or send it to your computer.');return}}catch(e){if(e&&e.name==='AbortError')return}}
+  try{const blob=new Blob([JSON.stringify(S)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`MR-followup-backup-${isoDay(new Date())}.json`;document.body.appendChild(a);a.click();a.remove();S.lastBackup=isoDay(new Date());save();renderData();if(inFrame)toast('If nothing downloaded, use "Copy backup as text" or the local copy.')}catch(e){toast('Download failed')}};
+$('#bkShow').onclick=()=>{const t=$('#bkText');t.hidden=false;t.value=JSON.stringify(S);t.select();S.lastBackup=isoDay(new Date());save();renderData();
+  try{navigator.clipboard.writeText(t.value).then(()=>toast('Backup copied. Paste it into a text file to keep it.'),()=>toast('Press Ctrl+C to copy the selected backup'))}catch(e){toast('Press Ctrl+C to copy the selected backup')}};
+function restore(txt){try{const o=JSON.parse(txt);if(o.v!==2||!Array.isArray(o.audits))throw 0;S=o;indexFu();save();renderAll();toast('Backup restored')}catch(e){toast('That is not a valid backup')}}
+$('#bkIn').onchange=async e=>{const f=e.target.files[0];if(f)restore(await f.text());e.target.value=''};
+$('#bkRestore').onclick=()=>{const t=$('#bkText');if(t.hidden||!t.value.trim()){t.hidden=false;t.value='';t.focus();toast('Paste the backup text, then press Restore again');return}restore(t.value)};
+let wipeMode=null;
+function askWipe(m){wipeMode=m;const n=S.audits.length,f=S.fu.length,q=S.queue.length;
+  $('#wipeText').textContent=m==='all'?`Erase everything: ${n} audits, ${f} stalled files, ${q} worklist files, ${S.contacts.length} contacts and all doctor confirmations?`:`Erase ${n} audits, ${f} stalled files and ${q} worklist files? Contacts and doctor confirmations stay.`;$('#wipeConfirm').hidden=false}
+$('#wipeData').onclick=()=>askWipe('data');$('#wipeAll').onclick=()=>askWipe('all');
+$('#wipeNo').onclick=()=>{$('#wipeConfirm').hidden=true;wipeMode=null};
+$('#wipeBk').onclick=()=>$('#bkFile').click();
+$('#wipeYes').onclick=()=>{if(!wipeMode)return;const old=JSON.parse(JSON.stringify(S));const keep=S;S=blankState();S.settings=keep.settings;
+  if(wipeMode==='data'){S.contacts=keep.contacts;S.contactsReal=keep.contactsReal;S.contactsFile=keep.contactsFile;S.lastBackup=keep.lastBackup;
+    const D={};for(const k in keep.doctors){const o=keep.doctors[k];if(o.verified)D[k]={...o,files:0,raw:[o.name],ids:[]}}S.doctors=D}
+  const m=wipeMode;wipeMode=null;$('#wipeConfirm').hidden=true;resetAudit();indexFu();rebuildDoctors();save();renderAll();
+  toast(m==='all'?'Everything erased. You are starting fresh.':'Audit data erased. Contacts and doctor emails kept.',()=>{S=old;indexFu();save();renderAll()})};
+
+/* ---------- notifications ---------- */
+$('#notifyBtn').onclick=async()=>{if(!('Notification' in window)){$('#notifyMsg').textContent='This browser does not support desktop alerts.';return}
+  try{const p=await Notification.requestPermission();if(p==='granted'){S.settings.notify=true;save();renderData();notifyNow(true)}else $('#notifyMsg').textContent='Alerts were blocked. They work in the local copy opened in Chrome or Edge.'}catch(e){$('#notifyMsg').textContent='Alerts are not available here. Use the local copy in Chrome or Edge.'}};
+function notifyNow(force){try{if(!S.settings.notify||!('Notification' in window)||Notification.permission!=='granted')return;
+  const st=S.fu.map(fuStage),n2=st.filter(s=>s==='need2').length,nl=st.filter(s=>s==='late').length,n1=st.filter(s=>s==='need1').length;if(!n1&&!n2&&!nl&&!force)return;
+  new Notification('MR Follow-up',{body:[n2&&`${n2} files need a 2nd reminder`,nl&&`${nl} delinquent`,n1&&`${n1} not emailed yet`].filter(Boolean).join(' · ')||'Nothing needs action today.'})}catch(e){}}
+
+/* ---------- WORKLIST (files to audit) ---------- */
+const QAL={reg:['registration_no','registration no','registration number','file no','file no.','file number','file_no','mrn','medical record no','medical record number','reg no','patient file no'],adm:['admission date','admission','admit date','admission_date'],dis:['discharge date','discharge','discharged','discharge_date'],los:['los','length of stay'],dept:['department_name','department','dept','department name'],ward:['ward name','ward','ward_name'],doc:['doctorincharge','doctor in charge','doctor','physician','consultant','doctor name','attending'],to:['discharge to','discharge_to','discharge type','discharge status'],staff:['staff name','auditor','audited by']};
+function toIso(v){if(v==null||v==='')return '';if(v instanceof Date)return isoDay(v);
+  if(typeof v==='number'){const p=XLSX.SSF.parse_date_code(v);return p?isoDay(new Date(p.y,p.m-1,p.d)):''}
+  const s=String(v).trim();let m=s.match(/^(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{4})/);if(m)return isoDay(new Date(+m[3],+m[2]-1,+m[1]));
+  m=s.match(/^(\d{4})[\/\-.](\d{1,2})[\/\-.](\d{1,2})/);if(m)return isoDay(new Date(+m[1],+m[2]-1,+m[3]));const d=new Date(s);return isNaN(d)?'':isoDay(d)}
+function parseWorklist(wb){
+  const ws=wb.Sheets[wb.SheetNames[0]];const A=XLSX.utils.sheet_to_json(ws,{header:1,raw:true,defval:null});
+  const hi=A.slice(0,30).findIndex(r=>r&&r.some(v=>QAL.reg.includes(normC(v??''))));
+  if(hi<0)throw new Error('Could not find a file number column (for example Registration_No or File No) in the first sheet.');
+  const H=A[hi].map(v=>normC(v??''));const col=k=>H.findIndex(h=>QAL[k].includes(h));
+  const c={reg:col('reg'),adm:col('adm'),dis:col('dis'),los:col('los'),dept:col('dept'),ward:col('ward'),doc:col('doc'),to:col('to'),staff:col('staff')};
+  const sub=A[hi+1]||[];const hasTAC=sub.some((v,i)=>String(v??'').trim()==='T'&&String(sub[i+1]??'').trim()==='A');
+  const g=(X,k)=>c[k]>=0?X[c[k]]:null;const out=[];
+  for(let r=hi+1;r<A.length;r++){const X=A[r];if(!X)continue;const no=String(g(X,'reg')??'').trim();if(!no||!/\d/.test(no))continue;
+    const adm=toIso(g(X,'adm')),dis=toIso(g(X,'dis'));const lv=g(X,'los');
+    out.push({id:uid(),fileNo:no,adm,dis,los:typeof lv==='number'?lv:(lv!=null&&lv!==''&&!isNaN(+lv)?+lv:(adm&&dis?Math.max(0,daysBetween(adm,dis)):null)),
+      dept:String(g(X,'dept')??'').trim(),ward:String(g(X,'ward')??'').trim(),doc:String(g(X,'doc')??'').replace(/\s+/g,' ').trim(),dischargeTo:String(g(X,'to')??'').trim(),auditor:String(g(X,'staff')??'').trim()})}
+  if(!out.length)throw new Error('No rows with a file number were found.');
+  return {rows:out,hasTAC,missing:['dis','doc','dept'].filter(k=>c[k]<0)}}
+async function importQueueFile(e,type){const file=e.target.files[0];if(!file)return;try{const {rows,missing}=parseWorklist(await readWB(file));leaveSample();
+  const own=S.audits.filter(a=>typeOf(a)===type);const aud=new Set(own.map(a=>a.fileNo+'|'+a.dis)),audNo=new Set(own.map(a=>a.fileNo)),inQ=new Set(S.queue.filter(q=>(q.type||'full')===type).map(q=>q.fileNo+'|'+q.dis));
+  let add=0,done=0,dup=0;for(const q of rows){const k=q.fileNo+'|'+q.dis;if(aud.has(k)||(!q.dis&&audNo.has(q.fileNo))){done++;continue}if(inQ.has(k)){dup++;continue}q.type=type;delete q.auditor;S.queue.push(q);inQ.add(k);add++}
+  S.lastQueue={file:file.name,date:isoDay(new Date()),add,done,dup,type};save();renderAll();
+  toast(`${add} files added to the ${type} audit worklist${done?`, ${done} already audited`:''}${dup?`, ${dup} already listed`:''}${missing.length?'. Missing columns: '+missing.map(k=>({dis:'discharge date',doc:'doctor',dept:'department'}[k])).join(', '):''}`)}catch(err){toast(err.message||'Could not read this file')}e.target.value=''}
+$('#inQueue').onchange=e=>importQueueFile(e,'full');$('#inQueueQ').onchange=e=>importQueueFile(e,'quick');
+function dropFromQueue(type,keys){const n=S.queue.length;S.queue=S.queue.filter(q=>!((q.type||'full')===type&&(keys.has(q.fileNo+'|'+q.dis)||(!q.dis&&[...keys].some(k=>k.startsWith(q.fileNo+'|'))))));return n-S.queue.length}
+$('#inQuickDone').onchange=async e=>{const file=e.target.files[0];if(!file)return;try{const {rows,hasTAC,missing}=parseWorklist(await readWB(file));
+  if(hasTAC)throw new Error('This file has standards (T/A/C) columns. Use "Import Excel audit" for full audits.');
+  if(missing.includes('dis'))throw new Error('Could not find a discharge date column. It is needed to tell repeat admissions apart.');
+  leaveSample();indexFu();const byKey=new Map(S.audits.filter(isQuick).map(a=>[a.fileNo+'|'+a.dis,a]));const keys=new Set();let added=0,updated=0,closed=0;const today_=isoDay(new Date());
+  for(const q of rows){const k=q.fileNo+'|'+q.dis;keys.add(k);let a=byKey.get(k);
+    if(a){if(a.result!=='complete'||a.pending){a.result='complete';a.pending=false;updated++}const f=S.fu.find(x=>x.auditId===a.id);if(f&&f.status!=='done'){f.status='done';f.done=today_;closed++}}
+    else{a={id:uid(),type:'quick',fileNo:q.fileNo,adm:q.adm,dis:q.dis,los:q.los,dept:q.dept,ward:q.ward,doc:q.doc,dischargeTo:q.dischargeTo,auditor:q.auditor||'',auditDate:'',sc:'',result:'complete',note:'',pending:false,src:'excel'};S.audits.push(a);byKey.set(k,a);added++}}
+  const dq=dropFromQueue('quick',keys);S.quickDone={file:file.name,date:today_,added,updated,closed};rebuildDoctors();save();renderAll();
+  toast(`${added} complete files added${updated?`, ${updated} updated to Complete`:''}${closed?`, ${closed} stalled files closed`:''}${dq?`, ${dq} removed from the worklist`:''}`)}catch(err){toast(err.message||'Could not read this file')}e.target.value=''};
+function importQuick(wb,fileName){
+  const ws=wb.Sheets['Sheet1']||wb.Sheets[wb.SheetNames[0]];const A=XLSX.utils.sheet_to_json(ws,{header:1,raw:true,defval:null});
+  const hi=A.findIndex(r=>r&&r.some(v=>normC(v||'')==='registration_no'));if(hi<0)throw new Error('Could not find a "Registration_No" column in the first sheet.');
+  const sub=A[hi+1]||[];if(sub.some((v,i)=>String(v??'').trim()==='T'&&String(sub[i+1]??'').trim()==='A'))throw new Error('This file has standards (T/A/C) columns. Use "Import Excel audit" for full audits.');
+  const H=A[hi].map(v=>v==null?'':normC(v));const col=(...ns)=>{for(const n of ns){const i=H.indexOf(n);if(i>=0)return i}return -1};
+  const c={reg:col('registration_no'),adm:col('admission date'),dis:col('discharge date'),los:col('los'),dept:col('department_name','department'),ward:col('ward name','ward'),doc:col('doctorincharge','doctor'),to:col('discharge to'),staff:col('staff name'),e1:col('first email'),e2:col('second email'),inc:col('incompelet','incomplete'),com:col('compelet','complete'),del:col('delinquent')};
+  if(c.dis<0||c.doc<0)throw new Error('Could not find "Discharge Date" or "DoctorInCharge" columns.');
+  const has=v=>v!=null&&String(v).trim()!=='';const g=(X,k)=>c[k]>=0?X[c[k]]:null;
+  const byKey=new Map(S.audits.filter(isQuick).map(a=>[a.fileNo+'|'+a.dis,a]));let added=0,updated=0,fuAdded=0,rows=0;
+  for(let r=hi+1;r<A.length;r++){const X=A[r];if(!X||!has(g(X,'reg')))continue;rows++;
+    const dis=toIso(g(X,'dis')),adm=toIso(g(X,'adm'));const lv=g(X,'los');
+    const inc=has(g(X,'inc')),com=has(g(X,'com')),del=has(g(X,'del')),e1=has(g(X,'e1')),e2=has(g(X,'e2'));
+    const data={type:'quick',fileNo:String(g(X,'reg')).trim(),adm,dis,los:typeof lv==='number'?lv:(adm&&dis?Math.max(0,daysBetween(adm,dis)):null),dept:String(g(X,'dept')??'').trim(),ward:String(g(X,'ward')??'').trim(),doc:String(g(X,'doc')??'').replace(/\s+/g,' ').trim(),dischargeTo:String(g(X,'to')??'').trim(),auditor:String(g(X,'staff')??'').trim(),auditDate:'',sc:'',result:com?'complete':(inc||e1)?'incomplete':'',note:'',pending:!inc&&!com&&!del&&!e1,src:'excel'};
+    const key=data.fileNo+'|'+dis;let a=byKey.get(key);
+    if(a){if(a.src==='site')continue;Object.assign(a,data);updated++}else{a={id:uid(),...data};S.audits.push(a);byKey.set(key,a);added++}
+    if((inc||e1)&&!S.fu.some(f=>f.auditId===a.id)){const dv=v=>v instanceof Date?isoDay(v):'?';
+      S.fu.push({id:uid(),auditId:a.id,kind:'quick',fileNo:a.fileNo,dept:a.dept,dis:a.dis,doctor:a.doc,doctorKey:docKey(a.doc),email:'',emailVerified:false,defs:[],note:'',
+        status:com?'done':e2?'e2':e1?'e1':'open',e1:e1?dv(g(X,'e1')):'',e2:e2?dv(g(X,'e2')):'',done:com?'?':'',delinqFlag:del,created:isoDay(new Date()),src:'excel'});fuAdded++}}
+  dropFromQueue('quick',new Set(byKey.keys()));S.quickImport={file:fileName,date:isoDay(new Date()),rows,added,updated,fuAdded};return {rows,added,updated,fuAdded}}
+$('#inQuick').onchange=async e=>{const f=e.target.files[0];if(!f)return;try{const wb=await readWB(f);leaveSample();const r=importQuick(wb,f.name);indexFu();rebuildDoctors();S.fu.forEach(x=>{if(!x.email&&!x.emailManual){const em=doctorEmail(x.doctorKey);if(em){x.email=em.email;x.emailVerified=em.verified}}});
+  save();renderAll();toast(`Quick audit imported: ${r.added} new, ${r.updated} updated${r.rows>r.added+r.updated?`, ${r.rows-r.added-r.updated} repeated rows merged`:''}, ${r.fuAdded} stalled files`)}catch(err){toast(err.message||'Could not read this file')}e.target.value=''};
+$('#qClear').onclick=()=>{$('#qClearConfirm').hidden=false};$('#qClearNo').onclick=()=>{$('#qClearConfirm').hidden=true};
+$('#qClearYes').onclick=()=>{const old=S.queue;S.queue=[];save();$('#qClearConfirm').hidden=true;renderAll();toast('Worklist emptied',()=>{S.queue=old;save();renderAll()})};
+function renderQueue(){const nf=S.queue.filter(q=>(q.type||'full')==='full').length,nq=S.queue.length-nf;$('#qcFull').hidden=!nf;$('#qcFull').textContent=nf;$('#qcQuick').hidden=!nq;$('#qcQuick').textContent=nq;
+  const Q=S.queue.filter(q=>(q.type||'full')===auMode);$('#queuePanel').hidden=!Q.length;if(!Q.length)return;
+  const ds=$('#qDept'),cd=ds.value;const depts=[...new Set(Q.map(q=>q.dept).filter(Boolean))].sort();
+  ds.innerHTML='<option value="">All departments</option>'+depts.map(d=>`<option>${esc(d)}</option>`).join('');if(depts.includes(cd))ds.value=cd;
+  const s=$('#qQ').value.trim().toLowerCase(),dp=ds.value,fr=$('#qFrom').value,to=$('#qTo').value;
+  const L=Q.filter(q=>(!dp||q.dept===dp)&&(!fr||(q.dis&&q.dis>=fr))&&(!to||(q.dis&&q.dis<=to))&&(!s||(q.fileNo+' '+q.doc+' '+q.dept).toLowerCase().includes(s))).sort((a,b)=>(a.dis||'9').localeCompare(b.dis||'9'));
+  $('#qLede').textContent=`${Q.length} file${Q.length===1?'':'s'} waiting for ${auMode==='quick'?'a quick':'a full'} audit, oldest discharge first. ${auMode==='quick'?'Press ✓ Complete to save straight away, or ✗ Not complete to add what is missing.':'Press Audit to fill the form below.'}`;
+  qShown=L;[...qSel].forEach(id=>{if(!S.queue.some(q=>q.id===id))qSel.delete(id)});
+  $('#qRows').innerHTML=L.slice(0,300).map(q=>`<tr data-q="${q.id}" class="${form.queueId===q.id?'q-active':''}"><td><input type="checkbox" data-sel aria-label="Select file ${esc(q.fileNo)}" ${qSel.has(q.id)?'checked':''}></td><td class="mono">${esc(q.fileNo)}</td><td class="mono">${fmtS(q.adm)}</td><td class="mono">${fmtS(q.dis)}</td><td class="r mono">${q.los??'—'}</td><td>${esc(q.dept||'—')}</td><td>${esc(q.doc?docName(docKey(q.doc),q.doc):'—')}</td><td><div class="acts" style="min-width:0">${auMode==='quick'?'<button class="btn sm okb" type="button" data-qa="ok">✓ Complete</button><button class="btn sm danger" type="button" data-qa="no">✗ Not complete</button>':'<button class="btn sm primary" type="button" data-qa="start">Audit</button>'}<button class="btn sm" type="button" data-qa="rm">Remove</button></div></td></tr>`).join('')||'<tr><td colspan="8" class="muted">No files match.</td></tr>';updSel()}
+function fillFromQueue(q){$('#aFile').value=q.fileNo;$('#aAdm').value=q.adm||'';$('#aDis').value=q.dis||'';$('#aLos').value=q.los??'';$('#aDept').value=q.dept||'';$('#aWard').value=q.ward||'';$('#aDoc').value=q.doc?docName(docKey(q.doc),q.doc):'';$('#aTo').value=q.dischargeTo||'';
+  form.queueId=q.id;const e=doctorEmail(docKey(q.doc));emailLine($('#aDocLine'),e?.email,e?.verified,q.doc);$('#auTitle').textContent=`Auditing file ${q.fileNo}`}
+$('#qRows').addEventListener('click',e=>{const b=e.target.closest('button[data-qa]');if(!b)return;const q=S.queue.find(x=>x.id===b.closest('tr').dataset.q);if(!q)return;
+  if(b.dataset.qa==='ok'){leaveSample();const a={id:uid(),type:'quick',fileNo:q.fileNo,adm:q.adm,dis:q.dis,los:q.los,dept:q.dept,ward:q.ward,doc:q.doc,dischargeTo:q.dischargeTo,auditor:S.settings.auditor||'',auditDate:isoDay(new Date()),sc:'',result:'complete',note:'',pending:false,src:'site'};
+    const i=S.queue.indexOf(q);S.queue.splice(i,1);S.audits.push(a);rebuildDoctors();save();renderAll();toast(`File ${q.fileNo} saved as complete`,()=>{S.audits=S.audits.filter(x=>x!==a);S.queue.splice(i,0,q);save();renderAll()})}
+  if(b.dataset.qa==='no'){resetAudit();fillFromQueue(q);form.result='incomplete';renderResult();$('#auMsg').textContent='Add what is missing (optional), then save.';renderQueue();$('#auForm').scrollIntoView({behavior:'smooth',block:'start'});setTimeout(()=>$('#aNote').focus(),300)}
+  if(b.dataset.qa==='start'){resetAudit();fillFromQueue(q);$('#auMsg').textContent='Details filled from the worklist. Score the standards and save.';renderQueue();$('#auForm').scrollIntoView({behavior:'smooth',block:'start'})}
+  if(b.dataset.qa==='rm'){const i=S.queue.indexOf(q);S.queue.splice(i,1);save();renderAll();toast(`File ${q.fileNo} removed from the worklist`,()=>{S.queue.splice(i,0,q);save();renderAll()})}});
+let qSel=new Set(),qShown=[],qPending=null;
+function updSel(){const sel=qShown.filter(q=>qSel.has(q.id)).length;$('#qDelSel').disabled=!sel;$('#qDelSel').textContent=sel?`Remove selected (${sel})`:'Remove selected';
+  const filtered=qShown.length!==S.queue.filter(q=>(q.type||'full')===auMode).length;$('#qDelAll').textContent=filtered?`Remove all shown (${qShown.length})`:`Remove all (${qShown.length})`;
+  const all=$('#qAll');all.checked=!!qShown.length&&qShown.every(q=>qSel.has(q.id));all.indeterminate=!all.checked&&sel>0;
+  $('#qSelInfo').textContent=qShown.length>300?'Showing the first 300; "Remove all" covers every file shown by the filter.':''}
+$('#qRows').addEventListener('change',e=>{const c=e.target.closest('[data-sel]');if(!c)return;const id=c.closest('tr').dataset.q;c.checked?qSel.add(id):qSel.delete(id);updSel()});
+$('#qAll').addEventListener('change',e=>{qShown.slice(0,300).forEach(q=>e.target.checked?qSel.add(q.id):qSel.delete(q.id));renderQueue()});
+function askRemove(ids,label){if(!ids.length)return;qPending=ids;$('#qDelText').textContent=`Remove ${ids.length} file${ids.length>1?'s':''} ${label}?`;$('#qDelConfirm').hidden=false}
+$('#qDelSel').onclick=()=>askRemove(qShown.filter(q=>qSel.has(q.id)).map(q=>q.id),'from the worklist');
+$('#qDelAll').onclick=()=>askRemove(qShown.map(q=>q.id),qShown.length===S.queue.filter(q=>(q.type||'full')===auMode).length?`(the whole ${auMode} audit worklist)`:'shown by the filter');
+$('#qDelNo').onclick=()=>{$('#qDelConfirm').hidden=true;qPending=null};
+$('#qDelYes').onclick=()=>{const ids=new Set(qPending||[]);$('#qDelConfirm').hidden=true;qPending=null;if(!ids.size)return;const old=S.queue.slice();
+  S.queue=S.queue.filter(q=>!ids.has(q.id));ids.forEach(id=>qSel.delete(id));if(ids.has(form.queueId))form.queueId=null;save();renderAll();
+  toast(`${ids.size} file${ids.size>1?'s':''} removed from the worklist`,()=>{S.queue=old;save();renderAll()})};
+$('#qQ').addEventListener('input',renderQueue);$('#qFrom').addEventListener('change',renderQueue);$('#qTo').addEventListener('change',renderQueue);$('#qDateClr').onclick=()=>{$('#qFrom').value='';$('#qTo').value='';renderQueue()};$('#qDept').addEventListener('change',renderQueue);
+$('#aFile').addEventListener('change',()=>{if(form.id||form.queueId)return;const no=$('#aFile').value.trim();const q=S.queue.find(x=>x.fileNo===no&&(x.type||'full')===auMode);if(!q)return;fillFromQueue(q);$('#auMsg').textContent='Found in the worklist. Details filled in.';renderQueue()});
+
+/* ---------- shell ---------- */
+const TABS=['files','audit','dashboard','doctors','data','guide'];let cur='files';
+function go(t){if(!TABS.includes(t))t='files';cur=t;TABS.forEach(x=>{$('#view-'+x).hidden=x!==t;$('#tab-'+x).setAttribute('aria-selected',x===t)});try{if(location.hash!=='#'+t)history.replaceState(null,'','#'+t)}catch(e){}renderAll();scrollTo(0,0)}
+document.querySelectorAll('#nav button').forEach(b=>b.onclick=()=>go(b.dataset.tab));
+document.addEventListener('click',e=>{const g=e.target.closest('[data-go]');if(g)go(g.dataset.go)});
+addEventListener('hashchange',()=>{const h=location.hash.slice(1);if(h!==cur)go(h)});
+let tt,undoFn=null;function toast(m,undo){const t=$('#toast');$('#toastMsg').textContent=m;undoFn=undo||null;$('#toastUndo').hidden=!undo;t.hidden=false;clearTimeout(tt);tt=setTimeout(()=>{t.hidden=true;undoFn=null},undo?7000:3200)}
+$('#toastUndo').onclick=()=>{if(undoFn){undoFn();undoFn=null;$('#toast').hidden=true}};
+function renderFlow(){$('#flow').innerHTML=`<span class="st">Audit with ✗</span><span class="ar">→</span><span class="st">Stalled: send 1st email</span><span class="ar">→ ${R()} days →</span><span class="st" style="border-color:var(--warn)">2nd reminder due</span><span class="ar">→ ${D()} days after 1st email →</span><span class="st" style="border-color:var(--late);color:var(--late)">Delinquent</span><span class="ar">· any time →</span><span class="st" style="border-color:var(--ok);color:var(--ok)">Completed (leaves the list)</span>`}
+function renderAll(){indexFu();$('#sampleBanner').hidden=!S.sample;renderFiles();
+  const nq=S.queue.length;$('#auBadge').hidden=!nq;$('#auBadge').textContent=nq;
+  if(cur==='audit'){renderQueue();renderAudits()}if(cur==='dashboard')renderDash();if(cur==='doctors')renderDoctors();if(cur==='data')renderData();if(cur==='guide')renderFlow()}
+$('#dPct').value=S.settings.samplePct||100;
+rebuildDoctors();indexFu();auMode=S.settings.auMode==='quick'?'quick':'full';setMode(auMode);go(location.hash.slice(1)||'files');
+setTimeout(()=>notifyNow(false),1500);
+/* installed app (PWA): offline cache + ask the browser to keep data */
+if(document.querySelector('link[rel="manifest"]')&&'serviceWorker' in navigator&&/^https?:$/.test(location.protocol)&&!inFrame){
+  navigator.serviceWorker.register('sw.js').then(reg=>{reg.addEventListener('updatefound',()=>{const w=reg.installing;w&&w.addEventListener('statechange',()=>{if(w.state==='installed'&&navigator.serviceWorker.controller)toast('A new version is ready. Close and reopen the app to use it.')})})}).catch(()=>{});
+  try{navigator.storage&&navigator.storage.persist&&navigator.storage.persist()}catch(e){}}setInterval(()=>{renderFiles();notifyNow(false)},3*3600e3);
+</script>
+</html>
