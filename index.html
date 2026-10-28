@@ -369,6 +369,27 @@ dialog::backdrop{background:rgb(10 20 24 / .45)}
       </div>
       <div class="row"><button class="btn" type="button" id="notifyBtn">Turn on desktop alerts</button><span class="small muted" id="notifyMsg">Shows a desktop notification when 2nd reminders are due or files turn delinquent, while this page is open.</span></div>
     </div>
+    <div class="panel" id="tplPanel">
+      <div class="row"><div><h3>Email text</h3><p class="lede small" style="margin:0">Edit what doctors receive. Words in {curly brackets} are filled in for each file. Changes save as you type. Arabic text works.</p></div></div>
+      <div class="seg" role="tablist" aria-label="Which email" style="max-width:520px">
+        <button type="button" role="tab" data-tpl="1" aria-selected="true"><b>1st email</b><span>Sent first</span></button>
+        <button type="button" role="tab" data-tpl="2" aria-selected="false"><b>2nd reminder</b><span>And any later reminder</span></button>
+      </div>
+      <div class="cols2" style="gap:14px">
+        <div style="display:grid;gap:10px;min-width:0">
+          <label class="f">Subject<input id="tSubj"></label>
+          <label class="f">Message<textarea id="tBody" rows="16" class="mono" style="font-size:12.5px;line-height:1.5" dir="auto"></textarea></label>
+          <div class="small muted">Insert into the message:</div>
+          <div class="chips" id="tVars"></div>
+          <div class="row"><button class="btn sm" type="button" id="tReset">Restore the original text</button><span class="small" id="tMsg"></span></div>
+        </div>
+        <div style="display:grid;gap:8px;align-content:start;min-width:0">
+          <div class="small muted">Preview with <span id="tPrevSrc"></span></div>
+          <div class="small"><span class="muted">Subject </span><b id="tPrevSubj"></b></div>
+          <pre id="tPrev" dir="auto" style="white-space:pre-wrap;word-break:break-word;background:var(--sunk);border:1px solid var(--line);border-radius:6px;padding:12px;font:12.5px/1.5 var(--f-mono);margin:0;max-height:440px;overflow:auto"></pre>
+        </div>
+      </div>
+    </div>
     <div class="panel">
       <h3>Backup</h3>
       <p class="lede">All data lives in this browser only and is never sent to a server. Clearing browser data erases it. Save a backup at least weekly.</p>
@@ -547,9 +568,10 @@ function docName(key,raw){return S.doctors[key]?.name||cleanDocName(raw)||raw||'
 function applyEmailToFu(key){const e=doctorEmail(key);S.fu.forEach(f=>{if(f.doctorKey===key&&f.status!=='done'&&(!f.emailManual)){f.email=e?.email||'';f.emailVerified=!!e?.verified}})}
 
 /* ---------- Excel import ---------- */
-async function readWB(file){const buf=await file.arrayBuffer();return XLSX.read(buf,{type:'array',cellDates:true})}
+async function readWB(file){const buf=await file.arrayBuffer();return XLSX.read(buf,{type:'array'})} /* dates arrive as Excel serial numbers; toIso converts them exactly, independent of time zone */
+const xd=iso=>{if(!known(iso))return iso==='?'?'SEND':'';const [y,m,d]=iso.split('-').map(Number);return {t:'n',v:(Date.UTC(y,m-1,d)-Date.UTC(1899,11,30))/864e5,z:'dd/mm/yyyy'}};
 function importAudit(wb,fileName){
-  const ws=wb.Sheets['Sheet1']||wb.Sheets[wb.SheetNames[0]];
+  const ws=wb.Sheets['Full audit']||wb.Sheets['Sheet1']||wb.Sheets[wb.SheetNames[0]];
   const A=XLSX.utils.sheet_to_json(ws,{header:1,raw:true,defval:null});
   const hi=A.findIndex(r=>r&&r.some(v=>normC(v||'')==='registration_no'));
   if(hi<0)throw new Error('Could not find a "Registration_No" column in the first sheet.');
@@ -565,16 +587,16 @@ function importAudit(wb,fileName){
   for(let r=hi+2;r<A.length;r++){const X=A[r];if(!X||!has(X[c.reg]))continue;
     const sc=Array(N*3).fill('-');
     for(const k of crit)for(let j=0;j<3;j++){const v=String(X[k.i+j]??'').trim();sc[k.ci*3+j]=v==='0'?'0':v==='1'?'1':'-'}
-    const dis=X[c.dis]?isoDay(X[c.dis]):'',adm=X[c.adm]?isoDay(X[c.adm]):'';
+    const dis=toIso(X[c.dis]),adm=toIso(X[c.adm]);
     const losV=c.los>=0&&typeof X[c.los]==='number'?X[c.los]:(adm&&dis?Math.max(0,daysBetween(adm,dis)):null);
     const inc=c.inc>=0&&has(X[c.inc]),com=c.com>=0&&has(X[c.com]),del=c.del>=0&&has(X[c.del]),e1=c.e1>=0&&has(X[c.e1]),e2=c.e2>=0&&has(X[c.e2]);
     const key=String(X[c.reg]).trim()+'|'+dis;let a=byKey.get(key);
     const data={fileNo:String(X[c.reg]).trim(),adm,dis,los:losV,dept:String(X[c.dept]??'').trim(),ward:String(X[c.ward]??'').trim(),doc:String(X[c.doc]??'').replace(/\s+/g,' ').trim(),dischargeTo:String(X[c.to]??'').trim(),auditor:String(X[c.staff]??'').trim(),auditDate:'',sc:sc.join(''),pending:!inc&&!com&&!del&&!e1,src:'excel',type:'full'};
     if(a){if(a.src==='site')continue;Object.assign(a,data);updated++}else{a={id:uid(),...data};S.audits.push(a);byKey.set(key,a);added++}
     if((inc||e1)&&!S.fu.some(f=>f.auditId===a.id)){
-      const e2v=e2?(X[c.e2] instanceof Date?isoDay(X[c.e2]):'?'):'';
+      const dv=v=>typeof v==='number'||v instanceof Date?toIso(v):(toIso(v)||'?');const e2v=e2?dv(X[c.e2]):'';
       S.fu.push({id:uid(),auditId:a.id,fileNo:a.fileNo,dept:a.dept,dis:a.dis,doctor:a.doc,doctorKey:docKey(a.doc),email:'',emailVerified:false,defs:defsOf(a),note:'',
-        status:com?'done':e2?'e2':e1?'e1':'open',e1:e1?'?':'',e2:e2v,done:com?'?':'',delinqFlag:del,created:isoDay(new Date()),src:'excel'});fuAdded++}}
+        status:com?'done':e2?'e2':e1?'e1':'open',e1:e1?dv(X[c.e1]):'',e2:e2v,done:com?'?':'',delinqFlag:del,created:isoDay(new Date()),src:'excel'});fuAdded++}}
   dropFromQueue('full',new Set(byKey.keys()));S.imports.push({file:fileName,date:isoDay(new Date()),added,updated});
   return {added,updated,fuAdded}}
 function parseContacts(wb){
@@ -601,13 +623,20 @@ function doctorSource(q){const Q=q.toLowerCase();if(Q.length<2)return [];const o
 function emailLine(el,email,verified,name){el.innerHTML=email?`<span class="mono">${esc(email)}</span> ${verified?'<span class="pill p-ver">confirmed</span>':'<span class="pill p-check">unconfirmed</span>'}`:(name?'<span style="color:var(--late)">No email found yet. Confirm it under Doctors, or add it when sending.</span>':'')}
 
 /* ---------- email ---------- */
-function buildMail(f){const second=f.status!=='open';const name=f.doctor||'Doctor';
-  const defs=f.defs.length?f.defs:(()=>{const a=S.audits.find(x=>x.id===f.auditId);return a?defsOf(a):[]})();
+const TPL_DEFAULT={
+  s1:'Incomplete medical record - File No. {file}',
+  b1:'Dear {doctor},\n\nThe medical record below was found incomplete during the documentation audit.\n\nFile No.: {file}\nDepartment: {department}\nDischarge date: {discharge}\n\nDeficient documentation:\n{deficiencies}\n\nKindly complete the documentation within {days} days. If not completed by {deadline}, the record will be classified as delinquent.\n\nBest regards,\n{signature}',
+  s2:'2nd reminder: Incomplete medical record - File No. {file}',
+  b2:'Dear {doctor},\n\nThis is a second reminder. The medical record below is still incomplete.\n\nFile No.: {file}\nDepartment: {department}\nDischarge date: {discharge}\n\nDeficient documentation:\n{deficiencies}\n\nKindly complete the documentation as soon as possible. If not completed by {deadline}, the record will be classified as delinquent.\n\nBest regards,\n{signature}'};
+const TPL_VARS=[['doctor','Doctor name'],['file','File number'],['department','Department'],['discharge','Discharge date'],['deficiencies','What is missing'],['days','Days allowed'],['deadline','Delinquent date'],['first_email','1st email date'],['signature','Your signature']];
+const tpl=k=>(S.settings.tpl&&typeof S.settings.tpl[k]==='string')?S.settings.tpl[k]:TPL_DEFAULT[k];
+function mailVars(f){const defs=f.defs.length?f.defs:(()=>{const a=S.audits.find(x=>x.id===f.auditId);return a?defsOf(a):[]})();
   const lines=defs.map(x=>`  - ${x.c}${x.d.length?' ('+x.d.map(d=>DIMS[d]).join(', ')+')':''}`);
-  const subj=`${second?'2nd reminder: ':''}Incomplete medical record - File No. ${f.fileNo}`;
-  const deadline=known(f.e1)?fmtD(addDays(f.e1,D())):fmtD(addDays(isoDay(new Date()),D()));
-  const body=`Dear ${name},\n\n${second?'This is a second reminder. The medical record below is still incomplete.':'The medical record below was found incomplete during the documentation audit.'}\n\nFile No.: ${f.fileNo}\nDepartment: ${f.dept||'-'}\nDischarge date: ${fmtD(f.dis)}\n\nDeficient documentation:\n${lines.join('\n')||(f.note?'  - '+f.note:'  - Medical record documentation is incomplete')}${f.note&&lines.length?`\n\nNote: ${f.note}`:''}\n\nKindly complete the documentation ${second?'as soon as possible':'within '+D()+' days'}. If not completed by ${deadline}, the record will be classified as delinquent.\n\nBest regards,\n${S.settings.sender}`;
-  return {subj,body}}
+  const deficiencies=(lines.join('\n')||(f.note?'  - '+f.note:'  - Medical record documentation is incomplete'))+(f.note&&lines.length?`\n  Note: ${f.note}`:'');
+  return {doctor:f.doctor?(f.doctorKey?docName(f.doctorKey,f.doctor):cleanDocName(f.doctor)||f.doctor):'Doctor',file:f.fileNo,department:f.dept||'-',discharge:fmtD(f.dis),deficiencies,days:String(D()),
+    deadline:known(f.e1)?fmtD(addDays(f.e1,D())):fmtD(addDays(isoDay(new Date()),D())),first_email:f.e1?fmtD(f.e1):fmtD(isoDay(new Date())),signature:S.settings.sender}}
+const fill=(t,v)=>String(t).replace(/\{(\w+)\}/g,(m,k)=>k in v?v[k]:m);
+function buildMail(f){const n=f.status==='open'?'1':'2';const v=mailVars(f);return {subj:fill(tpl('s'+n),v),body:fill(tpl('b'+n),v)}}
 function openMailto(to,subj,body){const a=document.createElement('a');a.href=`mailto:${encodeURIComponent(to)}?subject=${encodeURIComponent(subj)}&body=${encodeURIComponent(body)}`;a.rel='noopener';document.body.appendChild(a);a.click();a.remove()}
 function recordSent(f){const snap={status:f.status,e1:f.e1,e2:f.e2,last:f.last};const d=isoDay(new Date());
   if(f.status==='open'){f.status='e1';f.e1=d}else if(f.status==='e1'){f.status='e2';f.e2=d}else f.last=d;
@@ -793,12 +822,12 @@ $('#exportAudits').onclick=()=>{const N=S.criteria.length;
   const h1=['NU','Registration_No','Admission Date','Discharge Date','LOS','Department_Name','Ward Name','DoctorInCharge','Discharge To','staff name','First Email','Second Email','incompelet','compelet','delinquent'];const h2=Array(h1.length).fill('');
   S.criteria.forEach(c=>{h1.push(c,'','');h2.push('T','A','C')});const rows=[h1,h2];
   S.audits.filter(a=>!isQuick(a)).sort((a,b)=>(a.dis||'').localeCompare(b.dis||'')).forEach((a,i)=>{const f=S.fu.find(x=>x.auditId===a.id);const st=auditStatus(a);
-    const r=[i+1,isNaN(+a.fileNo)?a.fileNo:+a.fileNo,a.adm?dt(a.adm):'',a.dis?dt(a.dis):'',a.los??'',a.dept,a.ward,a.doc,a.dischargeTo,a.auditor,f?.e1?(known(f.e1)?dt(f.e1):'SEND'):'',f?.e2?(known(f.e2)?dt(f.e2):'SEND'):'',f?'incompelet':'',st==='Complete'?'compelet':'',f&&fuEverLate(f)?'delinquent':''];
+    const r=[i+1,isNaN(+a.fileNo)?a.fileNo:+a.fileNo,xd(a.adm),xd(a.dis),a.los??'',a.dept,a.ward,a.doc,a.dischargeTo,a.auditor,f?.e1?xd(f.e1):'',f?.e2?xd(f.e2):'',f?'incompelet':'',st==='Complete'?'compelet':'',f&&fuEverLate(f)?'delinquent':''];
     for(let k=0;k<N*3;k++){const v=a.sc[k];r.push(v==='1'?1:v==='0'?0:'NA')}rows.push(r)});
   const ws=XLSX.utils.aoa_to_sheet(rows,{cellDates:true});const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'Full audit');
   const qr=[['NU','Registration_No','Admission Date','Discharge Date','LOS','Department_Name','Ward Name','DoctorInCharge','Discharge To','staff name','First Email','Status','Second Email','Status','incompelet','compelet','delinquent','Note']];
   S.audits.filter(isQuick).sort((a,b)=>(a.dis||'').localeCompare(b.dis||'')).forEach((a,i)=>{const f=S.fu.find(x=>x.auditId===a.id);const st=auditStatus(a);
-    qr.push([i+1,isNaN(+a.fileNo)?a.fileNo:+a.fileNo,a.adm?dt(a.adm):'',a.dis?dt(a.dis):'',a.los??'',a.dept,a.ward,a.doc,a.dischargeTo,a.auditor,f?.e1?(known(f.e1)?dt(f.e1):'SEND'):'','',f?.e2?(known(f.e2)?dt(f.e2):'SEND'):'','',(f||a.result==='incomplete')?'incompelet':'',st==='Complete'?'compelet':'',f&&fuEverLate(f)?'delinquent':'',a.note||''])});
+    qr.push([i+1,isNaN(+a.fileNo)?a.fileNo:+a.fileNo,xd(a.adm),xd(a.dis),a.los??'',a.dept,a.ward,a.doc,a.dischargeTo,a.auditor,f?.e1?xd(f.e1):'','',f?.e2?xd(f.e2):'','',(f||a.result==='incomplete')?'incompelet':'',st==='Complete'?'compelet':'',f&&fuEverLate(f)?'delinquent':'',a.note||''])});
   XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(qr,{cellDates:true}),'Quick audit');downloadWB(wb,`MR-audit-${isoDay(new Date())}.xlsx`)};
 
 /* ---------- DASHBOARD ---------- */
@@ -911,6 +940,7 @@ function renderData(){
   const ex=S.audits.filter(a=>a.src==='excel').length,si=S.audits.filter(a=>a.src==='site').length;const ds=S.audits.map(a=>a.dis).filter(Boolean).sort();
   $('#auditInfo').innerHTML=S.audits.length&&!S.sample?`<dt>Audits stored</dt><dd class="mono">${S.audits.length} (${S.audits.filter(a=>!isQuick(a)).length} full, ${S.audits.filter(isQuick).length} quick; ${ex} from Excel, ${si} entered here)</dd><dt>Discharges</dt><dd class="mono">${fmtD(ds[0])} – ${fmtD(ds[ds.length-1])}</dd><dt>Stalled files</dt><dd class="mono">${S.fu.length}</dd>${S.imports.length?`<dt>Last import</dt><dd>${esc(S.imports[S.imports.length-1].file)}, ${fmtD(S.imports[S.imports.length-1].date)}</dd>`:''}`:'<dt>Status</dt><dd>No real data yet</dd>';
   $('#contactInfo').innerHTML=S.contactsReal?`<dt>File</dt><dd>${esc(S.contactsFile||'')}</dd><dt>Contacts</dt><dd class="mono">${S.contacts.length}</dd>`:'<dt>Status</dt><dd>Not imported yet</dd>';
+  renderTpl();
   $('#sRemind').value=S.settings.remindDays;$('#sDelinq').value=S.settings.delinqDays;$('#sSender').value=S.settings.sender;$('#sAuditor').value=S.settings.auditor||'';
   const qa=S.audits.filter(isQuick);$('#quickInfo').innerHTML=qa.length&&!S.sample?`<dt>Quick audits stored</dt><dd class="mono">${qa.length}</dd>${S.quickImport?`<dt>Last with statuses</dt><dd>${esc(S.quickImport.file)}, ${fmtD(S.quickImport.date)}: ${S.quickImport.added} new, ${S.quickImport.updated} updated</dd>`:''}${S.quickDone?`<dt>Last complete list</dt><dd>${esc(S.quickDone.file)}, ${fmtD(S.quickDone.date)}: ${S.quickDone.added} added, ${S.quickDone.updated} updated</dd>`:''}<dt>Quick worklist</dt><dd class="mono">${S.queue.filter(q=>q.type==='quick').length} waiting</dd>`:'<dt>Status</dt><dd>Not imported yet</dd>';
   $('#queueInfo').innerHTML=`<dt>Waiting to audit</dt><dd class="mono">${S.queue.filter(q=>(q.type||'full')==='full').length} full · ${S.queue.filter(q=>q.type==='quick').length} quick</dd>${S.lastQueue?`<dt>Last import</dt><dd>${esc(S.lastQueue.file)}, ${fmtD(S.lastQueue.date)}: ${S.lastQueue.add} added, ${S.lastQueue.done} already audited, ${S.lastQueue.dup} already listed</dd>`:''}`;$('#qClear').disabled=!S.queue.length;
@@ -923,7 +953,7 @@ $('#inContacts').onchange=async e=>{const f=e.target.files[0];if(!f)return;try{c
   rebuildDoctors();Object.keys(S.doctors).forEach(applyEmailToFu);save();renderAll();toast(`Imported ${c.length} contacts`)}catch(err){toast(err.message||'Could not read this file')}e.target.value=''};
 $('#sRemind').onchange=e=>{S.settings.remindDays=Math.max(1,Math.min(30,parseInt(e.target.value)||3));save();renderAll()};
 $('#sDelinq').onchange=e=>{S.settings.delinqDays=Math.max(1,Math.min(60,parseInt(e.target.value)||7));save();renderAll()};
-$('#sSender').onchange=e=>{S.settings.sender=e.target.value.trim()||S.settings.sender;save()};
+$('#sSender').onchange=e=>{S.settings.sender=e.target.value.trim()||S.settings.sender;save();previewTpl()};
 $('#sAuditor').onchange=e=>{S.settings.auditor=e.target.value.trim();save()};
 const isMobile=/Android|iPhone|iPad|iPod/i.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
 $('#bkFile').onclick=async()=>{const name=`MR-followup-backup-${isoDay(new Date())}.json`;
@@ -952,6 +982,28 @@ $('#notifyBtn').onclick=async()=>{if(!('Notification' in window)){$('#notifyMsg'
 function notifyNow(force){try{if(!S.settings.notify||!('Notification' in window)||Notification.permission!=='granted')return;
   const st=S.fu.map(fuStage),n2=st.filter(s=>s==='need2').length,nl=st.filter(s=>s==='late').length,n1=st.filter(s=>s==='need1').length;if(!n1&&!n2&&!nl&&!force)return;
   new Notification('MR Follow-up',{body:[n2&&`${n2} files need a 2nd reminder`,nl&&`${nl} delinquent`,n1&&`${n1} not emailed yet`].filter(Boolean).join(' · ')||'Nothing needs action today.'})}catch(e){}}
+
+/* ---------- EMAIL TEXT EDITOR ---------- */
+let tplN='1';
+function sampleFu(){const f=S.fu.find(x=>x.status!=='done')||S.fu[0];if(f)return {f,src:`file ${f.fileNo}`};
+  return {f:{fileNo:'123456',doctor:'Dr. Example Name',dept:'OBS & GYN',dis:addDays(isoDay(new Date()),-5),defs:[{c:'4.3.21. Discharge Summary',d:['T','C']}],note:'',status:'open',e1:''},src:'an example file'}}
+function renderTpl(){document.querySelectorAll('#tplPanel .seg button').forEach(b=>b.setAttribute('aria-selected',b.dataset.tpl===tplN));
+  if(document.activeElement!==$('#tSubj'))$('#tSubj').value=tpl('s'+tplN);if(document.activeElement!==$('#tBody'))$('#tBody').value=tpl('b'+tplN);
+  $('#tVars').innerHTML=TPL_VARS.map(([k,l])=>`<button type="button" class="btn sm" data-var="${k}" title="${l}"><span class="mono">{${k}}</span></button>`).join('');
+  previewTpl()}
+function previewTpl(){const {f,src}=sampleFu();const g={...f,status:tplN==='1'?'open':'e1',e1:tplN==='1'?'':(f.e1||addDays(isoDay(new Date()),-3))};const v=mailVars(g);
+  $('#tPrevSrc').textContent=src;$('#tPrevSubj').textContent=fill($('#tSubj').value,v);$('#tPrev').textContent=fill($('#tBody').value,v);
+  const unknown=[...new Set(($('#tSubj').value+$('#tBody').value).match(/\{(\w+)\}/g)||[])].filter(x=>!(x.slice(1,-1) in v));
+  $('#tMsg').innerHTML=unknown.length?`<span style="color:var(--warn)">Not recognised: ${esc(unknown.join(' '))}. Check the spelling.</span>`:(S.settings.tpl&&(S.settings.tpl['s'+tplN]!=null||S.settings.tpl['b'+tplN]!=null)?'<span class="muted">Custom text in use</span>':'<span class="muted">Original text in use</span>')}
+function saveTpl(){S.settings.tpl=S.settings.tpl||{};S.settings.tpl['s'+tplN]=$('#tSubj').value;S.settings.tpl['b'+tplN]=$('#tBody').value;save();previewTpl()}
+let tplT;['#tSubj','#tBody'].forEach(x=>$(x).addEventListener('input',()=>{clearTimeout(tplT);previewTpl();tplT=setTimeout(saveTpl,300)}));
+document.querySelectorAll('#tplPanel .seg button').forEach(b=>b.onclick=()=>{clearTimeout(tplT);if(document.activeElement)document.activeElement.blur();tplN=b.dataset.tpl;renderTpl()});
+let lastTplField='#tBody';['#tSubj','#tBody'].forEach(x=>$(x).addEventListener('focus',()=>lastTplField=x));
+$('#tVars').addEventListener('mousedown',e=>{if(e.target.closest('[data-var]'))e.preventDefault()});
+$('#tVars').addEventListener('click',e=>{const b=e.target.closest('[data-var]');if(!b)return;const el=$(lastTplField),t='{'+b.dataset.var+'}';const a=el.selectionStart??el.value.length,z=el.selectionEnd??a;
+  el.value=el.value.slice(0,a)+t+el.value.slice(z);el.focus();el.selectionStart=el.selectionEnd=a+t.length;saveTpl()});
+$('#tReset').onclick=()=>{const old=S.settings.tpl?{...S.settings.tpl}:null;if(S.settings.tpl){delete S.settings.tpl['s'+tplN];delete S.settings.tpl['b'+tplN]}save();$('#tSubj').value=tpl('s'+tplN);$('#tBody').value=tpl('b'+tplN);previewTpl();
+  toast(`Original ${tplN==='1'?'1st email':'2nd reminder'} text restored`,()=>{S.settings.tpl=old;save();$('#tSubj').value=tpl('s'+tplN);$('#tBody').value=tpl('b'+tplN);previewTpl()})};
 
 /* ---------- WORKLIST (files to audit) ---------- */
 const QAL={reg:['registration_no','registration no','registration number','file no','file no.','file number','file_no','mrn','medical record no','medical record number','reg no','patient file no'],adm:['admission date','admission','admit date','admission_date'],dis:['discharge date','discharge','discharged','discharge_date'],los:['los','length of stay'],dept:['department_name','department','dept','department name'],ward:['ward name','ward','ward_name'],doc:['doctorincharge','doctor in charge','doctor','physician','consultant','doctor name','attending'],to:['discharge to','discharge_to','discharge type','discharge status'],staff:['staff name','auditor','audited by']};
@@ -990,7 +1042,7 @@ $('#inQuickDone').onchange=async e=>{const file=e.target.files[0];if(!file)retur
   const dq=dropFromQueue('quick',keys);S.quickDone={file:file.name,date:today_,added,updated,closed};rebuildDoctors();save();renderAll();
   toast(`${added} complete files added${updated?`, ${updated} updated to Complete`:''}${closed?`, ${closed} stalled files closed`:''}${dq?`, ${dq} removed from the worklist`:''}`)}catch(err){toast(err.message||'Could not read this file')}e.target.value=''};
 function importQuick(wb,fileName){
-  const ws=wb.Sheets['Sheet1']||wb.Sheets[wb.SheetNames[0]];const A=XLSX.utils.sheet_to_json(ws,{header:1,raw:true,defval:null});
+  const ws=wb.Sheets['Quick audit']||wb.Sheets['Sheet1']||wb.Sheets[wb.SheetNames[0]];const A=XLSX.utils.sheet_to_json(ws,{header:1,raw:true,defval:null});
   const hi=A.findIndex(r=>r&&r.some(v=>normC(v||'')==='registration_no'));if(hi<0)throw new Error('Could not find a "Registration_No" column in the first sheet.');
   const sub=A[hi+1]||[];if(sub.some((v,i)=>String(v??'').trim()==='T'&&String(sub[i+1]??'').trim()==='A'))throw new Error('This file has standards (T/A/C) columns. Use "Import Excel audit" for full audits.');
   const H=A[hi].map(v=>v==null?'':normC(v));const col=(...ns)=>{for(const n of ns){const i=H.indexOf(n);if(i>=0)return i}return -1};
@@ -1004,7 +1056,7 @@ function importQuick(wb,fileName){
     const data={type:'quick',fileNo:String(g(X,'reg')).trim(),adm,dis,los:typeof lv==='number'?lv:(adm&&dis?Math.max(0,daysBetween(adm,dis)):null),dept:String(g(X,'dept')??'').trim(),ward:String(g(X,'ward')??'').trim(),doc:String(g(X,'doc')??'').replace(/\s+/g,' ').trim(),dischargeTo:String(g(X,'to')??'').trim(),auditor:String(g(X,'staff')??'').trim(),auditDate:'',sc:'',result:com?'complete':(inc||e1)?'incomplete':'',note:'',pending:!inc&&!com&&!del&&!e1,src:'excel'};
     const key=data.fileNo+'|'+dis;let a=byKey.get(key);
     if(a){if(a.src==='site')continue;Object.assign(a,data);updated++}else{a={id:uid(),...data};S.audits.push(a);byKey.set(key,a);added++}
-    if((inc||e1)&&!S.fu.some(f=>f.auditId===a.id)){const dv=v=>v instanceof Date?isoDay(v):'?';
+    if((inc||e1)&&!S.fu.some(f=>f.auditId===a.id)){const dv=v=>typeof v==='number'||v instanceof Date?toIso(v):(toIso(v)||'?');
       S.fu.push({id:uid(),auditId:a.id,kind:'quick',fileNo:a.fileNo,dept:a.dept,dis:a.dis,doctor:a.doc,doctorKey:docKey(a.doc),email:'',emailVerified:false,defs:[],note:'',
         status:com?'done':e2?'e2':e1?'e1':'open',e1:e1?dv(g(X,'e1')):'',e2:e2?dv(g(X,'e2')):'',done:com?'?':'',delinqFlag:del,created:isoDay(new Date()),src:'excel'});fuAdded++}}
   dropFromQueue('quick',new Set(byKey.keys()));S.quickImport={file:fileName,date:isoDay(new Date()),rows,added,updated,fuAdded};return {rows,added,updated,fuAdded}}
