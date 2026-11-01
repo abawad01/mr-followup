@@ -204,7 +204,7 @@ input[type=range]{accent-color:var(--accent)}
 </div></header>
 
 <div class="wrap"><main>
-  <div class="banner" id="importBanner" hidden style="margin-bottom:18px;border-color:var(--accent);background:var(--accent-soft)"><b style="color:var(--accent)">Files assigned to you.</b><span id="importText"></span><label class="row" id="importMix" style="gap:6px">Full audit <input id="importPct" type="range" min="0" max="100" step="5" style="width:150px"> <b class="mono" id="importLbl"></b></label><button class="btn sm primary" id="importYes" type="button">Add to my worklists</button><button class="btn sm" id="importNo" type="button">Ignore</button></div>
+  <div class="banner" id="importBanner" hidden style="margin-bottom:18px;border-color:var(--accent);background:var(--accent-soft)"><b style="color:var(--accent)">Files assigned to you.</b><span id="importText"></span><label class="row" id="importMix" style="gap:6px">Full audit <input id="importPct" type="range" min="0" max="100" step="5" style="width:150px"> <b class="mono" id="importLbl"></b></label><button class="btn sm primary" id="importYes" type="button">Add to my worklists</button><button class="btn sm" id="importNo" type="button">Ignore</button><div id="importWarn" hidden style="flex-basis:100%;background:var(--warn-soft);border:1px solid var(--warn);border-radius:6px;padding:8px 10px;font-size:13px"><b style="color:var(--warn)">This window has no audit data.</b> The link probably opened in a different browser from your app. Do not add here: press <b>Copy link</b>, open your MR Follow-up app, go to <b>Data → Receive files from a colleague</b>, and paste. <button class="btn sm" id="importCopy" type="button">Copy link</button></div></div>
   <div class="banner" id="sampleBanner" hidden style="margin-bottom:18px"><b>Sample data.</b><span>The files, doctors and figures shown are invented examples. Import your Excel audit and contacts list to replace them.</span><button class="btn sm" data-go="data" type="button">Import files</button></div>
 
   <!-- ================= STALLED FILES ================= -->
@@ -373,6 +373,11 @@ input[type=range]{accent-color:var(--accent)}
 
   <!-- ================= DATA ================= -->
   <section id="view-data" class="tabview" hidden>
+    <div class="panel" id="recvPanel" style="border-color:var(--ok)">
+      <div><h3>Receive files from a colleague</h3><p class="lede small" style="margin:0">Copy the link from your colleague's email and paste it here. The files go into the worklists of this app, with your own data.</p></div>
+      <div class="row"><input id="recvIn" class="mono" placeholder="Paste the link here (Ctrl+V)" style="flex:1;min-width:220px"><button class="btn primary" type="button" id="recvGo">Read files</button></div>
+      <span class="small" id="recvMsg"></span>
+    </div>
     <div class="panel" id="prepPanel" style="border-color:var(--accent)">
       <div><h3>Prepare discharge list (Grid)</h3><p class="lede small" style="margin:0">Upload the discharge export from the system (Grid.xls). The app keeps only the 10 audit columns, removes ID numbers, phone numbers and other personal fields, then splits the files between you and your colleague, and your share between full and quick audit.</p></div>
       <div class="drop"><input type="file" id="inGrid" accept=".xls,.xlsx,.csv"><span class="small muted">Nothing is uploaded anywhere. The file is read in this browser only.</span></div>
@@ -1242,24 +1247,33 @@ $('#pMail').onclick=async()=>{if(!prepRes)return;const p=prepReadUI();const to=$
   if(web&&!linkOk){try{await navigator.clipboard.writeText(link);copied=true}catch(e){}}
   const subj=`Discharge files to audit: ${prepRes.mf.length} full + ${prepRes.mq.length} quick`;
   const body=`Hi ${name},\n\nYour share of the discharge list: ${prepRes.mf.length} full audit + ${prepRes.mq.length} quick audit (${L.length} files).\n\n`+
-    (linkOk||copied?`To add them, open this link on your work computer. The MR Follow-up app opens and asks to add them to your worklists:\n${linkOk?link:'[PASTE THE LINK HERE WITH Ctrl+V]'}\n\nOr use the attached Excel file: in the app, Data → Full audit worklist → choose the file.`:`Attached Excel file: in the MR Follow-up app (${appBase()}), go to Data → Full audit worklist → choose the file. Both lists fill in by themselves.`)+`\n\nThanks,\n${S.settings.sender||me}`;
+    (linkOk||copied?`To add them to your worklists:\n1. Copy this link:\n${linkOk?link:'[PASTE THE LINK HERE WITH Ctrl+V]'}\n2. Open your MR Follow-up app.\n3. Go to Data → Receive files from a colleague, paste the link and press Read files.\n\n(Opening the link directly also works if it opens in the same browser as your app.)\n\nOr use the attached Excel file: in the app, Data → Full audit worklist → choose the file.`:`Attached Excel file: in the MR Follow-up app (${appBase()}), go to Data → Full audit worklist → choose the file. Both lists fill in by themselves.`)+`\n\nThanks,\n${S.settings.sender||me}`;
   prepDownload(fileName,[['Full audit',prepRes.mf],['Quick audit',prepRes.mq]]);
   openMailto(to,subj,body);
   toast(linkOk?`Outlook should open with a one-click link for ${name}. Optional: attach ${fileName} from Downloads.`:copied?`Outlook should open. The link was copied: replace [PASTE THE LINK HERE] with Ctrl+V. Optional: attach ${fileName}.`:`Outlook should open. Attach ${fileName} from your Downloads folder before sending.`)};
 function fillMailList(){$('#dlMail').innerHTML=S.contacts.slice(0,1500).map(c=>`<option value="${esc(c.email)}">${esc(c.name)}</option>`).join('')}
 let pendingImport=null;
 async function checkImportLink(){const m=location.hash.match(/^#import=([A-Za-z0-9_-]+)$/);if(!m)return false;try{history.replaceState(null,'',location.pathname+'#files')}catch(e){}
-  try{pendingImport=await unpackFiles(m[1])}catch(e){toast('This link could not be read. Ask for the Excel file instead.');return true}
+  return showImport(m[1],true)}
+async function showImport(code,fromLink){
+  try{pendingImport=await unpackFiles(code);pendingImport.code=code}catch(e){toast('This link could not be read. Ask for the Excel file instead.');return true}
   const it=pendingImport.items,have=new Set([...S.queue.map(q=>q.fileNo+'|'+q.dis),...S.audits.map(a=>a.fileNo+'|'+a.dis)]),nw=it.filter(q=>!have.has(q.fileNo+'|'+q.dis));
   const nf=nw.filter(q=>q.type==='full').length,nq=nw.length-nf;
   $('#importText').textContent=nw.length?`${pendingImport.from?pendingImport.from+' sent you':'You received'} ${it.length} files: ${nf} for full audit, ${nq} for quick audit${it.length>nw.length?` (${it.length-nw.length} you already have)`:''}.`:`All ${it.length} files in this link are already in your app.`;
-  $('#importYes').hidden=!nw.length;$('#importMix').hidden=!nw.length;$('#importBanner').hidden=false;pendingImport.nw=nw;$('#importPct').value=nw.length?Math.round(nf/nw.length*100):50;importLbl();return true}
+  const emptyHere=fromLink&&(S.sample||(!S.audits.length&&!S.queue.length&&!S.fu.length));
+  $('#importWarn').hidden=!emptyHere;
+  $('#importYes').hidden=!nw.length;$('#importMix').hidden=!nw.length;$('#importBanner').hidden=false;window.scrollTo(0,0);pendingImport.nw=nw;$('#importPct').value=nw.length?Math.round(nf/nw.length*100):50;importLbl();return true}
 function importLbl(){const n=pendingImport?.nw?.length||0,f=Math.round(+$('#importPct').value/100*n);$('#importLbl').textContent=`${$('#importPct').value}% → ${f} full / ${n-f} quick`}
 $('#importPct').addEventListener('input',importLbl);
 $('#importYes').onclick=()=>{if(!pendingImport)return;leaveSample();const nw=pendingImport.nw,pc=+$('#importPct').value/100;
   const [F,Q]=splitBalanced(nw.map(q=>({_dept:q.dept||'',_doc:q.doc||'',_key:q.fileNo+'|'+q.dis,q})),pc,'|recv');F.forEach(r=>r.q.type='full');Q.forEach(r=>r.q.type='quick');
   nw.forEach(q=>S.queue.push(q));const n=pendingImport.nw.length;pendingImport=null;save();$('#importBanner').hidden=true;renderAll();go('audit');toast(`${n} files added: ${S.queue.filter(q=>q.type==='full').length} full, ${S.queue.filter(q=>q.type==='quick').length} quick in your worklists. Change the mix any time on Audit → My worklists.`)};
 $('#importNo').onclick=()=>{pendingImport=null;$('#importBanner').hidden=true};
+$('#importCopy').onclick=async()=>{if(!pendingImport)return;const link=`${appBase()}#import=${pendingImport.code}`;try{await navigator.clipboard.writeText(link);toast('Link copied. Paste it in your app: Data → Receive files from a colleague.')}catch(e){toast('Copy the link from the email instead')}};
+$('#recvGo').onclick=async()=>{const v=$('#recvIn').value.trim();const m=v.match(/import=([A-Za-z0-9_-]+)/)||v.match(/^([zj][A-Za-z0-9_-]{20,})$/);
+  if(!m){$('#recvMsg').innerHTML='<span style="color:var(--late)">That is not a link from MR Follow-up. Copy the whole link from the email, starting with https://</span>';return}
+  $('#recvMsg').textContent='';await showImport(m[1],false);$('#recvIn').value=''};
+$('#recvIn').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();$('#recvGo').click()}});
 
 /* ---------- FULL / QUICK MIX of my worklists ---------- */
 function mixNow(){const f=S.queue.filter(q=>(q.type||'full')==='full').length,qk=S.queue.filter(q=>q.type==='quick').length;return {f,qk,n:f+qk}}
