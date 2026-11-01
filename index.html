@@ -204,6 +204,7 @@ input[type=range]{accent-color:var(--accent)}
 </div></header>
 
 <div class="wrap"><main>
+  <div class="banner" id="importBanner" hidden style="margin-bottom:18px;border-color:var(--accent);background:var(--accent-soft)"><b style="color:var(--accent)">Files assigned to you.</b><span id="importText"></span><label class="row" id="importMix" style="gap:6px">Full audit <input id="importPct" type="range" min="0" max="100" step="5" style="width:150px"> <b class="mono" id="importLbl"></b></label><button class="btn sm primary" id="importYes" type="button">Add to my worklists</button><button class="btn sm" id="importNo" type="button">Ignore</button></div>
   <div class="banner" id="sampleBanner" hidden style="margin-bottom:18px"><b>Sample data.</b><span>The files, doctors and figures shown are invented examples. Import your Excel audit and contacts list to replace them.</span><button class="btn sm" data-go="data" type="button">Import files</button></div>
 
   <!-- ================= STALLED FILES ================= -->
@@ -378,6 +379,7 @@ input[type=range]{accent-color:var(--accent)}
       <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(min(100%,210px),1fr))">
         <label class="f">Your share (%)<input id="pMe" type="number" min="0" max="100" class="mono"></label>
         <label class="f">Colleague name<input id="pMate" placeholder="e.g. Sara"></label>
+        <label class="f">Colleague email<input id="pMateEmail" type="email" list="dlMail" placeholder="name@familycare.com.sa" class="mono"></label><datalist id="dlMail"></datalist>
         <label class="f">Of each share, full audit (%)<input id="pFull" type="number" min="0" max="100" class="mono"></label>
         <label class="f">Doctor column<select id="pDoc"><option value="AdmittingDoctor">AdmittingDoctor (responsible doctor)</option><option value="DoctorInCharge">DoctorInCharge (consultant)</option></select></label>
       </div>
@@ -391,6 +393,7 @@ input[type=range]{accent-color:var(--accent)}
         <div class="tablewrap" id="pTable"></div>
         <div class="row">
           <button class="btn primary" type="button" id="pAdd">Add my files to my worklists</button>
+          <button class="btn primary" type="button" id="pMail">Email colleague their files</button>
           <button class="btn" type="button" id="pDlMate">Download colleague's file</button>
           <button class="btn" type="button" id="pDlAll">Download cleaned file (all)</button>
           <button class="btn sm" type="button" id="pDlMine">My full + quick files</button>
@@ -1220,6 +1223,44 @@ function saveBatch(){pullHdr();const B=form.batch,pend=$('#aPending').checked;co
   const nf=S.fu.length-fu0;$('#aDate').value=date;$('#aAuditor').value=aud;
   $('#auMsg').innerHTML=`<span style="color:var(--ok)"><b>Saved ${n} files.</b></span> ${nf?`<span>${nf} with a 0 went to Stalled files.</span> <button class="btn sm" type="button" data-go="files">Open Stalled files</button>`:'<span class="muted">All complete.</span>'}`;renderBatch()}
 
+/* ---------- SEND FILES BY EMAIL LINK ---------- */
+const b64u={enc:u8=>{let s='';for(let i=0;i<u8.length;i+=8192)s+=String.fromCharCode.apply(null,u8.subarray(i,i+8192));return btoa(s).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'')},
+  dec:t=>{t=t.replace(/-/g,'+').replace(/_/g,'/');while(t.length%4)t+='=';const s=atob(t);const u=new Uint8Array(s.length);for(let i=0;i<s.length;i++)u[i]=s.charCodeAt(i);return u}};
+async function zip(str){const u=new TextEncoder().encode(str);if(!('CompressionStream' in window))return 'j'+b64u.enc(u);const cs=new Blob([u]).stream().pipeThrough(new CompressionStream('deflate-raw'));return 'z'+b64u.enc(new Uint8Array(await new Response(cs).arrayBuffer()))}
+async function unzip(t){const u=b64u.dec(t.slice(1));if(t[0]==='j')return new TextDecoder().decode(u);const ds=new Blob([u]).stream().pipeThrough(new DecompressionStream('deflate-raw'));return await new Response(ds).text()}
+async function packFiles(L,from){const dict=[],di=new Map();const d=v=>{v=v||'';if(!di.has(v)){di.set(v,dict.length);dict.push(v)}return di.get(v)};
+  const days=iso=>iso?Math.round(dt(iso)/DAY-dt('2020-01-01')/DAY):'';
+  const rows=L.map(r=>[r._reg,days(r._adm),days(r._dis),typeof r._los==='number'?r._los:'',d(r._dept),d(r._ward),d(r._doc),d(r._to),r._t==='quick'?1:0]);
+  return zip(JSON.stringify({v:1,f:from,d:dict,r:rows}))}
+async function unpackFiles(t){const o=JSON.parse(await unzip(t));if(o.v!==1)throw 0;const day=n=>n===''?'':addDays('2020-01-01',n);
+  return {from:o.f||'',items:o.r.map(x=>({id:uid(),type:x[8]?'quick':'full',fileNo:String(x[0]),adm:day(x[1]),dis:day(x[2]),los:x[3]===''?null:x[3],dept:o.d[x[4]],ward:o.d[x[5]],doc:o.d[x[6]],dischargeTo:o.d[x[7]]}))}}
+const appBase=()=>location.origin+location.pathname;
+$('#pMail').onclick=async()=>{if(!prepRes)return;const p=prepReadUI();const to=$('#pMateEmail').value.trim();p.mateEmail=to;save();
+  const L=[...prepRes.mf.map(r=>({...r,_t:'full'})),...prepRes.mq.map(r=>({...r,_t:'quick'}))];if(!L.length){toast('No files for your colleague in this split');return}
+  const name=p.mate||'colleague',me=S.settings.auditor||'',fileName=`Discharges_${slug(name)}_${isoDay(new Date())}.xlsx`;
+  const code=await packFiles(L,me);const link=`${appBase()}#import=${code}`;const web=/^https?:/.test(location.protocol),linkOk=web&&link.length<1500;let copied=false;
+  if(web&&!linkOk){try{await navigator.clipboard.writeText(link);copied=true}catch(e){}}
+  const subj=`Discharge files to audit: ${prepRes.mf.length} full + ${prepRes.mq.length} quick`;
+  const body=`Hi ${name},\n\nYour share of the discharge list: ${prepRes.mf.length} full audit + ${prepRes.mq.length} quick audit (${L.length} files).\n\n`+
+    (linkOk||copied?`To add them, open this link on your work computer. The MR Follow-up app opens and asks to add them to your worklists:\n${linkOk?link:'[PASTE THE LINK HERE WITH Ctrl+V]'}\n\nOr use the attached Excel file: in the app, Data → Full audit worklist → choose the file.`:`Attached Excel file: in the MR Follow-up app (${appBase()}), go to Data → Full audit worklist → choose the file. Both lists fill in by themselves.`)+`\n\nThanks,\n${S.settings.sender||me}`;
+  prepDownload(fileName,[['Full audit',prepRes.mf],['Quick audit',prepRes.mq]]);
+  openMailto(to,subj,body);
+  toast(linkOk?`Outlook should open with a one-click link for ${name}. Optional: attach ${fileName} from Downloads.`:copied?`Outlook should open. The link was copied: replace [PASTE THE LINK HERE] with Ctrl+V. Optional: attach ${fileName}.`:`Outlook should open. Attach ${fileName} from your Downloads folder before sending.`)};
+function fillMailList(){$('#dlMail').innerHTML=S.contacts.slice(0,1500).map(c=>`<option value="${esc(c.email)}">${esc(c.name)}</option>`).join('')}
+let pendingImport=null;
+async function checkImportLink(){const m=location.hash.match(/^#import=([A-Za-z0-9_-]+)$/);if(!m)return false;try{history.replaceState(null,'',location.pathname+'#files')}catch(e){}
+  try{pendingImport=await unpackFiles(m[1])}catch(e){toast('This link could not be read. Ask for the Excel file instead.');return true}
+  const it=pendingImport.items,have=new Set([...S.queue.map(q=>q.fileNo+'|'+q.dis),...S.audits.map(a=>a.fileNo+'|'+a.dis)]),nw=it.filter(q=>!have.has(q.fileNo+'|'+q.dis));
+  const nf=nw.filter(q=>q.type==='full').length,nq=nw.length-nf;
+  $('#importText').textContent=nw.length?`${pendingImport.from?pendingImport.from+' sent you':'You received'} ${it.length} files: ${nf} for full audit, ${nq} for quick audit${it.length>nw.length?` (${it.length-nw.length} you already have)`:''}.`:`All ${it.length} files in this link are already in your app.`;
+  $('#importYes').hidden=!nw.length;$('#importMix').hidden=!nw.length;$('#importBanner').hidden=false;pendingImport.nw=nw;$('#importPct').value=nw.length?Math.round(nf/nw.length*100):50;importLbl();return true}
+function importLbl(){const n=pendingImport?.nw?.length||0,f=Math.round(+$('#importPct').value/100*n);$('#importLbl').textContent=`${$('#importPct').value}% → ${f} full / ${n-f} quick`}
+$('#importPct').addEventListener('input',importLbl);
+$('#importYes').onclick=()=>{if(!pendingImport)return;leaveSample();const nw=pendingImport.nw,pc=+$('#importPct').value/100;
+  const [F,Q]=splitBalanced(nw.map(q=>({_dept:q.dept||'',_doc:q.doc||'',_key:q.fileNo+'|'+q.dis,q})),pc,'|recv');F.forEach(r=>r.q.type='full');Q.forEach(r=>r.q.type='quick');
+  nw.forEach(q=>S.queue.push(q));const n=pendingImport.nw.length;pendingImport=null;save();$('#importBanner').hidden=true;renderAll();go('audit');toast(`${n} files added: ${S.queue.filter(q=>q.type==='full').length} full, ${S.queue.filter(q=>q.type==='quick').length} quick in your worklists. Change the mix any time on Audit → My worklists.`)};
+$('#importNo').onclick=()=>{pendingImport=null;$('#importBanner').hidden=true};
+
 /* ---------- FULL / QUICK MIX of my worklists ---------- */
 function mixNow(){const f=S.queue.filter(q=>(q.type||'full')==='full').length,qk=S.queue.filter(q=>q.type==='quick').length;return {f,qk,n:f+qk}}
 function renderMix(){const m=mixNow();$('#qMix').hidden=!m.n;if(!m.n)return;const cur=Math.round(m.f/m.n*100);
@@ -1237,7 +1278,7 @@ $('#qMove').onclick=()=>{const L=qShown.filter(q=>qSel.has(q.id));if(!L.length)r
 const PREP_COLS=['Registration_No','Patient / Guradian Name','Admission Date','Discharge Date','LOS','Department_Name','Ward Name','AdmittingDoctor','Discharge To','Age'];
 let prepRaw=null,prepRes=null;
 const prepSet=()=>{const d={me:50,mate:'',full:50,doc:'AdmittingDoctor',skip:true,still:false,dup:true,xdept:[]};S.settings.prep={...d,...(S.settings.prep||{})};return S.settings.prep};
-function prepLoadUI(){const p=prepSet();p.dup=true;$('#pMe').value=p.me;$('#pMate').value=p.mate;$('#pFull').value=p.full;$('#pDoc').value=p.doc;$('#pSkip').checked=p.skip;$('#pStill').checked=!!p.still}
+function prepLoadUI(){const p=prepSet();p.dup=true;fillMailList();$('#pMateEmail').value=p.mateEmail||'';$('#pMe').value=p.me;$('#pMate').value=p.mate;$('#pFull').value=p.full;$('#pDoc').value=p.doc;$('#pSkip').checked=p.skip;$('#pStill').checked=!!p.still}
 function prepReadUI(){const p=prepSet();const cl=v=>Math.max(0,Math.min(100,Math.round(+v||0)));p.me=cl($('#pMe').value);p.full=cl($('#pFull').value);p.mate=$('#pMate').value.trim();p.doc=$('#pDoc').value;p.skip=$('#pSkip').checked;p.still=$('#pStill').checked;p.dup=true;save();return p}
 const cleanTxt=v=>v==null?'':String(v).replace(/\s+/g,' ').trim();
 const serialDay=v=>typeof v==='number'?Math.floor(v):null;
@@ -1271,7 +1312,7 @@ function runPrep(){if(!prepRaw)return;const p=prepReadUI();const H=prepRaw.H,row
   $('#pSum').innerHTML=`<dt>File</dt><dd>${esc(prepRaw.name)}: ${stats.read} rows, discharges ${fmtD(out.map(r=>r._dis).sort()[0])} – ${fmtD(out.map(r=>r._dis).sort().slice(-1)[0])}</dd><dt>Left out</dt><dd>${[stats.still&&`${stats.still} still in hospital (removed by you)`,stats.dept&&`${stats.dept} by department`,stats.dup&&`${stats.dup} repeated file${stats.dup>1?'s':''} merged (one kept)`,].filter(Boolean).join(' · ')||'none'}</dd><dt>Split</dt><dd>${prepRes.all.full} full + ${prepRes.all.quick} quick for you, ${prepRes.all.mate} for ${esc(p.mate||'colleague')} (${prepRes.all.mf} full + ${prepRes.all.mq} quick)${stats.known?` · ${stats.known} of them already added or audited`:''}</dd><dt>Doctor from</dt><dd>${esc(docCol)}</dd>${(()=>{const n=out.filter(r=>/still in hospital/i.test(r._to)).length;return n?`<dt>Still in hospital</dt><dd><span class="pill p-due">${n} files</span> kept and flagged in the worklist, so you can audit them later or remove them.</dd>`:''})()}`;
   const mateName=esc(p.mate||'Colleague');
   $('#pTable').innerHTML=`<table><thead><tr><th>Department</th><th class="r">In file</th><th class="r">Me: full</th><th class="r">Me: quick</th><th class="r">${mateName}: full</th><th class="r">${mateName}: quick</th></tr></thead><tbody>${D.map(d=>`<tr><td>${esc(d)}</td><td class="r mono">${by(out,d)}</td><td class="r mono">${by(full,d)}</td><td class="r mono">${by(quick,d)}</td><td class="r mono">${by(mf,d)}</td><td class="r mono">${by(mq,d)}</td></tr>`).join('')}<tr style="font-weight:600"><td>Still to do</td><td class="r mono">${out.length}</td><td class="r mono">${full.length}</td><td class="r mono">${quick.length}</td><td class="r mono">${mf.length}</td><td class="r mono">${mq.length}</td></tr></tbody></table>`;
-  $('#pDlMate').textContent=`Download ${p.mate||"colleague"}'s file (${mate.length})`;$('#pAdd').textContent=`Add my ${mine.length} files to my worklists (${full.length} full, ${quick.length} quick)`;
+  $('#pDlMate').textContent=`Download ${p.mate||"colleague"}'s file (${mate.length})`;$('#pMail').textContent=`Email ${p.mate||'colleague'} their ${mate.length} files`;$('#pMail').disabled=!mate.length;$('#pAdd').textContent=`Add my ${mine.length} files to my worklists (${full.length} full, ${quick.length} quick)`;
   $('#pNote').textContent='Your colleague\'s file has two sheets, Full audit and Quick audit. They upload it once in Data → Full audit worklist and both lists fill in. The split is balanced by department and doctor, and is the same every time for the same file, so re-uploading does not reshuffle who gets what.'}
 function prepToQueue(r,type){return {id:uid(),type,fileNo:r._reg,adm:r._adm,dis:r._dis,los:typeof r._los==='number'?r._los:(r._los!=null&&r._los!==''&&!isNaN(+r._los)?+r._los:null),dept:r._dept,ward:r._ward,doc:r._doc,dischargeTo:r._to}}
 function prepSheet(L){const ci=prepRes.ci,dc=prepRes.docCol;const head=PREP_COLS.map(h=>h==='AdmittingDoctor'?dc:h);
@@ -1374,7 +1415,7 @@ function parseWorklist(wb,sheet){
   return {rows:out,hasTAC,missing:['dis','doc','dept'].filter(k=>c[k]<0)}}
 async function importQueueFile(e,type){const file=e.target.files[0];if(!file)return;try{const wb=await readWB(file);
   const fs_=wb.SheetNames.find(n=>normC(n)==='full audit'),qs_=wb.SheetNames.find(n=>normC(n)==='quick audit');
-  if(fs_&&qs_){leaveSample();let msg=[];for(const [sh,t] of [[fs_,'full'],[qs_,'quick']]){const r=addQueueRows(parseWorklist(wb,sh).rows,t);msg.push(`${r.add} to ${t}`)}save();renderAll();toast(`Two-sheet file: ${msg.join(', ')} audit worklist`);e.target.value='';return}
+  if(fs_&&qs_){leaveSample();let msg=[];for(const [sh,t] of [[fs_,'full'],[qs_,'quick']]){const r=addQueueRows(parseWorklist(wb,sh).rows,t);msg.push(`${r.add} to ${t}`)}save();renderAll();toast(`Two-sheet file: ${msg.join(', ')} audit worklist. Change the full/quick mix on Audit → My worklists.`);e.target.value='';return}
   const {rows,missing}=parseWorklist(wb);leaveSample();
   const own=S.audits.filter(a=>typeOf(a)===type);const aud=new Set(own.map(a=>a.fileNo+'|'+a.dis)),audNo=new Set(own.map(a=>a.fileNo)),inQ=new Set(S.queue.filter(q=>(q.type||'full')===type).map(q=>q.fileNo+'|'+q.dis));
   let add=0,done=0,dup=0;for(const q of rows){const k=q.fileNo+'|'+q.dis;if(aud.has(k)||(!q.dis&&audNo.has(q.fileNo))){done++;continue}if(inQ.has(k)){dup++;continue}q.type=type;delete q.auditor;S.queue.push(q);inQ.add(k);add++}
@@ -1456,7 +1497,7 @@ const TABS=['files','audit','dashboard','doctors','data','guide'];let cur='files
 function go(t){if(!TABS.includes(t))t='files';cur=t;TABS.forEach(x=>{$('#view-'+x).hidden=x!==t;$('#tab-'+x).setAttribute('aria-selected',x===t)});try{if(location.hash!=='#'+t)history.replaceState(null,'','#'+t)}catch(e){}renderAll();scrollTo(0,0)}
 document.querySelectorAll('#nav button').forEach(b=>b.onclick=()=>go(b.dataset.tab));
 document.addEventListener('click',e=>{const g=e.target.closest('[data-go]');if(g)go(g.dataset.go)});
-addEventListener('hashchange',()=>{const h=location.hash.slice(1);if(h!==cur)go(h)});
+addEventListener('hashchange',async()=>{if(await checkImportLink())return;const h=location.hash.slice(1);if(h!==cur)go(h)});
 let tt,undoFn=null;function toast(m,undo){const t=$('#toast');$('#toastMsg').textContent=m;undoFn=undo||null;$('#toastUndo').hidden=!undo;t.hidden=false;clearTimeout(tt);tt=setTimeout(()=>{t.hidden=true;undoFn=null},undo?7000:3200)}
 $('#toastUndo').onclick=()=>{if(undoFn){undoFn();undoFn=null;$('#toast').hidden=true}};
 function renderFlow(){$('#flow').innerHTML=`<span class="st">Audit with ✗</span><span class="ar">→</span><span class="st">Stalled: send 1st email</span><span class="ar">→ ${R()} days →</span><span class="st" style="border-color:var(--warn)">2nd reminder due</span><span class="ar">→ ${D()} days after 1st email →</span><span class="st" style="border-color:var(--late);color:var(--late)">Delinquent</span><span class="ar">· any time →</span><span class="st" style="border-color:var(--ok);color:var(--ok)">Completed (leaves the list)</span>`}
@@ -1464,7 +1505,7 @@ function renderAll(){indexFu();$('#sampleBanner').hidden=!S.sample;renderFiles()
   const nq=S.queue.length;$('#auBadge').hidden=!nq;$('#auBadge').textContent=nq;
   if(cur==='audit'){renderQueue();renderAudits()}if(cur==='dashboard')renderDash();if(cur==='doctors')renderDoctors();if(cur==='data')renderData();if(cur==='guide')renderFlow()}
 $('#dPct').value=S.settings.samplePct||100;
-rebuildDoctors();indexFu();auMode=S.settings.auMode==='quick'?'quick':'full';setMode(auMode);go(location.hash.slice(1)||'files');
+rebuildDoctors();indexFu();auMode=S.settings.auMode==='quick'?'quick':'full';setMode(auMode);(async()=>{const imp=await checkImportLink();go(imp?'files':(location.hash.slice(1)||'files'))})();
 setTimeout(()=>notifyNow(false),1500);
 /* installed app (PWA): offline cache + ask the browser to keep data */
 if(document.querySelector('link[rel="manifest"]')&&'serviceWorker' in navigator&&/^https?:$/.test(location.protocol)&&!inFrame){
