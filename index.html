@@ -50,6 +50,8 @@ tr.q-active td{background:var(--accent-soft)}
 .result button{font:600 16px var(--f-body);padding:16px;border-radius:8px;border:1.5px solid var(--line);background:var(--surface);color:var(--muted);cursor:pointer}
 .result button[aria-checked="true"][data-r="complete"]{background:var(--ok-soft);border-color:var(--ok);color:var(--ok)}
 .result button[aria-checked="true"][data-r="incomplete"]{background:var(--late-soft);border-color:var(--late);color:var(--late)}
+.std-in{border:1px solid transparent;background:transparent;padding:4px 6px;font-size:13px}.std-in:hover{border-color:var(--line)}.std-in:focus{background:var(--surface)}
+.preset{border:1px solid var(--line);border-radius:8px;padding:10px 12px;display:grid;gap:8px}.preset .nas{display:flex;flex-wrap:wrap;gap:4px}.preset .nas label{font-size:12px;border:1px solid var(--line);border-radius:999px;padding:2px 8px;display:inline-flex;gap:4px;align-items:center;cursor:pointer}.preset .nas label:has(input:checked){background:var(--sunk);color:var(--muted);text-decoration:line-through}
 .p-quick{background:var(--info-soft);color:var(--info)} .p-full{background:var(--sunk);color:var(--muted);border:1px solid var(--line)}
 main{padding-block:20px 48px}
 .tabview{display:grid;gap:18px}
@@ -133,10 +135,35 @@ dialog::backdrop{background:rgb(10 20 24 / .45)}
 .crow:nth-child(even){background:var(--sunk)}
 .crow:last-child{border-bottom:0}
 .crow.has0 .cn{color:var(--late);font-weight:500}
+.rv{font:600 12px var(--f-body);min-width:92px;height:30px;border-radius:5px;border:1.5px dashed var(--warn);background:var(--warn-soft);color:var(--warn);cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:5px;padding:0 8px}
+.rv.on{border:1.5px solid var(--accent);background:var(--accent-soft);color:var(--accent)}
+.crow.unrev{box-shadow:inset 3px 0 0 var(--warn)}
+.crow.flash{animation:fl 1.2s ease-out 1}@keyframes fl{0%{background:var(--warn-soft)}100%{background:inherit}}
+.crow{grid-template-columns:38px minmax(0,1fr) auto auto auto}
+.rail{align-self:stretch;margin:-6px 0 -6px -10px;display:flex;align-items:center;justify-content:center;background:var(--warn-soft);color:var(--warn);border-right:1px solid var(--line);touch-action:none;cursor:ns-resize;user-select:none;-webkit-user-select:none;font:700 14px var(--f-body)}
+.rail.on{background:var(--accent);color:var(--accent-ink)}
+.crow.unrev{box-shadow:none}
+.railhint{display:flex;gap:8px;align-items:center;font-size:12px;color:var(--muted)}
+.railhint b{display:inline-flex;width:22px;height:22px;border-radius:4px;background:var(--warn-soft);color:var(--warn);align-items:center;justify-content:center}
+.ctl{display:contents}
+body.painting,body.painting *{user-select:none!important;-webkit-user-select:none!important;cursor:ns-resize}
+@media (max-width:700px){.crow{grid-template-columns:44px minmax(0,1fr)!important;row-gap:6px}.crow>.rail{grid-row:1/span 2}.crow>.cn{grid-column:2}.ctl{display:flex;flex-wrap:wrap;gap:6px;align-items:center;grid-column:2}.ctl .cell{width:50px}.ctl .rv{min-width:0}}
 .cn{font-size:13px;min-width:0}
 .cells{display:inline-flex;gap:4px}
 .cell{font:600 12px var(--f-mono);width:52px;height:30px;border-radius:5px;border:1px solid var(--line);background:var(--surface);color:var(--muted);cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:4px}
 .cell.s1{background:var(--ok-soft);border-color:var(--ok);color:var(--ok)}
+input[type=range]{accent-color:var(--accent)}
+.still-tg{padding:4px 10px;border:1px solid var(--warn);border-radius:6px;background:var(--warn-soft)}
+.batchbar{border:1.5px solid var(--accent);background:var(--accent-soft);border-radius:8px;padding:10px 12px;display:grid;gap:8px}
+.btabs{display:flex;gap:6px;flex-wrap:wrap}
+.btab{display:inline-flex;align-items:center;gap:6px;font:500 13px var(--f-body);padding:6px 10px;border-radius:6px;border:1px solid var(--line);background:var(--surface);color:var(--ink);cursor:pointer}
+.btab[aria-selected="true"]{border-color:var(--accent);box-shadow:inset 0 0 0 1px var(--accent);font-weight:600}
+.btab .st{font:600 11px var(--f-mono);padding:1px 6px;border-radius:999px;background:var(--warn-soft);color:var(--warn)}
+.btab .st.ok{background:var(--ok-soft);color:var(--ok)} .btab .st.z{background:var(--late-soft);color:var(--late)}
+.btab .x{border:0;background:none;color:var(--muted);cursor:pointer;font-size:15px;padding:0 2px;line-height:1}
+#auForm.b-all .hdr input,#auForm.b-all .hdr .ac input{opacity:.45;pointer-events:none}
+.cell.mx{border-style:dashed;color:var(--info);background:var(--info-soft)}
+.cell.sq{border-style:dashed;color:var(--muted);background:transparent}
 .cell.s0{background:var(--late-soft);border-color:var(--late);color:var(--late)}
 .rq{display:inline-flex;gap:2px}
 .rq button{font:500 11px var(--f-body);border:1px solid var(--line);background:none;color:var(--muted);border-radius:4px;padding:3px 6px;cursor:pointer}
@@ -181,7 +208,7 @@ dialog::backdrop{background:rgb(10 20 24 / .45)}
 
   <!-- ================= STALLED FILES ================= -->
   <section id="view-files" class="tabview">
-    <div class="row"><div><h2>Stalled files</h2><p class="lede" id="rulesLede"></p></div><span class="spacer"></span><button class="btn" id="addManual" type="button">Add a file manually</button></div>
+    <div class="row"><div><h2>Stalled files</h2><p class="lede" id="rulesLede"></p></div><span class="spacer"></span><select id="fScope" style="max-width:170px" aria-label="Whose files" hidden><option value="mine">My files</option><option value="all">Whole team</option></select><button class="btn" id="addManual" type="button">Add a file manually</button></div>
     <div class="stats" id="alerts"></div>
     <div class="panel">
       <div class="row">
@@ -207,31 +234,41 @@ dialog::backdrop{background:rgb(10 20 24 / .45)}
     <div class="panel" id="queuePanel">
       <div class="row"><div><h2>Waiting to audit</h2><p class="lede" id="qLede"></p></div><span class="spacer"></span>
         <input id="qQ" placeholder="Search file, doctor, department" style="max-width:240px" aria-label="Search worklist">
-        <select id="qDept" style="max-width:190px" aria-label="Department"></select></div>
+        <select id="qDept" style="max-width:190px" aria-label="Department"></select><select id="qStill" style="max-width:200px" aria-label="Still in hospital"><option value="">All files</option><option value="only">Still in hospital only</option><option value="hide">Hide still in hospital</option></select></div>
       <div class="row small"><span class="muted">Discharged from</span><input id="qFrom" type="date" style="max-width:160px" aria-label="Discharged from"><span class="muted">to</span><input id="qTo" type="date" style="max-width:160px" aria-label="Discharged to"><button class="btn sm" id="qDateClr" type="button">Clear dates</button></div>
       <div class="row">
+        <button class="btn sm primary" id="qBatch" type="button" disabled>Audit selected together</button>
+        <button class="btn sm" id="qMove" type="button" disabled>Move selected to quick</button>
         <button class="btn sm danger" id="qDelSel" type="button" disabled>Remove selected</button>
         <button class="btn sm danger" id="qDelAll" type="button">Remove all</button>
         <span id="qDelConfirm" class="confirm" hidden><span id="qDelText"></span> <button class="btn sm danger" id="qDelYes" type="button">Yes, remove</button><button class="btn sm" id="qDelNo" type="button">Cancel</button></span>
         <span class="spacer"></span><span class="small muted" id="qSelInfo"></span>
       </div>
+      <div class="row small mix" id="qMix"><span class="muted">My worklists:</span><b id="qMixNow"></b><span class="spacer"></span>
+        <label class="row" style="gap:6px">Full audit <input id="qMixPct" type="range" min="0" max="100" step="5" style="width:160px"> <b class="mono" id="qMixLbl"></b></label>
+        <button class="btn sm primary" type="button" id="qMixGo">Rebalance</button></div>
       <div class="tablewrap qwrap" id="qWrap"><table>
         <thead><tr><th style="width:34px"><input type="checkbox" id="qAll" aria-label="Select all files shown"></th><th>File</th><th>Admitted</th><th>Discharged</th><th class="r">LOS</th><th>Department</th><th>Doctor</th><th></th></tr></thead>
         <tbody id="qRows"></tbody>
       </table></div>
     </div>
     <form class="panel" id="auForm" autocomplete="off">
-      <div class="row"><div><h2 id="auTitle">New audit</h2><p class="lede" id="auLede"></p></div></div>
-      <div class="grid">
+      <div class="row"><div><h2 id="auTitle">New audit</h2><p class="lede" id="auLede"></p></div><span class="spacer"></span><button class="btn" type="button" id="bStart">Audit several files together</button></div>
+      <div id="batchBar" hidden class="batchbar">
+        <div class="row"><b>Batch</b><span class="small muted" id="bHelp">"All files" changes every file at once. Open one file's tab to change only that file.</span><span class="spacer"></span><button class="btn sm" type="button" id="bExit">Exit batch</button></div>
+        <div class="btabs" id="bTabs" role="tablist"></div>
+        <div class="row small"><input id="bAdd" class="mono" placeholder="Add a file number" style="max-width:200px;padding:5px 8px"><button class="btn sm" type="button" id="bAddBtn">+ Add file</button><span class="muted" id="bAddMsg">Files in the worklist come with their details filled in.</span></div>
+      </div>
+      <div class="grid hdr">
         <label class="f">File number *<input id="aFile" class="mono" inputmode="numeric" required></label>
         <label class="f">Admission date<input id="aAdm" type="date"></label>
         <label class="f">Discharge date *<input id="aDis" type="date" required></label>
         <label class="f">LOS (days)<input id="aLos" class="mono" readonly tabindex="-1"></label>
       </div>
-      <div class="grid">
+      <div class="grid hdr">
         <label class="f">Department *<input id="aDept" list="dlDept" required></label>
         <label class="f">Ward<input id="aWard" list="dlWard"></label>
-        <div class="f ac"><label class="f" for="aDoc">Doctor in charge *</label><input id="aDoc" required placeholder="Type a name"><div class="ac-list" id="aDocList" hidden></div><div class="emailline" id="aDocLine"></div></div>
+        <div class="f ac"><label class="f" for="aDoc">Responsible doctor (admitting) *</label><input id="aDoc" required placeholder="Type a name"><div class="ac-list" id="aDocList" hidden></div><div class="emailline" id="aDocLine"></div></div>
         <label class="f">Discharge to<input id="aTo" list="dlTo"></label>
       </div>
       <div class="grid">
@@ -249,10 +286,14 @@ dialog::backdrop{background:rgb(10 20 24 / .45)}
       </div>
       <div id="fullOnly" style="display:grid;gap:14px">
       <div class="row">
-        <h3>Standards</h3><span class="legend"><span><span class="sw" style="background:var(--ok)"></span>✓ met</span><span><span class="sw" style="background:var(--late)"></span>✗ deficient</span><span><span class="sw" style="background:var(--na)"></span>NA</span><span>Click a box to cycle NA → ✓ → ✗</span></span>
+        <h3>Standards</h3><span class="legend"><span><span class="sw" style="background:var(--ok)"></span>✓ met</span><span><span class="sw" style="background:var(--late)"></span>0 not done</span><span><span class="sw" style="background:var(--na)"></span>NA</span><span><span class="sw" style="background:var(--surface);border:1px dashed var(--muted)"></span>— not audited</span><span>Click a box: — → ✓ → 0 → NA</span></span>
         <span class="spacer"></span>
-        <button class="btn sm" type="button" id="allOk">Set all to ✓</button><button class="btn sm" type="button" id="allNa">Set all to NA</button>
+        <button class="btn sm" type="button" id="allOk">Set all to ✓ (audited)</button><button class="btn sm" type="button" id="allNa">Set all to NA</button><button class="btn sm" type="button" id="allClr">Reset to not audited</button>
       </div>
+      <div class="row presets"><span class="small muted">Quick fill:</span><span class="row" id="presetBtns" style="gap:6px"></span>
+        <button class="btn sm" type="button" id="presetSave">+ New quick fill</button>
+        <span id="presetNameBox" class="confirm" hidden><span class="small muted">Takes the NA forms as they are set now.</span><input id="presetName" placeholder="Name, e.g. Pediatric" style="width:240px;padding:4px 8px;font-size:12.5px"><button class="btn sm primary" type="button" id="presetOk">Save</button><button class="btn sm" type="button" id="presetCancel">Cancel</button></span></div>
+      <div class="railhint"><b>—</b>Every form starts <b style="width:auto;padding:0 6px">not audited</b>. Drag down the strip on the left: each form you pass turns ✓ green and audited. "Set all to ✓" or a Quick fill audits everything at once. You can save only when no form is left not audited.</div>
       <div class="crits" id="crits"></div>
       </div>
       <div class="row aufoot">
@@ -331,6 +372,39 @@ dialog::backdrop{background:rgb(10 20 24 / .45)}
 
   <!-- ================= DATA ================= -->
   <section id="view-data" class="tabview" hidden>
+    <div class="panel" id="prepPanel" style="border-color:var(--accent)">
+      <div><h3>Prepare discharge list (Grid)</h3><p class="lede small" style="margin:0">Upload the discharge export from the system (Grid.xls). The app keeps only the 10 audit columns, removes ID numbers, phone numbers and other personal fields, then splits the files between you and your colleague, and your share between full and quick audit.</p></div>
+      <div class="drop"><input type="file" id="inGrid" accept=".xls,.xlsx,.csv"><span class="small muted">Nothing is uploaded anywhere. The file is read in this browser only.</span></div>
+      <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(min(100%,210px),1fr))">
+        <label class="f">Your share (%)<input id="pMe" type="number" min="0" max="100" class="mono"></label>
+        <label class="f">Colleague name<input id="pMate" placeholder="e.g. Sara"></label>
+        <label class="f">Of each share, full audit (%)<input id="pFull" type="number" min="0" max="100" class="mono"></label>
+        <label class="f">Doctor column<select id="pDoc"><option value="AdmittingDoctor">AdmittingDoctor (responsible doctor)</option><option value="DoctorInCharge">DoctorInCharge (consultant)</option></select></label>
+      </div>
+      <div class="row small" style="gap:14px">
+        <label class="row"><input type="checkbox" id="pSkip"> Skip files already audited or already in a worklist</label>
+        <label class="row still-tg"><input type="checkbox" id="pStill"> <b>Remove patients still in hospital</b> <span class="muted" id="pStillN"></span></label>
+      </div>
+      <div class="row small" id="pDeptRow" hidden><span class="muted">Leave out departments:</span><span class="chips" id="pDepts"></span></div>
+      <div id="pOut" hidden style="display:grid;gap:10px">
+        <dl class="kv" id="pSum"></dl>
+        <div class="tablewrap" id="pTable"></div>
+        <div class="row">
+          <button class="btn primary" type="button" id="pAdd">Add my files to my worklists</button>
+          <button class="btn" type="button" id="pDlMate">Download colleague's file</button>
+          <button class="btn" type="button" id="pDlAll">Download cleaned file (all)</button>
+          <button class="btn sm" type="button" id="pDlMine">My full + quick files</button>
+        </div>
+        <p class="small muted" style="margin:0" id="pNote"></p>
+      </div>
+    </div>
+    <div class="panel" id="syncPanel" style="border-color:var(--accent)">
+      <div><h3>Team sync (shared folder)</h3><p class="lede small" style="margin:0">Everyone points the app at the same shared folder, such as the department OneDrive or a network drive. Sync saves your work there as one file and merges everyone else's. Use a folder inside the hospital only, because the files contain file numbers.</p></div>
+      <dl class="kv" id="syncInfo"></dl>
+      <div class="row" id="syncFs"><button class="btn" id="syncPick" type="button">Choose shared folder</button><button class="btn primary" id="syncNow" type="button">Sync now</button><span class="small" id="syncMsg"></span></div>
+      <div class="row"><span class="small muted" id="syncManualLbl">Without folder access (phone, Safari):</span><button class="btn sm" id="syncDl" type="button">Save my sync file</button><label class="btn sm" for="syncIn">Merge colleagues' sync files</label><input type="file" id="syncIn" accept=".json,application/json" multiple hidden></div>
+      <div class="tablewrap" id="syncWho" hidden></div>
+    </div>
     <div class="cols2">
       <div class="panel">
         <h3>Import Excel audit (MR.xlsx)</h3>
@@ -368,6 +442,14 @@ dialog::backdrop{background:rgb(10 20 24 / .45)}
         <label class="f">Email signature<textarea id="sSender" rows="2"></textarea></label>
       </div>
       <div class="row"><button class="btn" type="button" id="notifyBtn">Turn on desktop alerts</button><span class="small muted" id="notifyMsg">Shows a desktop notification when 2nd reminders are due or files turn delinquent, while this page is open.</span></div>
+    </div>
+    <div class="panel" id="stdPanel">
+      <div class="row"><div><h3>Standards (forms)</h3><p class="lede small" style="margin:0">Rename a standard and every audit, chart and email uses the new name. Scores already entered are kept. Excel files with the old name still import into the renamed standard.</p></div><span class="spacer"></span><button class="btn sm" type="button" id="stdAdd">Add a standard</button><button class="btn sm" type="button" id="stdReset">Restore original names</button></div>
+      <div class="crits" id="stdList" style="max-height:420px;overflow:auto"></div>
+      <h3 style="margin-top:4px">Quick fills</h3>
+      <p class="lede small" style="margin:0">A quick fill sets every form to ✓ except the ones it marks NA, and marks all forms reviewed. Ticked = NA. Create as many as you need: Surgical, Medical, Pediatric, Obstetric…</p>
+      <div class="row"><input id="pNewName" placeholder="New quick fill name, e.g. Pediatric" style="max-width:280px"><button class="btn sm primary" type="button" id="pNew">+ Create quick fill</button><span class="small muted">Then tick the forms that are NA in it.</span></div>
+      <div id="presetList" style="display:grid;gap:8px"></div>
     </div>
     <div class="panel" id="tplPanel">
       <div class="row"><div><h3>Email text</h3><p class="lede small" style="margin:0">Edit what doctors receive. Words in {curly brackets} are filled in for each file. Changes save as you type. Arabic text works.</p></div></div>
@@ -421,6 +503,7 @@ dialog::backdrop{background:rgb(10 20 24 / .45)}
         <li><b>Data → Import contacts.</b> Loads doctor emails.</li>
         <li><b>Doctors → Confirm all strong matches,</b> then review the rows marked Check or No match and pick the right contact. Done once; new doctors appear here as they are audited.</li>
         <li><b>Data → Download backup file.</b> Repeat weekly.</li>
+        <li><b>Team sync (optional):</b> Data → Team sync → Choose shared folder (department OneDrive or network drive). Everyone picks the same folder. The app syncs when opened and every 10 minutes; press Sync now any time.</li>
       </ol></div>
       <div class="panel"><h3>Every day</h3><ol>
         <li><b>Data → Import files to audit</b> loads the list of discharged files not audited yet. They wait on the Audit tab with file number, dates, LOS, department and doctor ready.</li>
@@ -524,19 +607,30 @@ function seed(){
       status:st[2]!=null?'done':st[1]!=null?'e2':st[0]!=null?'e1':'open',e1:ago(st[0]),e2:ago(st[1]),done:ago(st[2]),delinqFlag:false,created:a.auditDate,src:'sample'})});
   return s}
 let S;
+/* ---- change tracking for team sync: each record gets upd (time) and by (device); deletions leave a tombstone ---- */
+const DEV=(()=>{try{let d=localStorage.getItem('mr-followup.device');if(!d){d='d'+Math.random().toString(36).slice(2,10);localStorage.setItem('mr-followup.device',d)}return d}catch(e){return 'd'+Math.random().toString(36).slice(2,10)}})();
+let stampCache=null;
+const recKey=r=>{const {upd,...rest}=r;return JSON.stringify(rest)};
+function primeCache(){stampCache=new Map();for(const a of S.audits)stampCache.set('a:'+a.id,recKey(a));for(const f of S.fu)stampCache.set('f:'+f.id,recKey(f))}
+function stampChanges(){if(S.sample)return;if(!stampCache){primeCache();return}const now=Date.now(),seen=new Set();S.tomb=S.tomb||{};
+  for(const [arr,p] of [[S.audits,'a:'],[S.fu,'f:']])for(const r of arr){const k=p+r.id;seen.add(k);
+    if(stampCache.get(k)!==recKey(r)){r.upd=now;if(!r.by){r.by=DEV;r.byName=S.settings.auditor||''}stampCache.set(k,recKey(r))}
+    if(S.tomb[r.id])delete S.tomb[r.id];if(p==='a:'&&S.tombN&&S.tombN[natKey(r)])delete S.tombN[natKey(r)]}
+  for(const k of [...stampCache.keys()])if(!seen.has(k)){S.tomb[k.slice(2)]=now;if(k.startsWith('a:')){try{S.tombN=S.tombN||{};S.tombN[natKey(JSON.parse(stampCache.get(k)))]=now}catch(e){}}stampCache.delete(k)}}
 function load(){try{const r=localStorage.getItem(KEY);if(r){const o=JSON.parse(r);if(o&&o.v===2)return o}}catch(e){}return null}
-function save(){try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){toast('Could not save in this browser. Download a backup now to keep your work.')}}
+function save(){try{stampChanges()}catch(e){}try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){toast('Could not save in this browser. Download a backup now to keep your work.')}}
 S=load()||seed();
 if(!Array.isArray(S.queue))S.queue=[];
+S.tomb=S.tomb||{};primeCache();
 if(S.sample)S.fu.forEach(f=>{if(!f.defs.length){const a=S.audits.find(x=>x.id===f.auditId);if(a)f.defs=defsOf(a)}});
-function leaveSample(){if(!S.sample)return;const keep={settings:S.settings};S=blankState();S.settings=keep.settings}
+function leaveSample(){if(!S.sample)return;const keep={settings:S.settings};S=blankState();S.settings=keep.settings;primeCache()}
 
 /* ---------- scores ---------- */
 function defsOf(a){const out=[];for(let i=0;i<S.criteria.length;i++){const d=[];for(let j=0;j<3;j++)if(a.sc[i*3+j]==='0')d.push('TAC'[j]);if(d.length)out.push({c:S.criteria[i],d})}return out}
 const hasZero=a=>(a.sc||'').includes('0');
 const isQuick=a=>a.type==='quick';
 const typeOf=a=>a.type||'full';
-function critIndex(name){const n=normC(name);let i=S.criteria.findIndex(c=>normC(c)===n);
+function critIndex(name){const n=normC(name);let i=S.criteria.findIndex(c=>normC(c)===n);if(i<0&&S.critAlias&&S.critAlias[n]!=null&&S.critAlias[n]<S.criteria.length)i=S.critAlias[n];
   if(i<0){S.criteria.push(String(name).replace(/\s+/g,' ').trim());S.audits.forEach(a=>{if(!isQuick(a))a.sc+='---'});i=S.criteria.length-1}return i}
 
 /* ---------- follow-up logic ---------- */
@@ -549,7 +643,9 @@ function fuStage(f){if(f.status==='done')return 'done';if(fuLate(f))return 'late
   if(f.status==='e1'&&(!known(f.e1)||daysSince(f.e1)>=R()))return 'need2';return 'waiting'}
 function auditStatus(a){if(a.pending)return 'Pending';const f=fuIdx.get(a.id);if(f&&f.status!=='done')return fuLate(f)?'Delinquent':'Incomplete';if(isQuick(a)&&a.result==='incomplete'&&!f)return 'Incomplete';return 'Complete'}
 const firstPassOk=a=>isQuick(a)?(a.result==='complete'&&!a.pending&&!fuIdx.get(a.id)):!hasZero(a);
-const actionCount=()=>S.fu.filter(f=>['need1','need2','late'].includes(fuStage(f))).length;
+const fuMine=f=>!f.by||f.by===DEV;
+const fuVisible=f=>($('#fScope')?.value==='all')||fuMine(f);
+const actionCount=()=>S.fu.filter(f=>fuMine(f)&&['need1','need2','late'].includes(fuStage(f))).length;
 
 /* ---------- doctors ---------- */
 function rebuildDoctors(){
@@ -662,9 +758,10 @@ $('#mCopy').onclick=async()=>{const t=`To: ${$('#mTo').value}\nSubject: ${$('#mS
 const STAGE={need1:['1st email not sent','p-open'],waiting:['Waiting','p-e1'],need2:['2nd reminder due','p-due'],late:['Delinquent','p-late'],done:['Completed','p-done']};
 function renderFiles(){
   $('#rulesLede').textContent=`2nd reminder is due ${R()} days after the 1st email. A file not completed ${D()} days after the 1st email becomes delinquent.`;
-  const st=S.fu.map(f=>[f,fuStage(f)]);const cnt=k=>st.filter(x=>x[1]===k).length;
+  const others=S.fu.some(f=>!fuMine(f));$('#fScope').hidden=!others;if(!others)$('#fScope').value='mine';
+  const st=S.fu.filter(fuVisible).map(f=>[f,fuStage(f)]);const cnt=k=>st.filter(x=>x[1]===k).length;
   const mStart=isoDay(new Date(today().getFullYear(),today().getMonth(),1));
-  const doneMonth=S.fu.filter(f=>f.status==='done'&&known(f.done)&&f.done>=mStart).length;
+  const doneMonth=S.fu.filter(fuVisible).filter(f=>f.status==='done'&&known(f.done)&&f.done>=mStart).length;
   const sel=$('#fStatus').value;
   const cards=[['need1','Send 1st email',cnt('need1'),'',''],['need2','2nd reminder due',cnt('need2'),'warn',`${R()}+ days since 1st email`],['late','Delinquent',cnt('late'),'late',`${D()}+ days since 1st email`],['waiting','Waiting',cnt('waiting'),'info',`emailed, within ${R()} days`],['done','Completed this month',doneMonth,'ok','']];
   $('#alerts').innerHTML=cards.map(([k,l,n,c,s])=>`<button type="button" class="stat ${c}" data-f="${k}" aria-pressed="${sel===k}"><div class="n">${n}</div><div class="l">${l}</div>${s?`<div class="s">${s}</div>`:''}</button>`).join('');
@@ -685,7 +782,7 @@ function renderFiles(){
     const btn=s==='done'?'':f.status==='open'?`<button class="btn sm primary" data-act="send">Send 1st email</button>`:f.status==='e1'?`<button class="btn sm ${s==='waiting'?'':'primary'}" data-act="send">Send 2nd reminder</button>`:`<button class="btn sm" data-act="send">Email again</button>`;
     return `<tr class="${s==='late'?'is-late':s==='need2'?'is-due':''}" data-id="${f.id}">
       <td><div class="mono" style="font-weight:500">${esc(f.fileNo)}</div><div class="small muted">${esc(f.dept||'')}</div>${f.kind==='quick'?'<span class="pill p-quick">Quick</span>':''}</td>
-      <td><div>${esc(f.doctor?docName(f.doctorKey,f.doctor):'—')}</div><div class="small mono ${f.email?'':'muted'}" style="word-break:break-all">${esc(f.email||'no email')}</div>${f.email&&!f.emailVerified?'<span class="pill p-check">unconfirmed</span>':''}</td>
+      <td>${fuMine(f)?'':`<div class="small" style="color:var(--info)">${esc(f.byName||'Colleague')}'s file</div>`}<div>${esc(f.doctor?docName(f.doctorKey,f.doctor):'—')}</div><div class="small mono ${f.email?'':'muted'}" style="word-break:break-all">${esc(f.email||'no email')}</div>${f.email&&!f.emailVerified?'<span class="pill p-check">unconfirmed</span>':''}</td>
       <td>${defsHtml(f)}</td>
       <td><div class="tl">${tl.join('')}</div></td>
       <td><span class="pill ${sc}">${sl}</span>${s==='late'&&f.status==='e1'?'<div style="margin-top:4px"><span class="pill p-due">2nd not sent</span></div>':''}</td>
@@ -704,7 +801,7 @@ $('#rows').addEventListener('click',e=>{const b=e.target.closest('button[data-ac
   if(a==='delno'){tr.querySelector('.confirm').hidden=true;tr.querySelector('[data-act="del"]').hidden=false}
   if(a==='delyes'){const i=S.fu.indexOf(f);S.fu.splice(i,1);save();renderAll();toast(`File ${f.fileNo} deleted`,()=>{S.fu.splice(i,0,f);save();renderAll()})}});
 $('#alerts').addEventListener('click',e=>{const b=e.target.closest('.stat');if(!b)return;$('#fStatus').value=$('#fStatus').value===b.dataset.f?'action':b.dataset.f;renderFiles()});
-$('#q').addEventListener('input',renderFiles);$('#fStatus').addEventListener('change',renderFiles);
+$('#q').addEventListener('input',renderFiles);$('#fScope').addEventListener('change',renderFiles);$('#fStatus').addEventListener('change',renderFiles);
 
 /* manual add */
 let fDefs=[],fDocKey='',fVerified=false;
@@ -729,42 +826,56 @@ $('#newForm').addEventListener('submit',e=>{e.preventDefault();const no=$('#fFil
 
 /* ---------- AUDIT ---------- */
 let form={id:null,sc:[]};
-function blankSc(){return Array(S.criteria.length*3).fill('-')}
+function blankSc(){return Array(S.criteria.length*3).fill('?')}
+const inAll=()=>!!form.batch&&form.cur==='all';
+function merged(){const B=form.batch;return B[0].sc.map((v,k)=>B.every(b=>b.sc[k]===v)?v:'*')}
+function edit(fn){if(inAll()){form.batch.forEach(b=>fn(b.sc));form.sc=merged()}else fn(form.sc)}
+const rowDone=i=>inAll()?form.batch.every(b=>!b.sc.slice(i*3,i*3+3).includes('?')):!form.sc.slice(i*3,i*3+3).includes('?');
+const rowsLeft=()=>S.criteria.map((c,i)=>i).filter(i=>!rowDone(i));
 function renderCrits(){const sc=form.sc;
-  $('#crits').innerHTML=S.criteria.map((c,i)=>{const cells=[0,1,2].map(j=>{const v=sc[i*3+j];return `<button type="button" class="cell ${v==='1'?'s1':v==='0'?'s0':''}" data-i="${i*3+j}" title="${DIMS['TAC'[j]]}" aria-label="${esc(c)} ${DIMS['TAC'[j]]}: ${v==='1'?'met':v==='0'?'deficient':'not applicable'}">${'TAC'[j]} ${v==='1'?'✓':v==='0'?'✗':'NA'}</button>`}).join('');
-    const z=sc.slice(i*3,i*3+3).includes('0');
-    return `<div class="crow ${z?'has0':''}"><span class="cn">${esc(c)}</span><span class="cells">${cells}</span><span class="rq"><button type="button" data-row="${i}" data-v="1">✓ all</button><button type="button" data-row="${i}" data-v="-">NA</button></span></div>`}).join('');
-  updCount()}
-function updCount(){if(auMode==='quick'){$('#auCount').innerHTML=form.result==='complete'?'<span style="color:var(--ok)">Complete</span>':form.result==='incomplete'?'<b style="color:var(--late)">Not complete</b>':'Choose Complete or Not complete';return}const sc=form.sc;let z=0,app=0;for(let i=0;i<S.criteria.length;i++){const s=sc.slice(i*3,i*3+3);if(s.includes('0'))z++;if(s.some(v=>v!=='-'))app++}
-  $('#auCount').innerHTML=`${app} of ${S.criteria.length} standards scored · ${z?`<b style="color:var(--late)">${z} deficient</b>`:'<span style="color:var(--ok)">no deficiencies</span>'}`}
+  $('#crits').innerHTML=S.criteria.map((c,i)=>{const cells=[0,1,2].map(j=>{const v=sc[i*3+j]??'?';return `<button type="button" class="cell ${v==='1'?'s1':v==='0'?'s0':v==='?'?'sq':v==='*'?'mx':''}" data-i="${i*3+j}" title="${v==='*'?'Differs between files':DIMS['TAC'[j]]}" aria-label="${esc(c)} ${DIMS['TAC'[j]]}: ${v==='1'?'met':v==='0'?'not done (0)':v==='?'?'not audited':v==='*'?'differs between files':'not applicable'}">${'TAC'[j]} ${v==='1'?'✓':v==='0'?'0':v==='?'?'—':v==='*'?'≠':'NA'}</button>`}).join('');
+    const z=sc.slice(i*3,i*3+3).includes('0'),rv=rowDone(i);
+    return `<div class="crow ${z?'has0':''} ${rv?'':'unrev'}" data-crow="${i}"><span class="rail ${rv?'on':''}" data-rail="${i}" title="${rv?'Audited. Tap to reset to not audited':'Not audited. Drag down to mark ✓'}">${rv?'✓':'—'}</span><span class="cn">${esc(c)}</span><span class="ctl"><span class="cells">${cells}</span><button type="button" class="rv ${rv?'on':''}" data-rv="${i}" aria-pressed="${rv}" title="${rv?'Audited. Click to reset to not audited':'Click to mark this form ✓ audited'}">${rv?'✓ Audited':'— Not audited'}</button><span class="rq"><button type="button" data-row="${i}" data-v="1">✓ all</button><button type="button" data-row="${i}" data-v="-">NA</button></span></span></div>`}).join('');
+  updCount();if(form.batch&&!paint)renderBatch()}
+function updCount(){if(auMode==='quick'){$('#auCount').innerHTML=form.result==='complete'?'<span style="color:var(--ok)">Complete</span>':form.result==='incomplete'?'<b style="color:var(--late)">Not complete</b>':'Choose Complete or Not complete';return}
+  const nr=rowsLeft().length;let z=0;for(let i=0;i<S.criteria.length;i++)if(form.sc.slice(i*3,i*3+3).includes('0'))z++;
+  $('#auCount').innerHTML=`${nr?`<b style="color:var(--warn)">${nr} not audited</b>`:'<b style="color:var(--accent)">✓ all audited</b>'} · ${S.criteria.length-nr} of ${S.criteria.length} done · ${z?`<b style="color:var(--late)">${z} with 0</b>`:'<span style="color:var(--ok)">no 0</span>'}`;
+  $('#auSave').disabled=false}
+const fillRow=i=>edit(sc=>{for(let j=0;j<3;j++)if(sc[i*3+j]==='?')sc[i*3+j]='1'});
+const clearRow=i=>edit(sc=>{for(let j=0;j<3;j++)sc[i*3+j]='?'});
 $('#crits').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;
-  if(b.dataset.i!=null){const i=+b.dataset.i;form.sc[i]=form.sc[i]==='-'?'1':form.sc[i]==='1'?'0':'-'}
-  else if(b.dataset.row!=null){const r=+b.dataset.row;for(let j=0;j<3;j++)form.sc[r*3+j]=b.dataset.v}
+  if(b.dataset.rv!=null){const r=+b.dataset.rv;rowDone(r)?clearRow(r):fillRow(r)}
+  else if(b.dataset.i!=null){const i=+b.dataset.i,v=form.sc[i],nv=(v==='?'||v==='*')?'1':v==='1'?'0':v==='0'?'-':'1';edit(sc=>{sc[i]=nv})}
+  else if(b.dataset.row!=null){const r=+b.dataset.row,v=b.dataset.v;edit(sc=>{for(let j=0;j<3;j++)sc[r*3+j]=v})}
   renderCrits()});
-$('#allOk').onclick=()=>{form.sc=form.sc.map(()=>'1');renderCrits()};
-$('#allNa').onclick=()=>{form.sc=blankSc();renderCrits()};
+$('#allOk').onclick=()=>{edit(sc=>sc.fill('1'));renderCrits();renderBatch();$('#auMsg').innerHTML='<b style="color:var(--accent)">All forms set to ✓ and audited.</b> <span class="muted">Change any box that should be 0 or NA, then save.</span>'};
+$('#allNa').onclick=()=>{edit(sc=>sc.fill('-'));renderCrits();renderBatch();$('#auMsg').innerHTML='<span class="muted">All forms set to NA and audited.</span>'};
+$('#allClr').onclick=()=>{edit(sc=>sc.fill('?'));renderCrits();renderBatch();$('#auMsg').innerHTML='<span class="muted">All forms reset to not audited.</span>'};
 function los(){const a=$('#aAdm').value,d=$('#aDis').value;$('#aLos').value=a&&d?Math.max(0,daysBetween(a,d)):''}
 $('#aAdm').addEventListener('change',los);$('#aDis').addEventListener('change',los);
 ac($('#aDoc'),$('#aDocList'),doctorSource,it=>{const nm=it.doc?it.doc.name:it.contact.name;$('#aDoc').value=nm;const k=it.doc?it.doc.key:docKey(nm);const e=it.doc?doctorEmail(k):{email:it.contact.email,verified:true};emailLine($('#aDocLine'),e?.email,e?.verified,nm)});
 let auMode='full';
-const LEDE={full:'Fill the file details, then score each standard. Any ✗ sends the file to Stalled files automatically. Patient names are not stored; the file number identifies the record.',quick:'Fill the file details and mark the file Complete or Not complete. Not complete sends it to Stalled files automatically. In the worklist above you can mark a file complete with one tap.'};
+const LEDE={full:'Fill the file details, then score each standard. Any 0 sends the file to Stalled files automatically. Patient names are not stored; the file number identifies the record.',quick:'Fill the file details and mark the file Complete or Not complete. Not complete sends it to Stalled files automatically. In the worklist above you can mark a file complete with one tap.'};
 function setMode(m,keep){auMode=m==='quick'?'quick':'full';S.settings.auMode=auMode;save();
   $('#modeFull').setAttribute('aria-selected',auMode==='full');$('#modeQuick').setAttribute('aria-selected',auMode==='quick');
   $('#quickOnly').hidden=auMode!=='quick';$('#fullOnly').hidden=auMode==='quick';$('#auLede').textContent=LEDE[auMode];
-  $('#qDelConfirm').hidden=true;qPending=null;if(!keep)resetAudit();renderQueue();updCount()}
+  $('#qDelConfirm').hidden=true;qPending=null;if(!keep)resetAudit();renderQueue();updCount();renderPresetBtns()}
 document.querySelectorAll('.seg button').forEach(b=>b.onclick=()=>{if(b.dataset.mode!==auMode){setMode(b.dataset.mode);$('#auMsg').textContent=''}});
 function renderResult(){['complete','incomplete'].forEach(r=>$('#r'+(r==='complete'?'Complete':'Incomplete')).setAttribute('aria-checked',form.result===r));updCount()}
 $('#quickOnly').addEventListener('click',e=>{const b=e.target.closest('[data-r]');if(!b)return;form.result=form.result===b.dataset.r?null:b.dataset.r;if(form.result)$('#aPending').checked=false;renderResult();if(form.result==='incomplete')$('#aNote').focus()});
-function resetAudit(){form={id:null,sc:blankSc(),result:null};$('#auForm').reset();$('#aDate').value=isoDay(new Date());$('#aAuditor').value=S.settings.auditor||'';$('#aDocLine').textContent='';$('#auTitle').textContent=auMode==='quick'?'New quick audit':'New audit';$('#auSave').textContent='Save audit';renderCrits();renderResult()}
-function editAudit(a){setTimeout(()=>{if(isQuick(a)&&a.pending&&!form.result)$('#auMsg').innerHTML='<span style="color:var(--warn)">This file is pending. Choose Complete or Not complete, then save.</span>'},0);if(typeOf(a)!==auMode)setMode(typeOf(a),true);form={id:a.id,sc:isQuick(a)?blankSc():a.sc.split(''),result:a.result||null};$('#aFile').value=a.fileNo;$('#aAdm').value=a.adm||'';$('#aDis').value=a.dis||'';$('#aLos').value=a.los??'';$('#aDept').value=a.dept;$('#aWard').value=a.ward;$('#aDoc').value=a.doc;$('#aTo').value=a.dischargeTo||'';$('#aDate').value=a.auditDate||'';$('#aAuditor').value=a.auditor||'';$('#aPending').checked=!!a.pending;$('#aNote').value=a.note||'';renderResult();
+function resetAudit(){form={id:null,sc:blankSc(),result:null};setTimeout(renderBatch,0);$('#auForm').reset();$('#aDate').value=isoDay(new Date());$('#aAuditor').value=S.settings.auditor||'';$('#aDocLine').textContent='';$('#auTitle').textContent=auMode==='quick'?'New quick audit':'New audit';$('#auSave').textContent='Save audit';renderCrits();renderResult()}
+function editAudit(a){setTimeout(()=>{if(isQuick(a)&&a.pending&&!form.result)$('#auMsg').innerHTML='<span style="color:var(--warn)">This file is pending. Choose Complete or Not complete, then save.</span>'},0);if(typeOf(a)!==auMode)setMode(typeOf(a),true);form={id:a.id,sc:isQuick(a)?blankSc():(a.sc+('?'.repeat(Math.max(0,S.criteria.length*3-a.sc.length)))).split(''),result:a.result||null};$('#aFile').value=a.fileNo;$('#aAdm').value=a.adm||'';$('#aDis').value=a.dis||'';$('#aLos').value=a.los??'';$('#aDept').value=a.dept;$('#aWard').value=a.ward;$('#aDoc').value=a.doc;$('#aTo').value=a.dischargeTo||'';$('#aDate').value=a.auditDate||'';$('#aAuditor').value=a.auditor||'';$('#aPending').checked=!!a.pending;$('#aNote').value=a.note||'';renderResult();
   const e=doctorEmail(docKey(a.doc));emailLine($('#aDocLine'),e?.email,e?.verified,a.doc);$('#auTitle').textContent=`Editing file ${a.fileNo}`;$('#auSave').textContent='Save changes';$('#auMsg').textContent='';renderCrits();$('#auForm').scrollIntoView({behavior:'smooth',block:'start'})}
 $('#auCancel').onclick=()=>{resetAudit();$('#auMsg').textContent=''};
-$('#auForm').addEventListener('submit',e=>{e.preventDefault();
+$('#auForm').addEventListener('submit',e=>{e.preventDefault();if(form.batch){saveBatch();return}
   const fileNo=$('#aFile').value.trim(),dis=$('#aDis').value,adm=$('#aAdm').value,dept=$('#aDept').value.trim(),doc=$('#aDoc').value.trim(),pend=$('#aPending').checked,quick=auMode==='quick';
   const msg=t=>{$('#auMsg').innerHTML=`<span style="color:var(--late)">${esc(t)}</span>`};
   if(!fileNo||!dis||!dept||!doc)return msg('Fill file number, discharge date, department and doctor.');
   if(adm&&adm>dis)return msg('Admission date is after the discharge date.');
-  if(quick){if(!form.result&&!pend)return msg('Choose Complete or Not complete.')}else if(!form.sc.some(v=>v!=='-'))return msg('Score at least one standard.');
+  if(quick){if(!form.result&&!pend)return msg('Choose Complete or Not complete.')}else{const un=rowsLeft();
+    if(un.length&&!pend){const row=$(`#crits [data-crow="${un[0]}"]`);if(row){row.scrollIntoView({behavior:'smooth',block:'center'});row.classList.remove('flash');void row.offsetWidth;row.classList.add('flash')}
+      return msg(`Not saved: ${un.length} form${un.length>1?'s are':' is'} still not audited, starting with "${S.criteria[un[0]]}". Drag the strip over them or press "Set all to ✓". Or tick "Audit not final" to save as pending.`)}
+    if(!form.sc.some(v=>v==='1'||v==='0'))return msg('Score at least one standard.')}
   const dup=S.audits.find(a=>a.fileNo===fileNo&&a.dis===dis&&typeOf(a)===auMode&&a.id!==form.id);if(dup)return msg(`File ${fileNo} with this discharge date already has a ${quick?'quick':'full'} audit. Edit it from the list below.`);
   leaveSample();
   let a=form.id?S.audits.find(x=>x.id===form.id):null;if(!a){a={id:uid(),src:'site'};S.audits.push(a)}
@@ -940,7 +1051,7 @@ function renderData(){
   const ex=S.audits.filter(a=>a.src==='excel').length,si=S.audits.filter(a=>a.src==='site').length;const ds=S.audits.map(a=>a.dis).filter(Boolean).sort();
   $('#auditInfo').innerHTML=S.audits.length&&!S.sample?`<dt>Audits stored</dt><dd class="mono">${S.audits.length} (${S.audits.filter(a=>!isQuick(a)).length} full, ${S.audits.filter(isQuick).length} quick; ${ex} from Excel, ${si} entered here)</dd><dt>Discharges</dt><dd class="mono">${fmtD(ds[0])} – ${fmtD(ds[ds.length-1])}</dd><dt>Stalled files</dt><dd class="mono">${S.fu.length}</dd>${S.imports.length?`<dt>Last import</dt><dd>${esc(S.imports[S.imports.length-1].file)}, ${fmtD(S.imports[S.imports.length-1].date)}</dd>`:''}`:'<dt>Status</dt><dd>No real data yet</dd>';
   $('#contactInfo').innerHTML=S.contactsReal?`<dt>File</dt><dd>${esc(S.contactsFile||'')}</dd><dt>Contacts</dt><dd class="mono">${S.contacts.length}</dd>`:'<dt>Status</dt><dd>Not imported yet</dd>';
-  renderTpl();
+  renderTpl();renderSync();renderStd();if(!prepRaw)prepLoadUI();
   $('#sRemind').value=S.settings.remindDays;$('#sDelinq').value=S.settings.delinqDays;$('#sSender').value=S.settings.sender;$('#sAuditor').value=S.settings.auditor||'';
   const qa=S.audits.filter(isQuick);$('#quickInfo').innerHTML=qa.length&&!S.sample?`<dt>Quick audits stored</dt><dd class="mono">${qa.length}</dd>${S.quickImport?`<dt>Last with statuses</dt><dd>${esc(S.quickImport.file)}, ${fmtD(S.quickImport.date)}: ${S.quickImport.added} new, ${S.quickImport.updated} updated</dd>`:''}${S.quickDone?`<dt>Last complete list</dt><dd>${esc(S.quickDone.file)}, ${fmtD(S.quickDone.date)}: ${S.quickDone.added} added, ${S.quickDone.updated} updated</dd>`:''}<dt>Quick worklist</dt><dd class="mono">${S.queue.filter(q=>q.type==='quick').length} waiting</dd>`:'<dt>Status</dt><dd>Not imported yet</dd>';
   $('#queueInfo').innerHTML=`<dt>Waiting to audit</dt><dd class="mono">${S.queue.filter(q=>(q.type||'full')==='full').length} full · ${S.queue.filter(q=>q.type==='quick').length} quick</dd>${S.lastQueue?`<dt>Last import</dt><dd>${esc(S.lastQueue.file)}, ${fmtD(S.lastQueue.date)}: ${S.lastQueue.add} added, ${S.lastQueue.done} already audited, ${S.lastQueue.dup} already listed</dd>`:''}`;$('#qClear').disabled=!S.queue.length;
@@ -961,7 +1072,7 @@ $('#bkFile').onclick=async()=>{const name=`MR-followup-backup-${isoDay(new Date(
   try{const blob=new Blob([JSON.stringify(S)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`MR-followup-backup-${isoDay(new Date())}.json`;document.body.appendChild(a);a.click();a.remove();S.lastBackup=isoDay(new Date());save();renderData();if(inFrame)toast('If nothing downloaded, use "Copy backup as text" or the local copy.')}catch(e){toast('Download failed')}};
 $('#bkShow').onclick=()=>{const t=$('#bkText');t.hidden=false;t.value=JSON.stringify(S);t.select();S.lastBackup=isoDay(new Date());save();renderData();
   try{navigator.clipboard.writeText(t.value).then(()=>toast('Backup copied. Paste it into a text file to keep it.'),()=>toast('Press Ctrl+C to copy the selected backup'))}catch(e){toast('Press Ctrl+C to copy the selected backup')}};
-function restore(txt){try{const o=JSON.parse(txt);if(o.v!==2||!Array.isArray(o.audits))throw 0;S=o;indexFu();save();renderAll();toast('Backup restored')}catch(e){toast('That is not a valid backup')}}
+function restore(txt){try{const o=JSON.parse(txt);if(o.v!==2||!Array.isArray(o.audits))throw 0;S=o;S.tomb=S.tomb||{};S.tombN=S.tombN||{};primeCache();indexFu();save();renderAll();toast('Backup restored')}catch(e){toast('That is not a valid backup')}}
 $('#bkIn').onchange=async e=>{const f=e.target.files[0];if(f)restore(await f.text());e.target.value=''};
 $('#bkRestore').onclick=()=>{const t=$('#bkText');if(t.hidden||!t.value.trim()){t.hidden=false;t.value='';t.focus();toast('Paste the backup text, then press Restore again');return}restore(t.value)};
 let wipeMode=null;
@@ -973,15 +1084,251 @@ $('#wipeBk').onclick=()=>$('#bkFile').click();
 $('#wipeYes').onclick=()=>{if(!wipeMode)return;const old=JSON.parse(JSON.stringify(S));const keep=S;S=blankState();S.settings=keep.settings;
   if(wipeMode==='data'){S.contacts=keep.contacts;S.contactsReal=keep.contactsReal;S.contactsFile=keep.contactsFile;S.lastBackup=keep.lastBackup;
     const D={};for(const k in keep.doctors){const o=keep.doctors[k];if(o.verified)D[k]={...o,files:0,raw:[o.name],ids:[]}}S.doctors=D}
-  const m=wipeMode;wipeMode=null;$('#wipeConfirm').hidden=true;resetAudit();indexFu();rebuildDoctors();save();renderAll();
+  S.tomb={};S.tombN={};S.syncSeen=keep.syncSeen;primeCache();const m=wipeMode;wipeMode=null;$('#wipeConfirm').hidden=true;resetAudit();indexFu();rebuildDoctors();save();renderAll();
   toast(m==='all'?'Everything erased. You are starting fresh.':'Audit data erased. Contacts and doctor emails kept.',()=>{S=old;indexFu();save();renderAll()})};
 
 /* ---------- notifications ---------- */
 $('#notifyBtn').onclick=async()=>{if(!('Notification' in window)){$('#notifyMsg').textContent='This browser does not support desktop alerts.';return}
   try{const p=await Notification.requestPermission();if(p==='granted'){S.settings.notify=true;save();renderData();notifyNow(true)}else $('#notifyMsg').textContent='Alerts were blocked. They work in the local copy opened in Chrome or Edge.'}catch(e){$('#notifyMsg').textContent='Alerts are not available here. Use the local copy in Chrome or Edge.'}};
 function notifyNow(force){try{if(!S.settings.notify||!('Notification' in window)||Notification.permission!=='granted')return;
-  const st=S.fu.map(fuStage),n2=st.filter(s=>s==='need2').length,nl=st.filter(s=>s==='late').length,n1=st.filter(s=>s==='need1').length;if(!n1&&!n2&&!nl&&!force)return;
+  const st=S.fu.filter(fuMine).map(fuStage),n2=st.filter(s=>s==='need2').length,nl=st.filter(s=>s==='late').length,n1=st.filter(s=>s==='need1').length;if(!n1&&!n2&&!nl&&!force)return;
   new Notification('MR Follow-up',{body:[n2&&`${n2} files need a 2nd reminder`,nl&&`${nl} delinquent`,n1&&`${n1} not emailed yet`].filter(Boolean).join(' · ')||'Nothing needs action today.'})}catch(e){}}
+
+/* ---------- TEAM SYNC ---------- */
+const SYNC_V='mrfu-sync-1',canFolder='showDirectoryPicker' in window&&!inFrame;
+const natKey=a=>typeOf(a)+'|'+a.fileNo+'|'+(a.dis||'');
+const slug=t=>String(t||'').normalize('NFKD').replace(/[^\w؀-ۿ-]+/g,'-').replace(/^-+|-+$/g,'').slice(0,30)||'user';
+const myFileName=()=>`MR-sync_${slug(S.settings.auditor)}_${DEV.slice(1,7)}.json`;
+const idb=(()=>{let p;const open=()=>p||(p=new Promise((res,rej)=>{const r=indexedDB.open('mrfu',1);r.onupgradeneeded=()=>r.result.createObjectStore('kv');r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error)}));
+  const tx=(m,f)=>open().then(db=>new Promise((res,rej)=>{const q=f(db.transaction('kv',m).objectStore('kv'));q.onsuccess=()=>res(q.result);q.onerror=()=>rej(q.error)}));
+  return {get:k=>tx('readonly',s=>s.get(k)),set:(k,v)=>tx('readwrite',s=>s.put(v,k))}})();
+let dirHandle=null;
+function claimMine(){let n=0;for(const r of [...S.audits,...S.fu])if(!r.by){r.by=DEV;r.byName=S.settings.auditor||'';n++}if(n){primeCache()}}
+function syncPayload(){claimMine();const docs={};for(const k in S.doctors){const o=S.doctors[k];if(o.verified)docs[k]={name:o.name,verified:o.verified}}
+  return {v:SYNC_V,device:DEV,auditor:S.settings.auditor||'',savedAt:Date.now(),criteria:S.criteria,audits:S.audits,fu:S.fu,tomb:S.tomb||{},tombN:S.tombN||{},doctors:docs}}
+function mergeSync(data){
+  if(!data||data.v!==SYNC_V||!Array.isArray(data.audits))throw new Error('Not an MR Follow-up sync file');
+  if(data.device===DEV)return {self:true};
+  leaveSample();S.tomb=S.tomb||{};S.tombN=S.tombN||{};let add=0,upd=0,del=0;
+  // criteria: map by name so scores line up
+  const map=(data.criteria||S.criteria).map(c=>critIndex(c));const remap=sc=>{if(!sc)return sc;const out=Array(S.criteria.length*3).fill('-');map.forEach((ci,i)=>{for(let j=0;j<3;j++)out[ci*3+j]=sc[i*3+j]||'-'});return out.join('')};
+  const byId=new Map(S.audits.map(a=>[a.id,a])),byNat=new Map(S.audits.map(a=>[natKey(a),a])),idMap={};
+  for(const r0 of data.audits){const r={...r0,sc:r0.type==='quick'?'':remap(r0.sc)};let loc=byId.get(r.id)||byNat.get(natKey(r));
+    if(!loc){if((S.tomb[r.id]||0)>=(r.upd||0)||(S.tombN[natKey(r)]||0)>=(r.upd||0))continue;S.audits.push(r);byId.set(r.id,r);byNat.set(natKey(r),r);idMap[r.id]=r.id;add++;continue}
+    idMap[r.id]=loc.id;if((r.upd||0)>(loc.upd||0)){Object.assign(loc,r,{id:loc.id,by:loc.by||r.by,byName:loc.by?loc.byName:r.byName});upd++}}
+  const fuNat=f=>f.auditId?'a|'+f.auditId:'m|'+f.fileNo+'|'+(f.created||'');
+  const fById=new Map(S.fu.map(f=>[f.id,f])),fByNat=new Map(S.fu.map(f=>[fuNat(f),f]));
+  for(const f0 of data.fu||[]){const f={...f0,auditId:f0.auditId?(idMap[f0.auditId]||f0.auditId):null};if(f.auditId&&!S.audits.some(a=>a.id===f.auditId))continue;
+    let loc=fById.get(f.id)||fByNat.get(fuNat(f));
+    if(!loc){if((S.tomb[f.id]||0)>=(f.upd||0))continue;S.fu.push(f);fById.set(f.id,f);fByNat.set(fuNat(f),f);add++;continue}
+    if((f.upd||0)>(loc.upd||0)){Object.assign(loc,f,{id:loc.id,auditId:loc.auditId,by:loc.by||f.by,byName:loc.by?loc.byName:f.byName});upd++}}
+  for(const [id,t] of Object.entries(data.tomb||{})){S.tomb[id]=Math.max(S.tomb[id]||0,t);
+    const a=S.audits.find(x=>x.id===id);if(a&&(a.upd||0)<t){S.audits=S.audits.filter(x=>x!==a);del++}
+    const f=S.fu.find(x=>x.id===id);if(f&&(f.upd||0)<t){S.fu=S.fu.filter(x=>x!==f);del++}}
+  for(const [nk,t] of Object.entries(data.tombN||{})){S.tombN[nk]=Math.max(S.tombN[nk]||0,t);const n0=S.audits.length;S.audits=S.audits.filter(a=>!(natKey(a)===nk&&(a.upd||0)<t));del+=n0-S.audits.length}
+  S.fu=S.fu.filter(f=>!f.auditId||S.audits.some(a=>a.id===f.auditId));
+  for(const k in data.doctors||{}){if(!S.doctors[k]?.verified)S.doctors[k]={...(S.doctors[k]||{key:k,name:data.doctors[k].name,raw:[],ids:[],files:0}),verified:data.doctors[k].verified}}
+  return {add,upd,del,who:data.auditor||'Colleague',savedAt:data.savedAt}}
+function afterMerge(results,note){primeCache();rebuildDoctors();indexFu();
+  S.syncSeen=S.syncSeen||{};for(const r of results)if(r&&!r.self&&r.dev)S.syncSeen[r.dev]={who:r.who,savedAt:r.savedAt,at:Date.now()};
+  const t=results.filter(r=>r&&!r.self).reduce((s,r)=>({add:s.add+r.add,upd:s.upd+r.upd,del:s.del+r.del}),{add:0,upd:0,del:0});
+  S.lastSync={at:Date.now(),...t,files:results.filter(r=>r&&!r.self).length,note};save();renderAll();return t}
+async function folderPerm(ask){if(!dirHandle)return false;const o={mode:'readwrite'};try{if(await dirHandle.queryPermission(o)==='granted')return true;return ask?(await dirHandle.requestPermission(o))==='granted':false}catch(e){return false}}
+async function syncNow(silent){
+  if(!(S.settings.auditor||'').trim()){go('data');$('#syncMsg').innerHTML='<span style="color:var(--late)">Type your name in "Default auditor" below first, so colleagues see who did each file.</span>';$('#sAuditor').focus();return}
+  if(!dirHandle){if(!silent)toast('Choose the shared folder first');return}
+  if(!(await folderPerm(!silent))){if(!silent)$('#syncMsg').textContent='Folder access was not granted.';return}
+  $('#syncMsg').textContent='Syncing…';const results=[];
+  try{for await(const [name,h] of dirHandle.entries()){if(h.kind!=='file'||!/^MR-sync_.*\.json$/i.test(name))continue;
+      try{const txt=await (await h.getFile()).text();const d=JSON.parse(txt);const r=mergeSync(d);if(!r.self){r.dev=d.device;r.file=name;results.push(r)}}catch(e){results.push(null)}}
+    const t=afterMerge(results,'folder');
+    const fh=await dirHandle.getFileHandle(myFileName(),{create:true});const w=await fh.createWritable();await w.write(JSON.stringify(syncPayload()));await w.close();
+    S.lastSync.wrote=myFileName();save();renderData();
+    const msg=`Synced with ${results.filter(Boolean).length} colleague file${results.filter(Boolean).length===1?'':'s'}: ${t.add} new, ${t.upd} updated, ${t.del} removed.`;
+    $('#syncMsg').textContent=msg;if(!silent||t.add||t.upd||t.del)toast(msg)}
+  catch(e){$('#syncMsg').innerHTML=`<span style="color:var(--late)">Sync failed: ${esc(e.message||e)}. Check the folder is reachable.</span>`}}
+$('#syncPick').onclick=async()=>{try{dirHandle=await window.showDirectoryPicker({id:'mrfu-sync',mode:'readwrite'});await idb.set('dir',dirHandle);S.syncFolder=dirHandle.name;save();renderData();syncNow(false)}catch(e){if(e&&e.name!=='AbortError')$('#syncMsg').textContent='Could not open that folder.'}};
+$('#syncNow').onclick=()=>syncNow(false);
+$('#syncDl').onclick=async()=>{if(!(S.settings.auditor||'').trim()){$('#syncMsg').innerHTML='<span style="color:var(--late)">Type your name in "Default auditor" below first.</span>';$('#sAuditor').focus();return}
+  const name=myFileName(),txt=JSON.stringify(syncPayload());save();
+  if(isMobile&&navigator.canShare){try{const file=new File([txt],name,{type:'application/json'});if(navigator.canShare({files:[file]})){await navigator.share({files:[file],title:'MR Follow-up sync file'});toast('Sync file shared. Put it in the shared folder.');return}}catch(e){if(e&&e.name==='AbortError')return}}
+  try{const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([txt],{type:'application/json'}));a.download=name;document.body.appendChild(a);a.click();a.remove();toast('Sync file saved. Copy it into the shared folder.')}catch(e){toast('Could not save the file')}};
+$('#syncIn').onchange=async e=>{const files=[...e.target.files];if(!files.length)return;const results=[];let bad=0,self=0;
+  for(const f of files){try{const d=JSON.parse(await f.text());const r=mergeSync(d);if(r.self){self++;continue}r.dev=d.device;r.file=f.name;results.push(r)}catch(err){bad++}}
+  const t=afterMerge(results,'manual');toast(`Merged ${results.length} file${results.length===1?'':'s'}: ${t.add} new, ${t.upd} updated, ${t.del} removed${bad?`. ${bad} file(s) were not sync files`:''}${self?`. ${self} was your own file`:''}`);e.target.value=''};
+function renderSync(){$('#syncFs').hidden=!canFolder;$('#syncManualLbl').textContent=canFolder?'Or by hand:':'This browser cannot open folders. Share files by hand:';
+  const L=S.lastSync;$('#syncInfo').innerHTML=`<dt>You appear as</dt><dd>${S.settings.auditor?esc(S.settings.auditor):'<span style="color:var(--late)">no name yet: fill "Default auditor" below</span>'} <span class="muted small mono">(${DEV.slice(1,7)})</span></dd>`+(canFolder?`<dt>Shared folder</dt><dd>${S.syncFolder?esc(S.syncFolder):'not chosen'}</dd>`:'')+`<dt>Last sync</dt><dd>${L?`${new Date(L.at).toLocaleString('en-GB',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'})}: ${L.add} new, ${L.upd} updated, ${L.del} removed from ${L.files} file${L.files===1?'':'s'}`:'never'}</dd>`;
+  const seen=Object.values(S.syncSeen||{});const w=$('#syncWho');w.hidden=!seen.length;
+  if(seen.length)w.innerHTML=`<table><thead><tr><th>Colleague</th><th>Their file saved</th><th>Merged here</th><th class="r">Files of theirs</th></tr></thead><tbody>${Object.entries(S.syncSeen).map(([d,x])=>`<tr><td>${esc(x.who||'Colleague')}</td><td class="mono small">${x.savedAt?new Date(x.savedAt).toLocaleString('en-GB',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'}):'—'}</td><td class="mono small">${new Date(x.at).toLocaleString('en-GB',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'})}</td><td class="r mono">${S.audits.filter(a=>a.by===d).length}</td></tr>`).join('')}</tbody></table>`}
+(async()=>{if(!canFolder)return;try{dirHandle=await idb.get('dir');if(dirHandle&&await folderPerm(false))setTimeout(()=>syncNow(true),800)}catch(e){}})();
+setInterval(async()=>{if(dirHandle&&await folderPerm(false))syncNow(true)},10*60e3);
+
+/* ---------- review strip: drag to mark ---------- */
+let paint=null;
+$('#crits').addEventListener('pointerdown',e=>{const r=e.target.closest('[data-rail]');if(!r)return;e.preventDefault();const i=+r.dataset.rail,rect=r.getBoundingClientRect();
+  paint={x:rect.left+rect.width/2,y:e.clientY,start:i,wasDone:rowDone(i),moved:false,last:i,raf:0};document.body.classList.add('painting');try{getSelection().removeAllRanges()}catch(err){}
+  if(!paint.wasDone){fillRow(i);renderCrits()}
+  const loop=()=>{if(!paint)return;const H=innerHeight,edge=90+($('.aufoot')&&getComputedStyle($('.aufoot')).position==='sticky'?$('.aufoot').offsetHeight:0);if(paint.y<edge)scrollBy(0,-Math.ceil((edge-paint.y)/6));else if(paint.y>H-edge)scrollBy(0,Math.ceil((paint.y-(H-edge))/6));markAt();paint.raf=requestAnimationFrame(loop)};paint.raf=requestAnimationFrame(loop)});
+function markAt(){if(!paint)return;let y=paint.y;try{const ft=$('.aufoot').getBoundingClientRect().top,hb=document.querySelector('header').getBoundingClientRect().bottom;if(ft>0&&ft<innerHeight)y=Math.min(y,ft-4);y=Math.max(y,hb+4)}catch(e){}const el=document.elementFromPoint(paint.x,y);const row=el&&el.closest('#crits [data-crow]');if(!row)return;const i=+row.dataset.crow;if(i===paint.last)return;
+  paint.moved=true;const a=Math.min(i,paint.last),z=Math.max(i,paint.last);let ch=false;for(let k=a;k<=z;k++)if(!rowDone(k)){fillRow(k);ch=true}paint.last=i;if(ch)renderCrits()}
+addEventListener('pointermove',e=>{if(!paint)return;paint.y=e.clientY;markAt()},{passive:true});
+const endPaint=()=>{if(!paint)return;cancelAnimationFrame(paint.raf);const p=paint;paint=null;document.body.classList.remove('painting');if(p.wasDone&&!p.moved)clearRow(p.start);renderCrits()};
+document.addEventListener('selectstart',e=>{if(paint)e.preventDefault()});
+addEventListener('pointerup',endPaint);addEventListener('pointercancel',endPaint);
+
+/* ---------- BATCH AUDIT ---------- */
+const HDR=[['fileNo','#aFile'],['adm','#aAdm'],['dis','#aDis'],['dept','#aDept'],['ward','#aWard'],['doc','#aDoc'],['to','#aTo']];
+function hdrFromQ(q){return {fileNo:q.fileNo,adm:q.adm||'',dis:q.dis||'',dept:q.dept||'',ward:q.ward||'',doc:q.doc?docName(docKey(q.doc),q.doc):'',to:q.dischargeTo||''}}
+function pullHdr(){if(!form.batch||form.cur==='all')return;const b=form.batch[form.cur];HDR.forEach(([k,sel])=>b.hdr[k]=$(sel).value.trim())}
+function pushHdr(h){HDR.forEach(([k,sel])=>$(sel).value=h?h[k]||'':'');los();const e=h&&h.doc?doctorEmail(docKey(h.doc)):null;emailLine($('#aDocLine'),e?.email,e?.verified,h?.doc)}
+function startBatch(items){if(auMode!=='full')setMode('full',true);const keep={date:$('#aDate').value,aud:$('#aAuditor').value};resetAudit();$('#aDate').value=keep.date||isoDay(new Date());$('#aAuditor').value=keep.aud||S.settings.auditor||'';
+  form.batch=items.map(q=>({qid:q.id||null,hdr:q.id?hdrFromQ(q):{fileNo:q.fileNo||'',adm:'',dis:'',dept:'',ward:'',doc:'',to:''},sc:blankSc()}));form.cur='all';form.sc=merged();renderCrits();renderBatch();
+  $('#auMsg').innerHTML=`<span class="muted">Batch of ${items.length} file${items.length>1?'s':''}. Set what they share on "All files" (for example a Quick fill), then open a file's tab for anything different.</span>`;$('#auForm').scrollIntoView({behavior:'smooth',block:'start'})}
+function showTab(t){pullHdr();form.cur=t;if(t==='all'){form.sc=merged();pushHdr(null)}else{form.sc=form.batch[t].sc;pushHdr(form.batch[t].hdr)}renderCrits();renderBatch()}
+function renderBatch(){const B=form.batch,on=!!B;$('#auForm').noValidate=on;$('#batchBar').hidden=!on;$('#bStart').hidden=on||auMode!=='full';$('#auForm').classList.toggle('b-all',on&&form.cur==='all');
+  $('#auSave').textContent=on?`Save all ${B.length} files`:(form.id?'Save changes':'Save audit');if(!on)return;
+  const st=b=>{const left=S.criteria.filter((c,i)=>b.sc.slice(i*3,i*3+3).includes('?')).length,z=S.criteria.filter((c,i)=>b.sc.slice(i*3,i*3+3).includes('0')).length;
+    return left?`<span class="st">${left} left</span>`:z?`<span class="st z">${z}× 0</span>`:'<span class="st ok">✓</span>'};
+  $('#bTabs').innerHTML=`<button type="button" class="btab" role="tab" data-bt="all" aria-selected="${form.cur==='all'}">All files <span class="st ok" style="background:var(--surface);color:var(--ink)">${B.length}</span></button>`+
+    B.map((b,i)=>`<span class="btab" role="tab" data-bt="${i}" aria-selected="${form.cur===i}" tabindex="0"><span class="mono">${esc(b.hdr.fileNo||'(no number)')}</span>${/still in hospital/i.test(b.hdr.to||'')?'<span class="st" title="Still in hospital">in hospital</span>':''}${st(b)}<button type="button" class="x" data-bx="${i}" aria-label="Remove from batch">×</button></span>`).join('');
+  $('#auTitle').textContent=form.cur==='all'?`Batch: all ${B.length} files`:`Batch: file ${form.batch[form.cur].hdr.fileNo||''}`}
+$('#bTabs').addEventListener('click',e=>{const x=e.target.closest('[data-bx]');if(x){e.stopPropagation();pullHdr();const i=+x.dataset.bx;form.batch.splice(i,1);
+    if(!form.batch.length){resetAudit();$('#auMsg').textContent='Batch closed.';return}form.cur=form.cur==='all'?'all':Math.min(form.cur===i?0:form.cur>i?form.cur-1:form.cur,form.batch.length-1);if(form.cur!=='all'){form.sc=form.batch[form.cur].sc;pushHdr(form.batch[form.cur].hdr)}else form.sc=merged();renderCrits();renderBatch();return}
+  const t=e.target.closest('[data-bt]');if(!t)return;showTab(t.dataset.bt==='all'?'all':+t.dataset.bt)});
+$('#bStart').onclick=()=>{startBatch([{fileNo:''}]);showTab(0);$('#aFile').focus();$('#auMsg').innerHTML='<span class="muted">Fill this file, then add more with "+ Add file". Files from the worklist fill in by themselves.</span>'};
+$('#bExit').onclick=()=>{resetAudit();$('#auMsg').textContent='Batch closed without saving.'};
+function addToBatch(){const no=$('#bAdd').value.trim();if(!no){$('#bAdd').focus();return}pullHdr();
+  if(form.batch.some(b=>b.hdr.fileNo===no)){$('#bAddMsg').textContent=`File ${no} is already in the batch.`;return}
+  const q=S.queue.find(x=>(x.type||'full')==='full'&&x.fileNo===no);const base=inAll()?merged().map(v=>v==='*'?'?':v):blankSc();
+  form.batch.push({qid:q?.id||null,hdr:q?hdrFromQ(q):{fileNo:no,adm:'',dis:'',dept:'',ward:'',doc:'',to:''},sc:base});$('#bAdd').value='';
+  $('#bAddMsg').textContent=q?`File ${no} added from the worklist.`:`File ${no} added. Open its tab to fill discharge date, department and doctor.`;if(inAll())form.sc=merged();renderCrits();renderBatch()}
+$('#bAddBtn').onclick=addToBatch;$('#bAdd').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();addToBatch()}});
+$('#auForm').addEventListener('input',e=>{if(form.batch&&form.cur!=='all'&&e.target.closest('.hdr')){pullHdr();renderBatch()}});
+$('#qBatch').onclick=()=>{const items=qShown.filter(q=>qSel.has(q.id));if(items.length<2){toast('Tick at least 2 files');return}qSel.clear();startBatch(items)};
+function saveBatch(){pullHdr();const B=form.batch,pend=$('#aPending').checked;const fail=(i,t)=>{showTab(i);$('#auMsg').innerHTML=`<span style="color:var(--late)">${esc(t)}</span>`;return false};
+  for(let i=0;i<B.length;i++){const h=B[i].hdr,b=B[i];
+    if(!h.fileNo||!h.dis||!h.dept||!h.doc)return fail(i,`File ${h.fileNo||i+1}: fill file number, discharge date, department and doctor.`);
+    if(h.adm&&h.adm>h.dis)return fail(i,`File ${h.fileNo}: admission date is after the discharge date.`);
+    const left=S.criteria.filter((c,k)=>b.sc.slice(k*3,k*3+3).includes('?'));
+    if(left.length&&!pend)return fail(i,`Not saved: file ${h.fileNo} has ${left.length} form${left.length>1?'s':''} not audited, starting with "${left[0]}".`);
+    if(!b.sc.some(v=>v==='1'||v==='0'))return fail(i,`File ${h.fileNo}: score at least one standard.`);
+    if(B.some((x,j)=>j!==i&&x.hdr.fileNo===h.fileNo&&x.hdr.dis===h.dis))return fail(i,`File ${h.fileNo} is in the batch twice.`);
+    if(S.audits.some(a=>a.fileNo===h.fileNo&&a.dis===h.dis&&typeOf(a)==='full'))return fail(i,`File ${h.fileNo} with this discharge date already has a full audit.`)}
+  const date=$('#aDate').value,aud=$('#aAuditor').value,fu0=S.fu.length;let n=0;
+  for(const b of B){form={id:null,sc:b.sc.slice(),result:null,queueId:b.qid};pushHdr(b.hdr);$('#aDate').value=date;$('#aAuditor').value=aud;$('#aPending').checked=pend;
+    $('#auForm').dispatchEvent(new Event('submit',{cancelable:true}));n++}
+  const nf=S.fu.length-fu0;$('#aDate').value=date;$('#aAuditor').value=aud;
+  $('#auMsg').innerHTML=`<span style="color:var(--ok)"><b>Saved ${n} files.</b></span> ${nf?`<span>${nf} with a 0 went to Stalled files.</span> <button class="btn sm" type="button" data-go="files">Open Stalled files</button>`:'<span class="muted">All complete.</span>'}`;renderBatch()}
+
+/* ---------- FULL / QUICK MIX of my worklists ---------- */
+function mixNow(){const f=S.queue.filter(q=>(q.type||'full')==='full').length,qk=S.queue.filter(q=>q.type==='quick').length;return {f,qk,n:f+qk}}
+function renderMix(){const m=mixNow();$('#qMix').hidden=!m.n;if(!m.n)return;const cur=Math.round(m.f/m.n*100);
+  $('#qMixNow').textContent=`${m.f} full · ${m.qk} quick (${cur}% full)`;if(document.activeElement!==$('#qMixPct')){$('#qMixPct').value=cur}mixLbl()}
+function mixLbl(){const m=mixNow(),pct=+$('#qMixPct').value,tf=Math.round(pct/100*m.n);$('#qMixLbl').textContent=`${pct}% → ${tf} full / ${m.n-tf} quick`;$('#qMixGo').disabled=tf===m.f}
+$('#qMixPct').addEventListener('input',mixLbl);
+$('#qMixGo').onclick=()=>{const m=mixNow(),tf=Math.round(+$('#qMixPct').value/100*m.n);if(tf===m.f)return;const before=S.queue.map(q=>[q,q.type]);
+  const fromT=tf<m.f?'full':'quick',toT=fromT==='full'?'quick':'full',src=S.queue.filter(q=>(q.type||'full')===fromT),need=Math.abs(tf-m.f);
+  const asRow=q=>({_dept:q.dept||'',_doc:q.doc||'',_key:q.fileNo+'|'+q.dis,q});const [stay,move]=splitBalanced(src.map(asRow),(src.length-need)/src.length,'|mix');
+  move.forEach(r=>r.q.type=toT);save();renderAll();toast(`${move.length} files moved from ${fromT} to ${toT}. Now ${mixNow().f} full, ${mixNow().qk} quick.`,()=>{before.forEach(([q,t])=>q.type=t);save();renderAll()})};
+$('#qMove').onclick=()=>{const L=qShown.filter(q=>qSel.has(q.id));if(!L.length)return;const to=auMode==='full'?'quick':'full';L.forEach(q=>{q.type=to;qSel.delete(q.id)});save();renderAll();
+  toast(`${L.length} file${L.length>1?'s':''} moved to the ${to} audit worklist`,()=>{L.forEach(q=>q.type=auMode);save();renderAll()})};
+
+/* ---------- PREPARE DISCHARGE LIST ---------- */
+const PREP_COLS=['Registration_No','Patient / Guradian Name','Admission Date','Discharge Date','LOS','Department_Name','Ward Name','AdmittingDoctor','Discharge To','Age'];
+let prepRaw=null,prepRes=null;
+const prepSet=()=>{const d={me:50,mate:'',full:50,doc:'AdmittingDoctor',skip:true,still:false,dup:true,xdept:[]};S.settings.prep={...d,...(S.settings.prep||{})};return S.settings.prep};
+function prepLoadUI(){const p=prepSet();p.dup=true;$('#pMe').value=p.me;$('#pMate').value=p.mate;$('#pFull').value=p.full;$('#pDoc').value=p.doc;$('#pSkip').checked=p.skip;$('#pStill').checked=!!p.still}
+function prepReadUI(){const p=prepSet();const cl=v=>Math.max(0,Math.min(100,Math.round(+v||0)));p.me=cl($('#pMe').value);p.full=cl($('#pFull').value);p.mate=$('#pMate').value.trim();p.doc=$('#pDoc').value;p.skip=$('#pSkip').checked;p.still=$('#pStill').checked;p.dup=true;save();return p}
+const cleanTxt=v=>v==null?'':String(v).replace(/\s+/g,' ').trim();
+const serialDay=v=>typeof v==='number'?Math.floor(v):null;
+function splitBalanced(rows,pct,salt){const order=[...rows].sort((a,b)=>a._dept.localeCompare(b._dept)||a._doc.localeCompare(b._doc)||hash(a._key+salt)-hash(b._key+salt));
+  const A=[],B=[];order.forEach((r,i)=>{const dA=pct*(i+1)-A.length,dB=(1-pct)*(i+1)-B.length;(dA>=dB&&pct>0?A:B).push(r)});return [A,B]}
+function runPrep(){if(!prepRaw)return;const p=prepReadUI();const H=prepRaw.H,rows0=prepRaw.rows;
+  const col=n=>H.findIndex(h=>normC(h)===normC(n));const ci={};['Registration_No','Patient / Guradian Name','Admission Date','Discharge Date','LOS','Department_Name','Ward Name','AdmittingDoctor','DoctorInCharge','Discharge To','Age'].forEach(n=>ci[n]=col(n));
+  if(ci['Registration_No']<0||ci['Discharge Date']<0){$('#pOut').hidden=false;$('#pSum').innerHTML='<dt>Problem</dt><dd style="color:var(--late)">Registration_No or Discharge Date column not found in this file.</dd>';$('#pTable').innerHTML='';return}
+  const docCol=ci[p.doc]>=0?p.doc:(ci.DoctorInCharge>=0?'DoctorInCharge':'AdmittingDoctor');
+  const stats={read:0,still:0,dept:0,dup:0,known:0};const seen=new Set();
+  const known=new Set([...S.audits.map(a=>a.fileNo+'|'+a.dis),...S.queue.map(q=>q.fileNo+'|'+q.dis)]);
+  const depts={};const out=[];
+  for(const X of rows0){const reg=cleanTxt(X[ci['Registration_No']]);if(!reg)continue;stats.read++;
+    const r={_reg:reg,_dis:toIso(X[ci['Discharge Date']]),_adm:toIso(X[ci['Admission Date']]),_dept:cleanTxt(X[ci['Department_Name']]),_doc:cleanTxt(X[ci[docCol]]),_to:cleanTxt(X[ci['Discharge To']]),_ward:cleanTxt(X[ci['Ward Name']]),_los:X[ci['LOS']],_X:X};
+    r._key=reg+'|'+r._dis;depts[r._dept]=(depts[r._dept]||0)+1;
+    if(/still in hospital/i.test(r._to))stats.stillAll=(stats.stillAll||0)+1;
+    if(p.still&&/still in hospital/i.test(r._to)){stats.still++;continue}
+    if(p.xdept.includes(r._dept)){stats.dept++;continue}
+    const exact=reg+'|'+X[ci['Discharge Date']];if(p.dup&&seen.has(r._key)){stats.dup++;continue}seen.add(r._key);
+    out.push(r)}
+  $('#pStillN').textContent=stats.stillAll?`(${stats.stillAll} in this file${p.still?', removed':', kept and flagged'})`:'(none in this file)';
+  $('#pDeptRow').hidden=false;$('#pDepts').innerHTML=Object.keys(depts).sort().map(d=>`<label class="chip" style="padding:3px 10px;cursor:pointer"><input type="checkbox" data-xd="${esc(d)}" ${p.xdept.includes(d)?'checked':''}> ${esc(d)} <span class="muted mono">${depts[d]}</span></label>`).join('');
+  // split the whole cleaned list first, so files already added never shift the split between people
+  const [mine0,mate0]=splitBalanced(out,p.me/100,'|who');const [full0,quick0]=splitBalanced(mine0,p.full/100,'|type');
+  const [mf0,mq0]=splitBalanced(mate0,p.full/100,'|type2');
+  const keep=L=>p.skip?L.filter(r=>{if(known.has(r._key)){stats.known++;return false}return true}):L;
+  const full=keep(full0),quick=keep(quick0),mf=keep(mf0),mq=keep(mq0),mate=[...mf,...mq],mine=[...full,...quick];
+  prepRes={out,mine,mate,mf,mq,full,quick,docCol,p,ci,all:{full:full0.length,quick:quick0.length,mate:mate0.length,mf:mf0.length,mq:mq0.length}};
+  const by=(L,d)=>L.filter(r=>r._dept===d).length;const D=[...new Set(out.map(r=>r._dept))].sort();
+  $('#pOut').hidden=false;
+  $('#pSum').innerHTML=`<dt>File</dt><dd>${esc(prepRaw.name)}: ${stats.read} rows, discharges ${fmtD(out.map(r=>r._dis).sort()[0])} – ${fmtD(out.map(r=>r._dis).sort().slice(-1)[0])}</dd><dt>Left out</dt><dd>${[stats.still&&`${stats.still} still in hospital (removed by you)`,stats.dept&&`${stats.dept} by department`,stats.dup&&`${stats.dup} repeated file${stats.dup>1?'s':''} merged (one kept)`,].filter(Boolean).join(' · ')||'none'}</dd><dt>Split</dt><dd>${prepRes.all.full} full + ${prepRes.all.quick} quick for you, ${prepRes.all.mate} for ${esc(p.mate||'colleague')} (${prepRes.all.mf} full + ${prepRes.all.mq} quick)${stats.known?` · ${stats.known} of them already added or audited`:''}</dd><dt>Doctor from</dt><dd>${esc(docCol)}</dd>${(()=>{const n=out.filter(r=>/still in hospital/i.test(r._to)).length;return n?`<dt>Still in hospital</dt><dd><span class="pill p-due">${n} files</span> kept and flagged in the worklist, so you can audit them later or remove them.</dd>`:''})()}`;
+  const mateName=esc(p.mate||'Colleague');
+  $('#pTable').innerHTML=`<table><thead><tr><th>Department</th><th class="r">In file</th><th class="r">Me: full</th><th class="r">Me: quick</th><th class="r">${mateName}: full</th><th class="r">${mateName}: quick</th></tr></thead><tbody>${D.map(d=>`<tr><td>${esc(d)}</td><td class="r mono">${by(out,d)}</td><td class="r mono">${by(full,d)}</td><td class="r mono">${by(quick,d)}</td><td class="r mono">${by(mf,d)}</td><td class="r mono">${by(mq,d)}</td></tr>`).join('')}<tr style="font-weight:600"><td>Still to do</td><td class="r mono">${out.length}</td><td class="r mono">${full.length}</td><td class="r mono">${quick.length}</td><td class="r mono">${mf.length}</td><td class="r mono">${mq.length}</td></tr></tbody></table>`;
+  $('#pDlMate').textContent=`Download ${p.mate||"colleague"}'s file (${mate.length})`;$('#pAdd').textContent=`Add my ${mine.length} files to my worklists (${full.length} full, ${quick.length} quick)`;
+  $('#pNote').textContent='Your colleague\'s file has two sheets, Full audit and Quick audit. They upload it once in Data → Full audit worklist and both lists fill in. The split is balanced by department and doctor, and is the same every time for the same file, so re-uploading does not reshuffle who gets what.'}
+function prepToQueue(r,type){return {id:uid(),type,fileNo:r._reg,adm:r._adm,dis:r._dis,los:typeof r._los==='number'?r._los:(r._los!=null&&r._los!==''&&!isNaN(+r._los)?+r._los:null),dept:r._dept,ward:r._ward,doc:r._doc,dischargeTo:r._to}}
+function prepSheet(L){const ci=prepRes.ci,dc=prepRes.docCol;const head=PREP_COLS.map(h=>h==='AdmittingDoctor'?dc:h);
+  const rows=[head,...L.map(r=>head.map(h=>{const v=r._X[ci[h]];if((h==='Admission Date'||h==='Discharge Date')&&typeof v==='number')return {t:'n',v,z:'dd/mm/yyyy hh:mm'};if(h==='Department_Name')return r._dept;return v==null?'':v}))];
+  const ws=XLSX.utils.aoa_to_sheet(rows);ws['!cols']=head.map(h=>({wch:/Name|Doctor/.test(h)?34:/Date/.test(h)?17:14}));return ws}
+function prepDownload(name,sheets){const wb=XLSX.utils.book_new();sheets.forEach(([n,L])=>XLSX.utils.book_append_sheet(wb,prepSheet(L),n));downloadWB(wb,name)}
+$('#inGrid').onchange=async e=>{const f=e.target.files[0];if(!f)return;try{const wb=await readWB(f);const ws=wb.Sheets[wb.SheetNames[0]];const A=XLSX.utils.sheet_to_json(ws,{header:1,raw:true,defval:null});
+    const hi=A.findIndex(r=>r&&r.some(v=>normC(v??'')==='registration_no'));if(hi<0)throw new Error('No Registration_No column found in the first sheet.');
+    prepRaw={name:f.name,H:A[hi].map(v=>v==null?'':String(v)),rows:A.slice(hi+1).filter(r=>r&&r.some(v=>v!=null&&v!==''))};runPrep();$('#pOut').scrollIntoView({behavior:'smooth',block:'nearest'})}catch(err){toast(err.message||'Could not read this file')}e.target.value=''};
+['#pMe','#pFull','#pMate','#pDoc','#pSkip','#pStill'].forEach(x=>$(x).addEventListener('change',runPrep));
+$('#pDepts').addEventListener('change',e=>{const c=e.target.closest('[data-xd]');if(!c)return;const p=prepSet();const d=c.dataset.xd;p.xdept=c.checked?[...new Set([...p.xdept,d])]:p.xdept.filter(x=>x!==d);save();runPrep()});
+$('#pAdd').onclick=()=>{if(!prepRes)return;leaveSample();const have=new Set(S.queue.map(q=>(q.type||'full')+'|'+q.fileNo+'|'+q.dis));let n=0;
+  let nf=0,nq=0;for(const [L,t] of [[prepRes.full,'full'],[prepRes.quick,'quick']])for(const r of L){const k=t+'|'+r._reg+'|'+r._dis;if(have.has(k))continue;S.queue.push(prepToQueue(r,t));have.add(k);n++;t==='full'?nf++:nq++}
+  save();renderAll();runPrep();toast(n?`${n} files added: ${nf} to full audit, ${nq} to quick audit`:'Your files are already in your worklists')};
+$('#pDlMate').onclick=()=>{if(!prepRes)return;const nm=slug(prepRes.p.mate||'colleague');prepDownload(`Discharges_${nm}_${isoDay(new Date())}.xlsx`,[['Full audit',prepRes.mf],['Quick audit',prepRes.mq]])};
+$('#pDlAll').onclick=()=>{if(!prepRes)return;prepDownload(`Discharges_clean_${isoDay(new Date())}.xlsx`,[['Sheet1',prepRes.out]])};
+$('#pDlMine').onclick=()=>{if(!prepRes)return;prepDownload(`Discharges_mine_${isoDay(new Date())}.xlsx`,[['Full audit',prepRes.full],['Quick audit',prepRes.quick]])};
+
+/* ---------- STANDARDS & QUICK FILLS ---------- */
+function defaultPresets(){const find=(...w)=>S.criteria.map((c,i)=>[c.toLowerCase(),i]).filter(([c])=>w.some(x=>c.includes(x))).map(x=>x[1]);
+  const common=find('death summary','transfer to another facility');
+  return [{id:'p-med',name:'Medical (no surgery)',na:[...new Set([...common,...find('operative notes','pre anesthesia','pre-operative','histopathology')])]},
+          {id:'p-surg',name:'Surgical',na:common}]}
+const presets=()=>{if(!Array.isArray(S.presets)){S.presets=defaultPresets()}return S.presets};
+function applyPreset(p){const na=new Set(p.na);edit(sc=>{S.criteria.forEach((c,i)=>{for(let j=0;j<3;j++)sc[i*3+j]=na.has(i)?'-':'1'})});renderCrits();renderBatch();
+  $('#auMsg').innerHTML=`<span class="muted">${esc(p.name)} applied${form.batch?(inAll()?` to all ${form.batch.length} files`:` to file ${esc(form.batch[form.cur].hdr.fileNo)} only`):''}: ${S.criteria.length-na.size} standards ✓, ${na.size} NA. <b>All forms audited.</b> Change any box that should be 0, then save.</span>`}
+function renderPresetBtns(){$('#presetBtns').innerHTML=presets().map(p=>`<button class="btn sm" type="button" data-p="${p.id}" title="${p.na.length} standards set to NA">${esc(p.name)}</button>`).join('')}
+$('#presetBtns').addEventListener('click',e=>{const b=e.target.closest('[data-p]');if(!b)return;const p=presets().find(x=>x.id===b.dataset.p);if(p)applyPreset(p)});
+$('#presetSave').onclick=()=>{$('#presetNameBox').hidden=false;$('#presetName').value='';$('#presetName').focus()};
+$('#presetCancel').onclick=()=>{$('#presetNameBox').hidden=true};
+$('#presetName').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();$('#presetOk').click()}});
+$('#presetOk').onclick=()=>{const name=$('#presetName').value.trim();if(!name){$('#presetName').focus();return}
+  const na=S.criteria.map((c,i)=>i).filter(i=>form.sc.slice(i*3,i*3+3).every(v=>v==='-'));
+  presets().push({id:'p'+uid(),name,na});save();$('#presetNameBox').hidden=true;renderPresetBtns();toast(`Quick fill "${name}" saved: ${na.length} standards NA`)};
+function renderStd(){
+  $('#stdList').innerHTML=S.criteria.map((c,i)=>`<div class="crow" style="grid-template-columns:28px minmax(0,1fr) auto"><span class="small muted mono">${i+1}</span><input class="std-in" data-si="${i}" value="${esc(c)}" aria-label="Standard ${i+1} name"><span class="small muted">${(S.critOrig&&S.critOrig[i]&&S.critOrig[i]!==c)?'renamed':''}</span></div>`).join('');
+  $('#presetList').innerHTML=presets().map(p=>`<div class="preset" data-pid="${p.id}"><div class="row"><input class="std-in" data-pname value="${esc(p.name)}" style="font-weight:600;max-width:320px" aria-label="Quick fill name"><span class="small muted">${p.na.length} NA</span><span class="spacer"></span><button class="btn sm danger" type="button" data-pdel>Delete</button></div>
+    <div class="nas">${S.criteria.map((c,i)=>`<label title="Ticked = NA in this quick fill"><input type="checkbox" data-pna="${i}" ${p.na.includes(i)?'checked':''}>${esc(c.replace(/^[\d.\s]+/,'').slice(0,34))}</label>`).join('')}</div></div>`).join('')||'<p class="muted small">No quick fills yet.</p>'}
+$('#stdList').addEventListener('change',e=>{const inp=e.target.closest('[data-si]');if(!inp)return;const i=+inp.dataset.si,old=S.criteria[i],nw=inp.value.replace(/\s+/g,' ').trim();
+  if(!nw){inp.value=old;return}if(nw===old)return;if(S.criteria.some((c,k)=>k!==i&&normC(c)===normC(nw))){toast('Another standard already has that name');inp.value=old;return}
+  S.critOrig=S.critOrig||S.criteria.slice();S.critAlias=S.critAlias||{};S.critAlias[normC(old)]=i;S.criteria[i]=nw;
+  S.fu.forEach(f=>f.defs.forEach(d=>{if(d.c===old)d.c=nw}));save();renderStd();renderCrits();toast(`Renamed to "${nw}"`)});
+$('#stdAdd').onclick=()=>{let n=1,name;do{name='New standard '+n++}while(S.criteria.includes(name));critIndex(name);save();renderStd();renderCrits();renderPresetBtns();
+  const last=$('#stdList').lastElementChild?.querySelector('input');if(last){last.scrollIntoView({block:'nearest'});last.select()}};
+$('#stdReset').onclick=()=>{if(!S.critOrig){toast('No standards have been renamed');return}const before=S.criteria.slice();
+  S.critOrig.forEach((o,i)=>{if(S.criteria[i]!==o){S.fu.forEach(f=>f.defs.forEach(d=>{if(d.c===S.criteria[i])d.c=o}));S.criteria[i]=o}});save();renderStd();renderCrits();
+  toast('Original names restored',()=>{before.forEach((c,i)=>{if(S.criteria[i]!==c){S.fu.forEach(f=>f.defs.forEach(d=>{if(d.c===S.criteria[i])d.c=c}));S.criteria[i]=c}});save();renderStd();renderCrits()})};
+$('#presetList').addEventListener('change',e=>{const box=e.target.closest('[data-pid]');if(!box)return;const p=presets().find(x=>x.id===box.dataset.pid);if(!p)return;
+  if(e.target.matches('[data-pna]')){const i=+e.target.dataset.pna;p.na=e.target.checked?[...new Set([...p.na,i])].sort((a,b)=>a-b):p.na.filter(x=>x!==i)}
+  if(e.target.matches('[data-pname]')){const v=e.target.value.trim();if(v)p.name=v;else e.target.value=p.name}
+  save();renderStd();renderPresetBtns()});
+$('#presetList').addEventListener('click',e=>{const b=e.target.closest('[data-pdel]');if(!b)return;const id=b.closest('[data-pid]').dataset.pid;const i=presets().findIndex(x=>x.id===id);const old=presets()[i];
+  S.presets.splice(i,1);save();renderStd();renderPresetBtns();toast(`Quick fill "${old.name}" deleted`,()=>{S.presets.splice(i,0,old);save();renderStd();renderPresetBtns()})});
+
+$('#pNew').onclick=()=>{const name=$('#pNewName').value.trim();if(!name){$('#pNewName').focus();return}const id='p'+uid();presets().push({id,name,na:[]});save();$('#pNewName').value='';renderStd();renderPresetBtns();
+  const box=document.querySelector(`#presetList [data-pid="${id}"]`);if(box){box.scrollIntoView({behavior:'smooth',block:'center'})}toast(`"${name}" created. Tick the forms that are NA in it.`)};
+$('#pNewName').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();$('#pNew').click()}});
 
 /* ---------- EMAIL TEXT EDITOR ---------- */
 let tplN='1';
@@ -1006,16 +1353,16 @@ $('#tReset').onclick=()=>{const old=S.settings.tpl?{...S.settings.tpl}:null;if(S
   toast(`Original ${tplN==='1'?'1st email':'2nd reminder'} text restored`,()=>{S.settings.tpl=old;save();$('#tSubj').value=tpl('s'+tplN);$('#tBody').value=tpl('b'+tplN);previewTpl()})};
 
 /* ---------- WORKLIST (files to audit) ---------- */
-const QAL={reg:['registration_no','registration no','registration number','file no','file no.','file number','file_no','mrn','medical record no','medical record number','reg no','patient file no'],adm:['admission date','admission','admit date','admission_date'],dis:['discharge date','discharge','discharged','discharge_date'],los:['los','length of stay'],dept:['department_name','department','dept','department name'],ward:['ward name','ward','ward_name'],doc:['doctorincharge','doctor in charge','doctor','physician','consultant','doctor name','attending'],to:['discharge to','discharge_to','discharge type','discharge status'],staff:['staff name','auditor','audited by']};
+const QAL={reg:['registration_no','registration no','registration number','file no','file no.','file number','file_no','mrn','medical record no','medical record number','reg no','patient file no'],adm:['admission date','admission','admit date','admission_date'],dis:['discharge date','discharge','discharged','discharge_date'],los:['los','length of stay'],dept:['department_name','department','dept','department name'],ward:['ward name','ward','ward_name'],doc:['admittingdoctor','admitting doctor','doctorincharge','doctor in charge','doctor','physician','consultant','doctor name','attending'],to:['discharge to','discharge_to','discharge type','discharge status'],staff:['staff name','auditor','audited by']};
 function toIso(v){if(v==null||v==='')return '';if(v instanceof Date)return isoDay(v);
   if(typeof v==='number'){const p=XLSX.SSF.parse_date_code(v);return p?isoDay(new Date(p.y,p.m-1,p.d)):''}
   const s=String(v).trim();let m=s.match(/^(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{4})/);if(m)return isoDay(new Date(+m[3],+m[2]-1,+m[1]));
   m=s.match(/^(\d{4})[\/\-.](\d{1,2})[\/\-.](\d{1,2})/);if(m)return isoDay(new Date(+m[1],+m[2]-1,+m[3]));const d=new Date(s);return isNaN(d)?'':isoDay(d)}
-function parseWorklist(wb){
-  const ws=wb.Sheets[wb.SheetNames[0]];const A=XLSX.utils.sheet_to_json(ws,{header:1,raw:true,defval:null});
+function parseWorklist(wb,sheet){
+  const ws=wb.Sheets[sheet||wb.SheetNames[0]];const A=XLSX.utils.sheet_to_json(ws,{header:1,raw:true,defval:null});
   const hi=A.slice(0,30).findIndex(r=>r&&r.some(v=>QAL.reg.includes(normC(v??''))));
   if(hi<0)throw new Error('Could not find a file number column (for example Registration_No or File No) in the first sheet.');
-  const H=A[hi].map(v=>normC(v??''));const col=k=>H.findIndex(h=>QAL[k].includes(h));
+  const H=A[hi].map(v=>normC(v??''));const col=k=>{for(const al of QAL[k]){const i=H.indexOf(al);if(i>=0)return i}return -1};
   const c={reg:col('reg'),adm:col('adm'),dis:col('dis'),los:col('los'),dept:col('dept'),ward:col('ward'),doc:col('doc'),to:col('to'),staff:col('staff')};
   const sub=A[hi+1]||[];const hasTAC=sub.some((v,i)=>String(v??'').trim()==='T'&&String(sub[i+1]??'').trim()==='A');
   const g=(X,k)=>c[k]>=0?X[c[k]]:null;const out=[];
@@ -1025,11 +1372,16 @@ function parseWorklist(wb){
       dept:String(g(X,'dept')??'').trim(),ward:String(g(X,'ward')??'').trim(),doc:String(g(X,'doc')??'').replace(/\s+/g,' ').trim(),dischargeTo:String(g(X,'to')??'').trim(),auditor:String(g(X,'staff')??'').trim()})}
   if(!out.length)throw new Error('No rows with a file number were found.');
   return {rows:out,hasTAC,missing:['dis','doc','dept'].filter(k=>c[k]<0)}}
-async function importQueueFile(e,type){const file=e.target.files[0];if(!file)return;try{const {rows,missing}=parseWorklist(await readWB(file));leaveSample();
+async function importQueueFile(e,type){const file=e.target.files[0];if(!file)return;try{const wb=await readWB(file);
+  const fs_=wb.SheetNames.find(n=>normC(n)==='full audit'),qs_=wb.SheetNames.find(n=>normC(n)==='quick audit');
+  if(fs_&&qs_){leaveSample();let msg=[];for(const [sh,t] of [[fs_,'full'],[qs_,'quick']]){const r=addQueueRows(parseWorklist(wb,sh).rows,t);msg.push(`${r.add} to ${t}`)}save();renderAll();toast(`Two-sheet file: ${msg.join(', ')} audit worklist`);e.target.value='';return}
+  const {rows,missing}=parseWorklist(wb);leaveSample();
   const own=S.audits.filter(a=>typeOf(a)===type);const aud=new Set(own.map(a=>a.fileNo+'|'+a.dis)),audNo=new Set(own.map(a=>a.fileNo)),inQ=new Set(S.queue.filter(q=>(q.type||'full')===type).map(q=>q.fileNo+'|'+q.dis));
   let add=0,done=0,dup=0;for(const q of rows){const k=q.fileNo+'|'+q.dis;if(aud.has(k)||(!q.dis&&audNo.has(q.fileNo))){done++;continue}if(inQ.has(k)){dup++;continue}q.type=type;delete q.auditor;S.queue.push(q);inQ.add(k);add++}
   S.lastQueue={file:file.name,date:isoDay(new Date()),add,done,dup,type};save();renderAll();
   toast(`${add} files added to the ${type} audit worklist${done?`, ${done} already audited`:''}${dup?`, ${dup} already listed`:''}${missing.length?'. Missing columns: '+missing.map(k=>({dis:'discharge date',doc:'doctor',dept:'department'}[k])).join(', '):''}`)}catch(err){toast(err.message||'Could not read this file')}e.target.value=''}
+function addQueueRows(rows,type){const own=S.audits.filter(a=>typeOf(a)===type);const aud=new Set(own.map(a=>a.fileNo+'|'+a.dis)),inQ=new Set(S.queue.map(q=>q.fileNo+'|'+q.dis));let add=0;
+  for(const q of rows){const k=q.fileNo+'|'+q.dis;if(aud.has(k)||inQ.has(k))continue;q.type=type;delete q.auditor;S.queue.push(q);inQ.add(k);add++}return {add}}
 $('#inQueue').onchange=e=>importQueueFile(e,'full');$('#inQueueQ').onchange=e=>importQueueFile(e,'quick');
 function dropFromQueue(type,keys){const n=S.queue.length;S.queue=S.queue.filter(q=>!((q.type||'full')===type&&(keys.has(q.fileNo+'|'+q.dis)||(!q.dis&&[...keys].some(k=>k.startsWith(q.fileNo+'|'))))));return n-S.queue.length}
 $('#inQuickDone').onchange=async e=>{const file=e.target.files[0];if(!file)return;try{const {rows,hasTAC,missing}=parseWorklist(await readWB(file));
@@ -1064,16 +1416,17 @@ $('#inQuick').onchange=async e=>{const f=e.target.files[0];if(!f)return;try{cons
   save();renderAll();toast(`Quick audit imported: ${r.added} new, ${r.updated} updated${r.rows>r.added+r.updated?`, ${r.rows-r.added-r.updated} repeated rows merged`:''}, ${r.fuAdded} stalled files`)}catch(err){toast(err.message||'Could not read this file')}e.target.value=''};
 $('#qClear').onclick=()=>{$('#qClearConfirm').hidden=false};$('#qClearNo').onclick=()=>{$('#qClearConfirm').hidden=true};
 $('#qClearYes').onclick=()=>{const old=S.queue;S.queue=[];save();$('#qClearConfirm').hidden=true;renderAll();toast('Worklist emptied',()=>{S.queue=old;save();renderAll()})};
-function renderQueue(){const nf=S.queue.filter(q=>(q.type||'full')==='full').length,nq=S.queue.length-nf;$('#qcFull').hidden=!nf;$('#qcFull').textContent=nf;$('#qcQuick').hidden=!nq;$('#qcQuick').textContent=nq;
+function renderQueue(){try{renderMix()}catch(e){}const nf=S.queue.filter(q=>(q.type||'full')==='full').length,nq=S.queue.length-nf;$('#qcFull').hidden=!nf;$('#qcFull').textContent=nf;$('#qcQuick').hidden=!nq;$('#qcQuick').textContent=nq;
   const Q=S.queue.filter(q=>(q.type||'full')===auMode);$('#queuePanel').hidden=!Q.length;if(!Q.length)return;
   const ds=$('#qDept'),cd=ds.value;const depts=[...new Set(Q.map(q=>q.dept).filter(Boolean))].sort();
   ds.innerHTML='<option value="">All departments</option>'+depts.map(d=>`<option>${esc(d)}</option>`).join('');if(depts.includes(cd))ds.value=cd;
   const s=$('#qQ').value.trim().toLowerCase(),dp=ds.value,fr=$('#qFrom').value,to=$('#qTo').value;
-  const L=Q.filter(q=>(!dp||q.dept===dp)&&(!fr||(q.dis&&q.dis>=fr))&&(!to||(q.dis&&q.dis<=to))&&(!s||(q.fileNo+' '+q.doc+' '+q.dept).toLowerCase().includes(s))).sort((a,b)=>(a.dis||'9').localeCompare(b.dis||'9'));
+  const sf=$('#qStill').value,isStill=q=>/still in hospital/i.test(q.dischargeTo||'');
+  const L=Q.filter(q=>(!dp||q.dept===dp)&&(sf!=='only'||isStill(q))&&(sf!=='hide'||!isStill(q))&&(!fr||(q.dis&&q.dis>=fr))&&(!to||(q.dis&&q.dis<=to))&&(!s||(q.fileNo+' '+q.doc+' '+q.dept).toLowerCase().includes(s))).sort((a,b)=>(a.dis||'9').localeCompare(b.dis||'9'));
   $('#qLede').textContent=`${Q.length} file${Q.length===1?'':'s'} waiting for ${auMode==='quick'?'a quick':'a full'} audit, oldest discharge first. ${auMode==='quick'?'Press ✓ Complete to save straight away, or ✗ Not complete to add what is missing.':'Press Audit to fill the form below.'}`;
   qShown=L;[...qSel].forEach(id=>{if(!S.queue.some(q=>q.id===id))qSel.delete(id)});
-  $('#qRows').innerHTML=L.slice(0,300).map(q=>`<tr data-q="${q.id}" class="${form.queueId===q.id?'q-active':''}"><td><input type="checkbox" data-sel aria-label="Select file ${esc(q.fileNo)}" ${qSel.has(q.id)?'checked':''}></td><td class="mono">${esc(q.fileNo)}</td><td class="mono">${fmtS(q.adm)}</td><td class="mono">${fmtS(q.dis)}</td><td class="r mono">${q.los??'—'}</td><td>${esc(q.dept||'—')}</td><td>${esc(q.doc?docName(docKey(q.doc),q.doc):'—')}</td><td><div class="acts" style="min-width:0">${auMode==='quick'?'<button class="btn sm okb" type="button" data-qa="ok">✓ Complete</button><button class="btn sm danger" type="button" data-qa="no">✗ Not complete</button>':'<button class="btn sm primary" type="button" data-qa="start">Audit</button>'}<button class="btn sm" type="button" data-qa="rm">Remove</button></div></td></tr>`).join('')||'<tr><td colspan="8" class="muted">No files match.</td></tr>';updSel()}
-function fillFromQueue(q){$('#aFile').value=q.fileNo;$('#aAdm').value=q.adm||'';$('#aDis').value=q.dis||'';$('#aLos').value=q.los??'';$('#aDept').value=q.dept||'';$('#aWard').value=q.ward||'';$('#aDoc').value=q.doc?docName(docKey(q.doc),q.doc):'';$('#aTo').value=q.dischargeTo||'';
+  $('#qRows').innerHTML=L.slice(0,300).map(q=>`<tr data-q="${q.id}" class="${form.queueId===q.id?'q-active':''}"><td><input type="checkbox" data-sel aria-label="Select file ${esc(q.fileNo)}" ${qSel.has(q.id)?'checked':''}></td><td class="mono">${esc(q.fileNo)}</td><td class="mono">${fmtS(q.adm)}</td><td class="mono">${fmtS(q.dis)}</td><td class="r mono">${q.los??'—'}</td><td>${esc(q.dept||'—')}${isStill(q)?'<div><span class="pill p-due" title="Discharge To: Patient still in hospital">Still in hospital</span></div>':''}</td><td>${esc(q.doc?docName(docKey(q.doc),q.doc):'—')}</td><td><div class="acts" style="min-width:0">${auMode==='quick'?'<button class="btn sm okb" type="button" data-qa="ok">✓ Complete</button><button class="btn sm danger" type="button" data-qa="no">✗ Not complete</button>':'<button class="btn sm primary" type="button" data-qa="start">Audit</button>'}<button class="btn sm" type="button" data-qa="rm">Remove</button></div></td></tr>`).join('')||'<tr><td colspan="8" class="muted">No files match.</td></tr>';updSel()}
+function fillFromQueue(q){setTimeout(()=>{if(/still in hospital/i.test(q.dischargeTo||''))$('#auMsg').innerHTML='<span class="pill p-due">Still in hospital</span> <span>The system lists this patient as still in hospital. Audit now, or leave it in the worklist for later.</span>'},0);$('#aFile').value=q.fileNo;$('#aAdm').value=q.adm||'';$('#aDis').value=q.dis||'';$('#aLos').value=q.los??'';$('#aDept').value=q.dept||'';$('#aWard').value=q.ward||'';$('#aDoc').value=q.doc?docName(docKey(q.doc),q.doc):'';$('#aTo').value=q.dischargeTo||'';
   form.queueId=q.id;const e=doctorEmail(docKey(q.doc));emailLine($('#aDocLine'),e?.email,e?.verified,q.doc);$('#auTitle').textContent=`Auditing file ${q.fileNo}`}
 $('#qRows').addEventListener('click',e=>{const b=e.target.closest('button[data-qa]');if(!b)return;const q=S.queue.find(x=>x.id===b.closest('tr').dataset.q);if(!q)return;
   if(b.dataset.qa==='ok'){leaveSample();const a={id:uid(),type:'quick',fileNo:q.fileNo,adm:q.adm,dis:q.dis,los:q.los,dept:q.dept,ward:q.ward,doc:q.doc,dischargeTo:q.dischargeTo,auditor:S.settings.auditor||'',auditDate:isoDay(new Date()),sc:'',result:'complete',note:'',pending:false,src:'site'};
@@ -1082,7 +1435,7 @@ $('#qRows').addEventListener('click',e=>{const b=e.target.closest('button[data-q
   if(b.dataset.qa==='start'){resetAudit();fillFromQueue(q);$('#auMsg').textContent='Details filled from the worklist. Score the standards and save.';renderQueue();$('#auForm').scrollIntoView({behavior:'smooth',block:'start'})}
   if(b.dataset.qa==='rm'){const i=S.queue.indexOf(q);S.queue.splice(i,1);save();renderAll();toast(`File ${q.fileNo} removed from the worklist`,()=>{S.queue.splice(i,0,q);save();renderAll()})}});
 let qSel=new Set(),qShown=[],qPending=null;
-function updSel(){const sel=qShown.filter(q=>qSel.has(q.id)).length;$('#qDelSel').disabled=!sel;$('#qDelSel').textContent=sel?`Remove selected (${sel})`:'Remove selected';
+function updSel(){const sel=qShown.filter(q=>qSel.has(q.id)).length;$('#qMove').disabled=!sel;$('#qMove').textContent=`Move selected to ${auMode==='full'?'quick':'full'}${sel?` (${sel})`:''}`;$('#qBatch').disabled=sel<2;$('#qBatch').textContent=sel>=2?`Audit ${sel} selected together`:'Audit selected together';$('#qDelSel').disabled=!sel;$('#qDelSel').textContent=sel?`Remove selected (${sel})`:'Remove selected';
   const filtered=qShown.length!==S.queue.filter(q=>(q.type||'full')===auMode).length;$('#qDelAll').textContent=filtered?`Remove all shown (${qShown.length})`:`Remove all (${qShown.length})`;
   const all=$('#qAll');all.checked=!!qShown.length&&qShown.every(q=>qSel.has(q.id));all.indeterminate=!all.checked&&sel>0;
   $('#qSelInfo').textContent=qShown.length>300?'Showing the first 300; "Remove all" covers every file shown by the filter.':''}
@@ -1095,8 +1448,8 @@ $('#qDelNo').onclick=()=>{$('#qDelConfirm').hidden=true;qPending=null};
 $('#qDelYes').onclick=()=>{const ids=new Set(qPending||[]);$('#qDelConfirm').hidden=true;qPending=null;if(!ids.size)return;const old=S.queue.slice();
   S.queue=S.queue.filter(q=>!ids.has(q.id));ids.forEach(id=>qSel.delete(id));if(ids.has(form.queueId))form.queueId=null;save();renderAll();
   toast(`${ids.size} file${ids.size>1?'s':''} removed from the worklist`,()=>{S.queue=old;save();renderAll()})};
-$('#qQ').addEventListener('input',renderQueue);$('#qFrom').addEventListener('change',renderQueue);$('#qTo').addEventListener('change',renderQueue);$('#qDateClr').onclick=()=>{$('#qFrom').value='';$('#qTo').value='';renderQueue()};$('#qDept').addEventListener('change',renderQueue);
-$('#aFile').addEventListener('change',()=>{if(form.id||form.queueId)return;const no=$('#aFile').value.trim();const q=S.queue.find(x=>x.fileNo===no&&(x.type||'full')===auMode);if(!q)return;fillFromQueue(q);$('#auMsg').textContent='Found in the worklist. Details filled in.';renderQueue()});
+$('#qQ').addEventListener('input',renderQueue);$('#qStill').addEventListener('change',renderQueue);$('#qFrom').addEventListener('change',renderQueue);$('#qTo').addEventListener('change',renderQueue);$('#qDateClr').onclick=()=>{$('#qFrom').value='';$('#qTo').value='';renderQueue()};$('#qDept').addEventListener('change',renderQueue);
+$('#aFile').addEventListener('change',()=>{if(form.id||form.queueId||form.batch)return;const no=$('#aFile').value.trim();const q=S.queue.find(x=>x.fileNo===no&&(x.type||'full')===auMode);if(!q)return;fillFromQueue(q);$('#auMsg').textContent='Found in the worklist. Details filled in.';renderQueue()});
 
 /* ---------- shell ---------- */
 const TABS=['files','audit','dashboard','doctors','data','guide'];let cur='files';
