@@ -936,7 +936,7 @@ $('#aAdm').addEventListener('change',los);$('#aDis').addEventListener('change',l
 ac($('#aDoc'),$('#aDocList'),doctorSource,it=>{const nm=it.doc?it.doc.name:it.contact.name;$('#aDoc').value=nm;const k=it.doc?it.doc.key:docKey(nm);const e=it.doc?doctorEmail(k):{email:it.contact.email,verified:true};emailLine($('#aDocLine'),e?.email,e?.verified,nm)});
 let auMode='full';
 const LEDE={full:'Fill the file details, then score each standard. Any 0 sends the file to Stalled files automatically. Patient names are not stored; the file number identifies the record.',quick:'Fill the file details and mark the file Complete or Not complete. Not complete sends it to Stalled files automatically. In the worklist above you can mark a file complete with one tap.'};
-function setMode(m,keep){auMode=m==='quick'?'quick':'full';S.settings.auMode=auMode;save();
+function setMode(m,keep){auMode=m==='quick'?'quick':'full';S.settings.auMode=auMode;save();try{auExpLabel()}catch(e){}
   $('#modeFull').setAttribute('aria-selected',auMode==='full');$('#modeQuick').setAttribute('aria-selected',auMode==='quick');
   $('#quickOnly').hidden=auMode!=='quick';$('#fullOnly').hidden=auMode==='quick';$('#auLede').textContent=LEDE[auMode];
   $('#qDelConfirm').hidden=true;qPending=null;if(!keep)resetAudit();renderQueue();updCount();renderPresetBtns()}
@@ -1011,8 +1011,14 @@ $('#auRows').addEventListener('click',e=>{const b=e.target.closest('button[data-
   if(b.dataset.act==='delyes'){const fu=S.fu.filter(f=>f.auditId===a.id);S.audits=S.audits.filter(x=>x!==a);S.fu=S.fu.filter(f=>f.auditId!==a.id);save();renderAll();
     toast(`Audit ${a.fileNo} deleted`,()=>{S.audits.push(a);S.fu.push(...fu);save();renderAll()})}});
 function downloadWB(wb,name){try{XLSX.writeFile(wb,name);if(inFrame)toast('If nothing downloaded, use the local copy MR-Followup.html. Downloads are blocked inside Claude.')}catch(e){toast('Download failed: '+e.message)}}
-$('#exportAudits').onclick=()=>{const by=(a,b)=>(a.dis||'').localeCompare(b.dis||'');
-  exportFQ(S.audits.filter(a=>!isQuick(a)).sort(by).map(recFromAudit),S.audits.filter(isQuick).sort(by).map(recFromAudit),`MR-audit-${isoDay(new Date())}`)};
+/* exports only ONE type: the type chosen above the list, or the audit type you are working in (Full or Quick) */
+const auExpType=()=>$('#auType').value||auMode;
+function auExpLabel(){const t=auExpType();$('#exportAudits').textContent=`Export ${t==='quick'?'quick':'full'} audits to Excel`;const q=$('#qExport');if(q)q.textContent=`Export ${auMode==='quick'?'quick':'full'} worklist to Excel`}
+$('#exportAudits').onclick=()=>{const t=auExpType(),p=$('#auPeriod').value,fr=$('#auFrom').value,to=$('#auTo').value,by=(a,b)=>(a.dis||'').localeCompare(b.dis||'');
+  const L=S.audits.filter(a=>typeOf(a)===t&&inPeriod(a,p)&&(!fr||(a.dis&&a.dis>=fr))&&(!to||(a.dis&&a.dis<=to))).sort(by).map(recFromAudit);
+  if(!L.length){toast(`No ${t} audits to export${p||fr||to?' for this period':''}`);return}
+  exportFQ(t==='full'?L:[],t==='quick'?L:[],`MR_${isoDay(new Date())}`);toast(`Exported ${L.length} ${t} audit${L.length===1?'':'s'}: ${t==='full'?'40 standards with T/A/C scores (MR layout)':'complete / incomplete only (quick layout)'}`)};
+$('#auType').addEventListener('change',auExpLabel);
 
 
 /* ---------- FILL IN MISSING DETAILS (name, age, times) without touching audit results ---------- */
@@ -1231,8 +1237,8 @@ function dlBytes(bytes,name){const a=document.createElement('a');a.href=URL.crea
   a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),4000)}
 /* Exports the full list as an MR.xlsx-style file and the quick list as an AUG2222.xlsx-style file. Returns the file names. */
 function exportFQ(full,quick,base){const files=[];
-  try{if(full.length)files.push({name:`${base}_FULL.xlsx`,bytes:tplBytes('full',full),n:full.length,kind:'Full audit'});
-    if(quick.length)files.push({name:`${base}_QUICK.xlsx`,bytes:tplBytes('quick',quick),n:quick.length,kind:'Quick audit'})}
+  try{if(full.length)files.push({name:`${base}_Full-audit.xlsx`,bytes:tplBytes('full',full),n:full.length,kind:'Full audit'});
+    if(quick.length)files.push({name:`${base}_Quick-audit.xlsx`,bytes:tplBytes('quick',quick),n:quick.length,kind:'Quick audit'})}
   catch(e){toast('Export failed: '+e.message);return []}
   if(!files.length){toast('Nothing to export');return []}
   files.forEach((f,i)=>setTimeout(()=>dlBytes(f.bytes,f.name),i*900));showDlBar(files);
@@ -1599,8 +1605,9 @@ function renderMix(){const m=mixNow();$('#qMix').hidden=!m.n;if(!m.n)return;cons
   $('#qMixNow').textContent=`${m.f} full · ${m.qk} quick (${cur}% full)`;if(document.activeElement!==$('#qMixPct')){$('#qMixPct').value=cur}mixLbl()}
 function mixLbl(){const m=mixNow(),pct=+$('#qMixPct').value,tf=Math.round(pct/100*m.n);$('#qMixLbl').textContent=`${pct}% → ${tf} full / ${m.n-tf} quick`;$('#qMixGo').disabled=tf===m.f}
 $('#qMixPct').addEventListener('input',mixLbl);
-$('#qExport').onclick=()=>{const by=(a,b)=>(a.dis||'').localeCompare(b.dis||'');const F=S.queue.filter(q=>(q.type||'full')==='full').sort(by),Q=S.queue.filter(q=>q.type==='quick').sort(by);
-  exportFQ(F.map(recFromQueue),Q.map(recFromQueue),`My-worklists_${slug(S.settings.auditor||'me')}_${isoDay(new Date())}`);toast(`Exported ${F.length} full + ${Q.length} quick files`)};
+$('#qExport').onclick=()=>{const t=auMode,by=(a,b)=>(a.dis||'').localeCompare(b.dis||'');const L=S.queue.filter(q=>(q.type||'full')===t).sort(by).map(recFromQueue);
+  if(!L.length){toast(`The ${t} worklist is empty`);return}
+  exportFQ(t==='full'?L:[],t==='quick'?L:[],`Worklist_${slug(S.settings.auditor||'me')}_${isoDay(new Date())}`);toast(`Exported ${L.length} ${t} worklist files`)};
 $('#qMixGo').onclick=()=>{const m=mixNow(),tf=Math.round(+$('#qMixPct').value/100*m.n);if(tf===m.f)return;const before=S.queue.map(q=>[q,q.type]);
   const fromT=tf<m.f?'full':'quick',toT=fromT==='full'?'quick':'full',src=S.queue.filter(q=>(q.type||'full')===fromT),need=Math.abs(tf-m.f);
   const asRow=q=>({_dept:q.dept||'',_doc:q.doc||'',_key:q.fileNo+'|'+q.dis,q});const [stay,move]=splitBalanced(src.map(asRow),(src.length-need)/src.length,'|mix');
