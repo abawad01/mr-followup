@@ -399,6 +399,25 @@ input[type=range]{accent-color:var(--accent)}
         <div class="tablewrap"><table><thead><tr><th>Doctor</th><th class="r">Times in file</th><th>Email</th><th>Status</th><th>Add or fix email</th></tr></thead><tbody id="lkRows"></tbody></table></div>
       </div>
     </div>
+    <div class="panel" id="dirPanel">
+      <div class="row"><div><h2>Email directory</h2><p class="lede">Keep adding doctor email lists here: monthly, weekly, whenever you get one. New emails are added to the ones you already have. Nothing is replaced and nothing is duplicated. Each list makes the lookup above and the reminder emails find more doctors.</p></div></div>
+      <div class="stats" id="dirStats"></div>
+      <div class="cols2">
+        <div style="display:grid;gap:8px;align-content:start">
+          <b class="small">Add an Excel or CSV list</b>
+          <div class="drop"><input type="file" id="dirIn" accept=".xlsx,.xls,.csv" multiple><span class="small muted">Any layout: the app finds the email column and the name column by itself (Name, Doctor, Display Name, First + Last name, or "Name &lt;email&gt;"). You can choose several files at once.</span></div>
+        </div>
+        <div style="display:grid;gap:8px;align-content:start">
+          <b class="small">Or paste from Outlook</b>
+          <textarea id="dirPaste" rows="4" class="mono" placeholder="Dr. Ahmed Ali &lt;ahmed.ali@familycare.com.sa&gt;; Dr. Sara Omar &lt;s.omar@familycare.com.sa&gt;"></textarea>
+          <div class="row"><button class="btn primary" type="button" id="dirPasteGo">Add pasted emails</button><span class="small muted">Copy the To or Cc line of any email, or a list with one person per line.</span></div>
+        </div>
+      </div>
+      <div class="row" style="align-items:end"><label class="f" style="flex:1;min-width:200px">Doctor name<input id="dirName" placeholder="Dr. Full Name"></label><label class="f" style="flex:1;min-width:220px">Email<input id="dirEmail" type="email" class="mono" placeholder="name@familycare.com.sa"></label><button class="btn" type="button" id="dirAdd">Add one</button></div>
+      <div class="row small" id="dirMsg"></div>
+      <div class="row"><button class="btn sm" type="button" id="dirMissing">Show doctors still without an email</button><button class="btn sm" type="button" id="dirExport">Export the whole directory to Excel</button><span class="spacer"></span><span class="small muted" id="dirLast"></span></div>
+      <div class="tablewrap" id="dirMissT" hidden></div>
+    </div>
     <div class="panel">
       <div class="row">
         <div><h2>Doctor directory</h2><p class="lede">Each doctor is matched to the contacts list by name. Confirm a match once and every email to that doctor uses it. Unconfirmed matches are flagged before sending.</p></div>
@@ -462,8 +481,8 @@ input[type=range]{accent-color:var(--accent)}
         <dl class="kv" id="auditInfo"></dl>
       </div>
       <div class="panel">
-        <h3>Import contacts (Name, Email)</h3>
-        <div class="drop"><input type="file" id="inContacts" accept=".xlsx,.xls,.csv"><span class="small muted">First sheet with columns Name and Email.</span></div>
+        <h3>Add contacts (Name, Email)</h3>
+        <div class="drop"><input type="file" id="inContacts" accept=".xlsx,.xls,.csv"><span class="small muted">Adds to the contacts you already have; nothing is replaced. More options under Doctors → Email directory.</span></div>
         <dl class="kv" id="contactInfo"></dl>
       </div>
     </div>
@@ -639,7 +658,11 @@ function lev(a,b){const m=a.length,n=b.length;if(!m||!n)return 0;let p=Array.fro
 function score(A,B){if(!A.length||!B.length)return 0;const bj=B.join('');let tot=0;
   for(const a of A){let best=0;for(const b of B)best=Math.max(best,lev(a,b));if(best<0.8&&bj.includes(a))best=0.9;tot+=best}
   const ts=tot/A.length,first=lev(A[0],B[0]),last=Math.max(...B.map(b=>lev(A[A.length-1],b)));
-  return Math.min(ts,(first+last)/4+ts/2)}
+  let sc=Math.min(ts,(first+last)/4+ts/2);
+  /* a name written without the middle names (Nourelhoda Elzakaky = Nourelhoda Hesham Elzakaky): first and last match and every word of the shorter name is in the longer one */
+  const [S_,L_]=A.length<=B.length?[A,B]:[B,A];
+  if(sc<0.82&&S_.length>=2&&lev(S_[0],L_[0])>=0.85&&lev(S_[S_.length-1],L_[L_.length-1])>=0.85&&S_.every(t=>L_.some(u=>lev(t,u)>=0.85)))sc=0.82;
+  return sc}
 const docKey=s=>toks(s).join(' ');
 const cleanDocName=s=>{const n=String(s).replace(/\(.*$/,'').replace(/empid.*$/i,'').replace(/^\s*dr\.?\s*/i,'').replace(/\s+/g,' ').trim().toLowerCase().replace(/\b[a-z]/g,c=>c.toUpperCase());return n?'Dr. '+n:''};
 const empIds=s=>{const m=String(s).match(/empid\s*:?\s*(\d+)/i);return m?[String(+m[1])]:[]};
@@ -1083,6 +1106,61 @@ $('#sExport').onclick=()=>{const R=sLast;if(!R.length){toast('Nothing to export'
   const by=(a,b)=>(a.dis||'').localeCompare(b.dis||'');const L=[...R].sort(by);
   exportFQ(L.filter(r=>r.type!=='quick').map(rec),L.filter(r=>r.type==='quick').map(rec),`Search-results_${isoDay(new Date())}`)};
 
+
+/* ---------- EMAIL DIRECTORY (cumulative contacts) ---------- */
+const EM_RE=/[A-Za-z0-9._%+'-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/;
+const cleanNm=v=>String(v??'').replace(/[\"'<>]/g,' ').replace(/\s+/g,' ').trim();
+const nameFromEmail=e=>e.split('@')[0].replace(/[._-]+/g,' ').replace(/\d+/g,'').replace(/\s+/g,' ').trim();
+function contactsFromText(t){const out=[];
+  for(const part of String(t).split(/[;\n\r]+/)){const m=part.match(EM_RE);if(!m)continue;const email=m[0].toLowerCase();
+    let name=cleanNm(part.replace(m[0],'').replace(/[()\[\]]/g,' ').replace(/mailto:/i,'').replace(/,\s*$/,''));
+    out.push({name:name||nameFromEmail(email),email,guess:!name})}return out}
+function contactsFromWB(wb){const out=[];const NAME=['name','doctor','doctor name','full name','display name','employee name','physician','consultant','staff name','الاسم','اسم الطبيب','اسم الدكتور'],FIRST=['first name','first','given name'],LAST=['last name','last','surname','family name'];
+  for(const sn of wb.SheetNames){const A=XLSX.utils.sheet_to_json(wb.Sheets[sn],{header:1,raw:false,defval:''});if(!A.length)continue;
+    const W=Math.max(...A.slice(0,200).map(r=>r.length));const emailCnt=Array(W).fill(0);A.slice(0,500).forEach(r=>r.forEach((v,i)=>{if(EM_RE.test(String(v)))emailCnt[i]++}));
+    const ec=emailCnt.indexOf(Math.max(...emailCnt));if(ec<0||!emailCnt[ec])continue;
+    const hi=A.slice(0,30).findIndex(r=>r.some(v=>{const h=normC(v);return NAME.includes(h)||FIRST.includes(h)||/e-?mail/.test(h)}));
+    const H=hi>=0?A[hi].map(v=>normC(v)):[];const fi=i=>H.findIndex(h=>i.includes(h));
+    let nc=fi(NAME),fc=fi(FIRST),lc=fi(LAST);
+    if(nc<0&&fc<0){const txt=Array(W).fill(0);A.slice(hi+1,hi+300).forEach(r=>{if(!EM_RE.test(String(r[ec]??'')))return;r.forEach((v,i)=>{if(i!==ec&&/[A-Za-z؀-ۿ]{2,}/.test(String(v))&&!EM_RE.test(String(v)))txt[i]++})});const mx=Math.max(...txt);if(mx>0)nc=txt.indexOf(mx)}
+    for(const r of A.slice(hi+1)){const cell=String(r[ec]??'');if(!EM_RE.test(cell))continue;
+      if(!/^\s*\S+@\S+\s*$/.test(cell)&&/[<;]/.test(cell)&&nc<0&&fc<0){out.push(...contactsFromText(cell));continue}
+      for(const em of cell.match(new RegExp(EM_RE.source,'g'))||[]){const email=em.toLowerCase();
+        let name=nc>=0?cleanNm(r[nc]):fc>=0?cleanNm([r[fc],lc>=0?r[lc]:''].join(' ')):'';if(EM_RE.test(name))name='';
+        out.push({name:name||nameFromEmail(email),email,guess:!name})}}}
+  return out}
+function mergeContacts(list,source){leaveSample();let added=0,alias=0,known=0;const have=new Set(S.contacts.map(c=>c.email+'|'+normC(c.name))),emails=new Set(S.contacts.map(c=>c.email));const seen=new Set();
+  for(const c of list){const k=c.email+'|'+normC(c.name);if(seen.has(k))continue;seen.add(k);
+    if(have.has(k)){known++;continue}
+    if(emails.has(c.email)){if(c.guess){known++;continue}alias++}else added++;
+    S.contacts.push({name:c.name,email:c.email,src:source,added:isoDay(new Date())});have.add(k);emails.add(c.email)}
+  const before=dirCoverage();S.contactsReal=true;S.contactsFile=S.contactsFile||source;(S.contactsLog=S.contactsLog||[]).unshift({date:isoDay(new Date()),src:source,added,alias,known});S.contactsLog=S.contactsLog.slice(0,30);
+  rebuildDoctors();Object.keys(S.doctors).forEach(applyEmailToFu);save();renderAll();const after=dirCoverage();
+  const msg=`${source}: ${added} new email${added===1?'':'s'}${alias?`, ${alias} new name spelling${alias===1?'':'s'} for emails you had`:''}, ${known} already in the directory. Doctors with an email: ${after.found} of ${after.n} (${before.found!==after.found?`was ${before.found}`:'no change'}).`;
+  $('#dirMsg').textContent=msg;toast(msg);return {added,alias,known}}
+function dirCoverage(){const D=Object.values(S.doctors).filter(o=>o.files);const ok=D.filter(o=>doctorEmail(o.key));return {n:D.length,found:ok.length,conf:D.filter(o=>o.verified).length,miss:D.filter(o=>!doctorEmail(o.key))}}
+function renderDir(){const el=$('#dirStats');if(!el)return;const c=dirCoverage(),emails=new Set(S.contacts.map(x=>x.email)).size,pc=c.n?Math.round(c.found/c.n*100):0;
+  el.innerHTML=`<div class="stat"><div class="l">Emails in directory</div><div class="n">${emails}</div><div class="s">${S.contacts.length} names</div></div>
+    <div class="stat ${pc>=95?'ok':pc>=80?'warn':'late'}"><div class="l">Your doctors with an email</div><div class="n">${pc}%</div><div class="s">${c.found} of ${c.n} doctors in your audits</div></div>
+    <div class="stat ${c.miss.length?'late':'ok'}"><div class="l">Still missing</div><div class="n">${c.miss.length}</div><div class="s">${c.miss.length?'add their emails to reach 95%':'every doctor covered'}</div></div>
+    <div class="stat"><div class="l">Confirmed matches</div><div class="n">${c.conf}</div><div class="s">checked by you</div></div>`;
+  const L=S.contactsLog||[];$('#dirLast').textContent=L.length?`Last added ${fmtD(L[0].date)} from ${L[0].src}: ${L[0].added} new`:'';
+  if(!$('#dirMissT').hidden)dirMissRender()}
+function dirMissRender(){const m=dirCoverage().miss.sort((a,b)=>b.files-a.files);
+  $('#dirMissT').innerHTML=m.length?`<table><thead><tr><th>Doctor without an email</th><th class="r">Files</th><th>Closest name in directory</th><th>Add email</th></tr></thead><tbody>${m.map(o=>`<tr data-k="${esc(o.key)}"><td>${esc(o.name)}</td><td class="r mono">${o.files}</td><td class="small muted">${o.sugg?`${esc(o.sugg.name)} · ${esc(o.sugg.email)} (${Math.round(o.sugg.score*100)}%)`:'—'}</td><td><div class="row" style="flex-wrap:nowrap;gap:6px"><input class="mono" type="email" placeholder="email" style="min-width:0;flex:1"><button class="btn sm" type="button" data-save>Save</button>${o.sugg?'<button class="btn sm" type="button" data-use>Use closest</button>':''}</div></td></tr>`).join('')}</tbody></table>`:'<p class="muted" style="margin:0;padding:10px 0">Every doctor in your audits has an email.</p>'}
+function dirSaveFor(key,email){const o=S.doctors[key];if(!o)return;email=email.trim().toLowerCase();if(!EM_RE.test(email)){toast('That does not look like an email address');return}
+  if(!S.contacts.some(c=>c.email===email&&normC(c.name)===normC(o.name)))S.contacts.push({name:o.name,email,src:'typed',added:isoDay(new Date())});
+  o.verified={email,name:o.name};S.contactsReal=true;applyEmailToFu(key);save();renderAll();toast(`${o.name}: ${email} saved and confirmed`)}
+$('#dirMissT').addEventListener('click',e=>{const tr=e.target.closest('tr[data-k]');if(!tr)return;const k=tr.dataset.k;
+  if(e.target.closest('[data-save]'))dirSaveFor(k,tr.querySelector('input').value);
+  if(e.target.closest('[data-use]')){const o=S.doctors[k];if(o?.sugg)dirSaveFor(k,o.sugg.email)}});
+$('#dirMissing').onclick=()=>{const t=$('#dirMissT');t.hidden=!t.hidden;$('#dirMissing').textContent=t.hidden?'Show doctors still without an email':'Hide the list';if(!t.hidden)dirMissRender()};
+$('#dirIn').onchange=async e=>{const files=[...e.target.files];for(const f of files){try{const L=contactsFromWB(await readWB(f));if(!L.length){toast(`${f.name}: no email addresses found`);continue}mergeContacts(L,f.name)}catch(err){toast(`${f.name}: could not read the file`)}}e.target.value=''};
+$('#dirPasteGo').onclick=()=>{const L=contactsFromText($('#dirPaste').value);if(!L.length){toast('No email addresses found in the pasted text');return}mergeContacts(L,'pasted list');$('#dirPaste').value=''};
+$('#dirAdd').onclick=()=>{const n=cleanNm($('#dirName').value),em=$('#dirEmail').value.trim().toLowerCase();if(!n||!EM_RE.test(em)){toast('Type the doctor name and a valid email');return}mergeContacts([{name:n,email:em}],'typed');$('#dirName').value='';$('#dirEmail').value=''};
+$('#dirExport').onclick=()=>{const rows=[['Name','Email','Source','Added'],...S.contacts.map(c=>[c.name,c.email,c.src||S.contactsFile||'',c.added||''])];const wb=XLSX.utils.book_new();const ws=XLSX.utils.aoa_to_sheet(rows);ws['!cols']=[{wch:40},{wch:40},{wch:28},{wch:12}];XLSX.utils.book_append_sheet(wb,ws,'Contacts');
+  const m=dirCoverage().miss;XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet([['Doctor without email','Files'],...m.map(o=>[o.name,o.files])]),'Missing');downloadWB(wb,`Doctor-emails_${isoDay(new Date())}.xlsx`)};
+
 /* ---------- EXCEL TEMPLATES (match MR.xlsx and AUG2222.xlsx exactly) ---------- */
 const CRIT_RAW=["3.6.sufficient information of  the patient and his care provider", "   4.1.1.Patient full names (Three Names)     ", "3.21. multidisciplinary team", "4.3.16.patient EDU BY Physician", "4.3.16.patient EDU BY Nurses", "4.3.18. Transfer sumary from unit to unit", "Patient discharge instruction", "Multidisiplinary care plan", "Patient discharge planning", "4.3.3 DOCTOR Assessment ", "4.3.5. Progress Note", "4.3.6. The plan of care", "4.3.17. Transfer to Another facility", "4.3.10. Operative notes", "Health educator", "Dietition", "Physiotherapist", "\r\nSocial Worker", "4.3.24. VTE", "4.3.11.  pre Anesthesia ", "4.3.21. Discharge Summary", "4.3.22. Death Summary", "4.3.2.PT history and Physical Examination", "4.3.4. Physician Orders", "4.3.23.  Laboratory", "4.3.23. Radiology ", "4.3.7.Consultation", "4.2.1.Upload all forms&No grammatical/spelling errors", "4.3.25. Histopathology reports", "4.3.13. Nursing pre-operative Checklist", "4.3.9. General Consent and Informed Consent", "4.3.12. Nursing assessment", "4.2.2.Medical Record entries o be completed and dated ", "4.2.3. Abbreviations and Symbols", "4.2.5.Corrections or Overwriting of Errors.", "4.3.1.1.Documentation by Medical staff", "4.3.1.2 Documentation by Nursing Staff", "4.3.14. When additional or specialized assessments are required", "4.3.15. Verbal and Telephone Orders", "4.2.4. Late entries"];
 const DT_FMT='dd/mm/yyyy\\ h:mm\\ AM/PM';
@@ -1255,7 +1333,7 @@ $('#exportDash').onclick=()=>{const d=lastDash;if(!d)return;const wb=XLSX.utils.
   downloadWB(wb,`MR-dashboard-${(periodLabel()).replace(/\s+/g,'-')}${d.pc<100?'-sample'+d.pc:''}.xlsx`)};
 
 /* ---------- DOCTORS ---------- */
-function renderDoctors(){
+function renderDoctors(){try{renderDir()}catch(e){}
   const L=Object.values(S.doctors).sort((a,b)=>(!!a.verified-!!b.verified)||((a.sugg?.score??0)-(b.sugg?.score??0)));
   const n={v:0,strong:0,check:0,none:0};L.forEach(o=>o.verified?n.v++:n[band(o.sugg?.score??0)]++);
   $('#docSummary').innerHTML=L.length?`<span class="pill p-ver">${n.v} confirmed</span><span class="pill p-strong">${n.strong} strong</span><span class="pill p-check">${n.check} check</span><span class="pill p-none">${n.none} no match</span>`:'';
@@ -1279,7 +1357,7 @@ $('#confirmStrong').onclick=()=>{let n=0;for(const o of Object.values(S.doctors)
 function renderData(){try{renderGap()}catch(e){}
   const ex=S.audits.filter(a=>a.src==='excel').length,si=S.audits.filter(a=>a.src==='site').length;const ds=S.audits.map(a=>a.dis).filter(Boolean).sort();
   $('#auditInfo').innerHTML=S.audits.length&&!S.sample?`<dt>Audits stored</dt><dd class="mono">${S.audits.length} (${S.audits.filter(a=>!isQuick(a)).length} full, ${S.audits.filter(isQuick).length} quick; ${ex} from Excel, ${si} entered here)</dd><dt>Discharges</dt><dd class="mono">${fmtD(ds[0])} – ${fmtD(ds[ds.length-1])}</dd><dt>Stalled files</dt><dd class="mono">${S.fu.length}</dd>${S.imports.length?`<dt>Last import</dt><dd>${esc(S.imports[S.imports.length-1].file)}, ${fmtD(S.imports[S.imports.length-1].date)}</dd>`:''}`:'<dt>Status</dt><dd>No real data yet</dd>';
-  $('#contactInfo').innerHTML=S.contactsReal?`<dt>File</dt><dd>${esc(S.contactsFile||'')}</dd><dt>Contacts</dt><dd class="mono">${S.contacts.length}</dd>`:'<dt>Status</dt><dd>Not imported yet</dd>';
+  $('#contactInfo').innerHTML=S.contactsReal?`<dt>Emails</dt><dd class="mono">${new Set(S.contacts.map(c=>c.email)).size}</dd><dt>Last added</dt><dd>${esc((S.contactsLog&&S.contactsLog[0]?.src)||S.contactsFile||'')}</dd>`:'<dt>Status</dt><dd>Not imported yet</dd>';
   renderTpl();renderSync();renderStd();if(!prepRaw)prepLoadUI();
   $('#sRemind').value=S.settings.remindDays;$('#sDelinq').value=S.settings.delinqDays;$('#sSender').value=S.settings.sender;$('#sAuditor').value=S.settings.auditor||'';
   const qa=S.audits.filter(isQuick);$('#quickInfo').innerHTML=qa.length&&!S.sample?`<dt>Quick audits stored</dt><dd class="mono">${qa.length}</dd>${S.quickImport?`<dt>Last with statuses</dt><dd>${esc(S.quickImport.file)}, ${fmtD(S.quickImport.date)}: ${S.quickImport.added} new, ${S.quickImport.updated} updated</dd>`:''}${S.quickDone?`<dt>Last complete list</dt><dd>${esc(S.quickDone.file)}, ${fmtD(S.quickDone.date)}: ${S.quickDone.added} added, ${S.quickDone.updated} updated</dd>`:''}<dt>Quick worklist</dt><dd class="mono">${S.queue.filter(q=>q.type==='quick').length} waiting</dd>`:'<dt>Status</dt><dd>Not imported yet</dd>';
@@ -1289,8 +1367,7 @@ function renderData(){try{renderGap()}catch(e){}
   $('#notifyBtn').textContent=S.settings.notify?'Desktop alerts on':'Turn on desktop alerts'}
 $('#inAudit').onchange=async e=>{const f=e.target.files[0];if(!f)return;try{const wb=await readWB(f);leaveSample();const r=importAudit(wb,f.name);indexFu();rebuildDoctors();S.fu.forEach(x=>{if(!x.email&&!x.emailManual){const em=doctorEmail(x.doctorKey);if(em){x.email=em.email;x.emailVerified=em.verified}}});
   save();renderAll();toast(`Imported: ${r.added} new, ${r.updated} updated, ${r.fuAdded} stalled files`)}catch(err){toast(err.message||'Could not read this file')}e.target.value=''};
-$('#inContacts').onchange=async e=>{const f=e.target.files[0];if(!f)return;try{const c=parseContacts(await readWB(f));leaveSample();S.contacts=c;S.contactsReal=true;S.contactsFile=f.name;
-  rebuildDoctors();Object.keys(S.doctors).forEach(applyEmailToFu);save();renderAll();toast(`Imported ${c.length} contacts`)}catch(err){toast(err.message||'Could not read this file')}e.target.value=''};
+$('#inContacts').onchange=async e=>{const f=e.target.files[0];if(!f)return;try{const wb=await readWB(f);let c=contactsFromWB(wb);if(!c.length)c=parseContacts(wb);mergeContacts(c,f.name)}catch(err){toast(err.message||'Could not read this file')}e.target.value=''};
 $('#sRemind').onchange=e=>{S.settings.remindDays=Math.max(1,Math.min(30,parseInt(e.target.value)||3));save();renderAll()};
 $('#sDelinq').onchange=e=>{S.settings.delinqDays=Math.max(1,Math.min(60,parseInt(e.target.value)||7));save();renderAll()};
 $('#sSender').onchange=e=>{S.settings.sender=e.target.value.trim()||S.settings.sender;save();previewTpl()};
