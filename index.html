@@ -128,6 +128,7 @@ dialog::backdrop{background:rgb(10 20 24 / .45)}
 .toast button{background:none;border:1px solid var(--bg);color:var(--bg);border-radius:4px;font:600 12px var(--f-body);padding:3px 8px;cursor:pointer}
 .drop{border:1.5px dashed var(--line);border-radius:8px;padding:14px;display:grid;gap:8px;background:var(--sunk)}
 #sRes tr.sel td{background:var(--accent-soft)}#sRes .nowrap{white-space:nowrap}
+.stopt{display:grid;grid-template-columns:22px minmax(0,1fr);gap:8px;align-items:start;text-align:left;padding:6px 8px;border:1px solid var(--line);border-radius:8px;cursor:pointer}.stopt input{margin:3px 0 0;width:auto}.stopt:has(input:checked){border-color:var(--accent);background:var(--accent-soft)}
 .dlbar{position:fixed;left:50%;transform:translateX(-50%);bottom:76px;z-index:60;background:var(--surface);border:1px solid var(--accent);border-radius:10px;box-shadow:0 6px 24px rgba(0,0,0,.18);padding:10px 12px;display:flex;gap:12px;align-items:center;flex-wrap:wrap;max-width:calc(100vw - 32px)}
 .kv{display:grid;grid-template-columns:max-content 1fr;gap:4px 14px;font-size:13px;margin:0}
 .kv dt{color:var(--muted)} .kv dd{margin:0;min-width:0;word-break:break-word}
@@ -330,13 +331,13 @@ input[type=range]{accent-color:var(--accent)}
       <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(150px,1fr))">
         <label class="f">Where<select id="sWhere"><option value="">Everywhere</option><option value="audit">Audited</option><option value="queue">Worklist (not audited yet)</option><option value="stalled">Stalled (incomplete / delinquent)</option></select></label>
         <label class="f">Audit type<select id="sType"><option value="">Full + quick</option><option value="full">Full</option><option value="quick">Quick</option></select></label>
-        <label class="f">Status<select id="sStatus"><option value="">Any status</option><option>Complete</option><option>Incomplete</option><option>Delinquent</option><option>Pending</option><option value="Not audited">Not audited</option></select></label>
+        <label class="f">Status<select id="sStatus"><option value="">Any status</option><option>Complete</option><option value="fixed">Fixed after follow-up</option><option>Incomplete</option><option>Delinquent</option><option>Pending</option><option value="Not audited">Not audited</option><option value="hand">Changed by hand ✎</option></select></label>
         <label class="f">Department<select id="sDept"></select></label>
         <label class="f">Doctor<select id="sDoc"></select></label>
         <div class="f"><label class="f" for="sAgeMin">Age (years)</label><div class="row" style="flex-wrap:nowrap;gap:6px"><input id="sAgeMin" type="number" min="0" placeholder="from" class="mono" style="max-width:76px"><span class="muted">to</span><input id="sAgeMax" type="number" min="0" placeholder="to" class="mono" style="max-width:76px"></div></div>
         <div class="f" style="grid-column:span 2"><label class="f" for="sFrom">Discharged between</label><div class="row" style="flex-wrap:nowrap;gap:6px"><input id="sFrom" type="date" style="min-width:0;flex:1"><span class="muted">and</span><input id="sTo" type="date" style="min-width:0;flex:1"></div></div>
       </div>
-      <div class="row"><span class="small" id="sCount"></span><span class="spacer"></span><button class="btn sm" type="button" id="sClear">Clear</button><button class="btn sm" type="button" id="sExport">Export results to Excel</button></div>
+      <div class="row"><span class="small" id="sCount"></span><span class="spacer"></span><button class="btn sm" type="button" id="sClear">Clear</button><button class="btn sm" type="button" id="sBulk">Change status of shown files</button><button class="btn sm" type="button" id="sExport">Export results to Excel</button></div>
       <div class="chips" id="sDocs"></div>
     </div>
     <div class="panel" id="sDetail" hidden></div>
@@ -611,6 +612,22 @@ input[type=range]{accent-color:var(--accent)}
   <div class="row"><button class="btn primary" id="mSend" type="button">Open in Outlook and record</button><button class="btn" id="mCopy" type="button">Copy message</button><span class="spacer"></span><button class="btn" id="mMark" type="button">Record as sent only</button></div>
 </div></dialog>
 
+<dialog id="stDlg"><div class="dlg" style="max-width:560px">
+  <div class="row"><h2 id="stTitle" style="margin:0">Change status</h2><span class="spacer"></span><button class="btn sm" id="stClose" type="button">Close</button></div>
+  <div class="small" id="stNow"></div>
+  <div style="display:grid;gap:6px" class="stopts">
+    <label class="stopt"><input type="radio" name="stv" value="fixed"><span><b>Complete after correction</b><br><span class="small muted">Was incomplete, the doctor fixed it. Counts as complete; reports show it was corrected (incompelet + compelet in Excel).</span></span></label>
+    <label class="stopt"><input type="radio" name="stv" value="complete"><span><b>Complete</b><br><span class="small muted">Fine from the start. Not counted as incomplete anywhere.</span></span></label>
+    <label class="stopt"><input type="radio" name="stv" value="incomplete"><span><b>Incomplete</b><br><span class="small muted">Still missing something, not delinquent. Stays in Stalled files.</span></span></label>
+    <label class="stopt"><input type="radio" name="stv" value="delinquent"><span><b>Delinquent</b><br><span class="small muted">Counted as delinquent whatever the email dates say.</span></span></label>
+    <label class="stopt"><input type="radio" name="stv" value="pending"><span><b>Pending</b><br><span class="small muted">Audit not final yet.</span></span></label>
+    <label class="stopt"><input type="radio" name="stv" value="auto"><span><b>Automatic</b><br><span class="small muted">Remove your change: the status follows the audit and the email dates again.</span></span></label>
+  </div>
+  <label class="f" id="stDateBox">Date completed<input id="stDate" type="date"></label>
+  <label class="f">Note (optional)<input id="stNote" placeholder="e.g. Discharge summary added by the doctor"></label>
+  <div id="stHistBox"><b class="small">History</b><div id="stHist"></div></div>
+  <div class="row"><button class="btn primary" id="stSave" type="button">Save status</button><span class="small muted">You can undo right after saving.</span></div>
+</div></dialog>
 <dialog id="addDlg"><form class="dlg" id="newForm" autocomplete="off">
   <div class="row"><h2>Add a stalled file manually</h2><span class="spacer"></span><button class="btn sm" id="addClose" type="button">Close</button></div>
   <p class="lede small" style="margin:0">For files that were not entered through the Audit tab. If the file number is already audited, its details fill in.</p>
@@ -715,14 +732,17 @@ function critIndex(name){const n=normC(name);let i=S.criteria.findIndex(c=>normC
 
 /* ---------- follow-up logic ---------- */
 const R=()=>S.settings.remindDays,D=()=>S.settings.delinqDays;
-let fuIdx=new Map();
-function indexFu(){fuIdx=new Map();for(const f of S.fu)if(f.auditId)fuIdx.set(f.auditId,f)}
-const fuLate=f=>f.status!=='done'&&(f.delinqFlag||(known(f.e1)&&daysSince(f.e1)>D()));
-const fuEverLate=f=>f.delinqFlag||(known(f.e1)&&(f.status==='done'?(known(f.done)&&daysBetween(f.e1,f.done)>D()):daysSince(f.e1)>D()));
+let fuIdx=new Map(),ovById=new Map();
+function indexFu(){fuIdx=new Map();ovById=new Map();for(const f of S.fu)if(f.auditId)fuIdx.set(f.auditId,f);for(const a of S.audits)if(a.ov)ovById.set(a.id,a.ov)}
+/* status set by hand (overrides the automatic status): complete = fine at first audit, fixed = was incomplete and the doctor corrected it */
+const OVST={complete:'Complete',fixed:'Complete',incomplete:'Incomplete',delinquent:'Delinquent'};
+const fuLate=f=>{const o=f.auditId&&ovById.get(f.auditId);if(o==='incomplete')return false;if(o==='delinquent')return f.status!=='done';return f.status!=='done'&&(f.delinqFlag||(known(f.e1)&&daysSince(f.e1)>D()))};
+const fuEverLate=f=>{const o=f.auditId&&ovById.get(f.auditId);if(o==='complete'||o==='incomplete')return false;if(o==='delinquent')return true;return fuEverLate0(f)};
+const fuEverLate0=f=>f.delinqFlag||(known(f.e1)&&(f.status==='done'?(known(f.done)&&daysBetween(f.e1,f.done)>D()):daysSince(f.e1)>D()));
 function fuStage(f){if(f.status==='done')return 'done';if(fuLate(f))return 'late';if(f.status==='open')return 'need1';
   if(f.status==='e1'&&(!known(f.e1)||daysSince(f.e1)>=R()))return 'need2';return 'waiting'}
-function auditStatus(a){if(a.pending)return 'Pending';const f=fuIdx.get(a.id);if(f&&f.status!=='done')return fuLate(f)?'Delinquent':'Incomplete';if(isQuick(a)&&a.result==='incomplete'&&!f)return 'Incomplete';return 'Complete'}
-const firstPassOk=a=>isQuick(a)?(a.result==='complete'&&!a.pending&&!fuIdx.get(a.id)):!hasZero(a);
+function auditStatus(a){if(a.ov&&OVST[a.ov])return OVST[a.ov];if(a.pending)return 'Pending';const f=fuIdx.get(a.id);if(f&&f.status!=='done')return fuLate(f)?'Delinquent':'Incomplete';if(isQuick(a)&&a.result==='incomplete'&&!f)return 'Incomplete';return 'Complete'}
+const firstPassOk=a=>a.ov&&OVST[a.ov]?a.ov==='complete':isQuick(a)?(a.result==='complete'&&!a.pending&&!fuIdx.get(a.id)):!hasZero(a);
 const fuMine=f=>!f.by||f.by===DEV;
 const fuVisible=f=>($('#fScope')?.value==='all')||fuMine(f);
 const actionCount=()=>S.fu.filter(f=>fuMine(f)&&['need1','need2','late'].includes(fuStage(f))).length;
@@ -866,7 +886,7 @@ function renderFiles(){
       <td>${defsHtml(f)}</td>
       <td><div class="tl">${tl.join('')}</div></td>
       <td><span class="pill ${sc}">${sl}</span>${s==='late'&&f.status==='e1'?'<div style="margin-top:4px"><span class="pill p-due">2nd not sent</span></div>':''}</td>
-      <td><div class="acts">${btn}${s!=='done'?'<button class="btn sm okb" data-act="done">Completed</button>':'<button class="btn sm" data-act="reopen">Reopen</button>'}<button class="btn sm" data-act="preview">Preview</button><button class="btn sm danger" data-act="del" title="Delete">Delete</button><span class="confirm" hidden>Delete? <button class="btn sm danger" data-act="delyes">Yes</button><button class="btn sm" data-act="delno">No</button></span></div></td></tr>`}).join('')
+      <td><div class="acts">${btn}${s!=='done'?'<button class="btn sm okb" data-act="done">Completed</button>':'<button class="btn sm" data-act="reopen">Reopen</button>'}<button class="btn sm" data-act="preview">Preview</button>${f.auditId?'<button class="btn sm" data-act="status">Status</button>':''}<button class="btn sm danger" data-act="del" title="Delete">Delete</button><span class="confirm" hidden>Delete? <button class="btn sm danger" data-act="delyes">Yes</button><button class="btn sm" data-act="delno">No</button></span></div></td></tr>`}).join('')
     :`<tr><td colspan="6" class="muted" style="padding:18px">${S.fu.length?(sel==='action'?'Nothing needs action today.':'No files match this filter.'):'No stalled files yet. Files with a ✗ in the Audit tab appear here automatically.'}</td></tr>`;
   const n=actionCount();$('#navBadge').hidden=!n;$('#navBadge').textContent=n;
   document.title=n?`(${n}) MR Follow-up`:'MR Follow-up'}
@@ -875,7 +895,8 @@ function defsHtml(f){const defs=f.defs.length?f.defs:[];if(!defs.length&&!f.note
 $('#rows').addEventListener('click',e=>{const b=e.target.closest('button[data-act]');if(!b)return;const tr=b.closest('tr'),f=S.fu.find(x=>x.id===tr.dataset.id);if(!f)return;const a=b.dataset.act;
   if(a==='send')sendEmail(f);
   if(a==='preview')openPreview(f);
-  if(a==='done'){const snap={status:f.status,done:f.done};f.status='done';f.done=isoDay(new Date());save();renderAll();toast(`File ${f.fileNo} completed and removed from the list`,()=>{Object.assign(f,snap);save();renderAll()})}
+  if(a==='status'){openStatus([S.audits.find(x=>x.id===f.auditId)]);return}
+  if(a==='done'){const snap={status:f.status,done:f.done};const au=f.auditId&&S.audits.find(x=>x.id===f.auditId),fromS=au?statusLabel(au):'';if(au&&(au.ov==='incomplete'||au.ov==='delinquent'))au.ov='fixed';f.status='done';f.done=isoDay(new Date());if(au){indexFu();logHist(au,fromS,'Completed from Stalled files')}save();renderAll();toast(`File ${f.fileNo} completed and removed from the list`,()=>{Object.assign(f,snap);save();renderAll()})}
   if(a==='reopen'){f.status=f.e2?'e2':f.e1?'e1':'open';f.done='';save();renderAll();toast(`File ${f.fileNo} reopened`)}
   if(a==='del'){tr.querySelector('.confirm').hidden=false;b.hidden=true}
   if(a==='delno'){tr.querySelector('.confirm').hidden=true;tr.querySelector('[data-act="del"]').hidden=false}
@@ -987,7 +1008,7 @@ function renderAudits(){periodOptions($('#auPeriod'));
   auShown=L;$('#auListLede').textContent=`${L.length} audited file${L.length===1?'':'s'}`;$('#auDelShown').textContent=`Delete shown (${L.length})`;$('#auDelShown').disabled=!L.length;
   const pill={Complete:'p-done',Incomplete:'p-e1',Delinquent:'p-late',Pending:'p-pend'};
   $('#auRows').innerHTML=L.length?L.slice(0,auLimit).map(a=>{const st=auditStatus(a),z=defsOf(a).length;
-    return `<tr data-id="${a.id}"><td><div class="mono">${esc(a.fileNo)}</div>${a.name?`<div class="small muted">${esc(a.name)}</div>`:''}</td><td>${isQuick(a)?'<span class="pill p-quick">Quick</span>':'<span class="pill p-full">Full</span>'}</td><td class="mono">${fmtD(a.dis)}</td><td>${esc(a.dept)}</td><td>${esc(docName(docKey(a.doc),a.doc))}</td><td class="r mono">${a.los??'—'}</td><td class="mono">${isQuick(a)?(a.result==='incomplete'?'<span style="color:var(--late)">✗</span>':a.result==='complete'?'✓':'—'):z?`<span style="color:var(--late)">${z}</span>`:'0'}</td><td><span class="pill ${pill[st]}">${st}</span></td><td><div class="acts" style="min-width:0">${isQuick(a)&&a.pending?'<button class="btn sm okb" data-act="qok" title="Mark complete">✓</button><button class="btn sm danger" data-act="qno" title="Mark not complete">✗</button>':''}<button class="btn sm" data-act="edit">Edit</button><button class="btn sm danger" data-act="del">Delete</button><span class="confirm" hidden>Delete audit? <button class="btn sm danger" data-act="delyes">Yes</button><button class="btn sm" data-act="delno">No</button></span></div></td></tr>`}).join('')
+    return `<tr data-id="${a.id}"><td><div class="mono">${esc(a.fileNo)}</div>${a.name?`<div class="small muted">${esc(a.name)}</div>`:''}</td><td>${isQuick(a)?'<span class="pill p-quick">Quick</span>':'<span class="pill p-full">Full</span>'}</td><td class="mono">${fmtD(a.dis)}</td><td>${esc(a.dept)}</td><td>${esc(docName(docKey(a.doc),a.doc))}</td><td class="r mono">${a.los??'—'}</td><td class="mono">${isQuick(a)?(a.result==='incomplete'?'<span style="color:var(--late)">✗</span>':a.result==='complete'?'✓':'—'):z?`<span style="color:var(--late)">${z}</span>`:'0'}</td><td><span class="pill ${pill[st]}">${st}</span>${a.ov?' <span class="small muted" title="Set by you">✎</span>':isFixed(a)?' <span class="small muted" title="Fixed after follow-up">↺</span>':''}</td><td><div class="acts" style="min-width:0">${isQuick(a)&&a.pending?'<button class="btn sm okb" data-act="qok" title="Mark complete">✓</button><button class="btn sm danger" data-act="qno" title="Mark not complete">✗</button>':''}<button class="btn sm" data-act="edit">Edit</button><button class="btn sm" data-act="status">Status</button><button class="btn sm danger" data-act="del">Delete</button><span class="confirm" hidden>Delete audit? <button class="btn sm danger" data-act="delyes">Yes</button><button class="btn sm" data-act="delno">No</button></span></div></td></tr>`}).join('')
     :`<tr><td colspan="9" class="muted" style="padding:18px">No audits yet. Enter one above, or import your Excel file under Data.</td></tr>`;
   $('#auMore').innerHTML=L.length>auLimit?`<button class="btn" type="button" id="auMoreBtn">Show ${Math.min(100,L.length-auLimit)} more of ${L.length-auLimit}</button>`:'';
   const opts=(k)=>[...new Set(S.audits.map(a=>a[k]).filter(Boolean))].sort().map(v=>`<option value="${esc(v)}">`).join('');
@@ -1006,6 +1027,7 @@ $('#auRows').addEventListener('click',e=>{const b=e.target.closest('button[data-
   if(b.dataset.act==='qok'){a.result='complete';a.pending=false;a.auditDate=a.auditDate||isoDay(new Date());save();renderAll();toast(`File ${a.fileNo} saved as complete`,()=>{a.result='';a.pending=true;save();renderAll()})}
   if(b.dataset.act==='qno'){editAudit(a);form.result='incomplete';$('#aPending').checked=false;renderResult();$('#auMsg').textContent='Add what is missing (optional), then save.';setTimeout(()=>$('#aNote').focus(),300)}
   if(b.dataset.act==='edit')editAudit(a);
+  if(b.dataset.act==='status')openStatus([a]);
   if(b.dataset.act==='del'){tr.querySelector('.confirm').hidden=false;b.hidden=true}
   if(b.dataset.act==='delno'){tr.querySelector('.confirm').hidden=true;tr.querySelector('[data-act="del"]').hidden=false}
   if(b.dataset.act==='delyes'){const fu=S.fu.filter(f=>f.auditId===a.id);S.audits=S.audits.filter(x=>x!==a);S.fu=S.fu.filter(f=>f.auditId!==a.id);save();renderAll();
@@ -1069,7 +1091,7 @@ function runSearch(){if(!sPool)sPool=searchPool();
   const numQ=/^\d+$/.test(q);
   let R=sPool.filter(r=>{
     if(wh==='audit'&&r.kind!=='audit')return false;if(wh==='queue'&&r.kind!=='queue')return false;if(wh==='stalled'&&!r.stalled)return false;
-    if(ty&&r.type!==ty)return false;if(stt&&r.status!==stt)return false;if(dp&&r.dept!==dp)return false;if(dk&&r.dk!==dk)return false;
+    if(ty&&r.type!==ty)return false;if(stt==='fixed'){if(!(r.kind==='audit'&&isFixed(r.a)))return false}else if(stt==='hand'){if(!(r.kind==='audit'&&r.a.ov))return false}else if(stt&&r.status!==stt)return false;if(dp&&r.dept!==dp)return false;if(dk&&r.dk!==dk)return false;
     if(lo!=null||hi!=null){const n=ageNum(r);if(n==null||(lo!=null&&n<lo)||(hi!=null&&n>hi))return false}
     if(fr&&(!r.dis||r.dis<fr))return false;if(to&&(!r.dis||r.dis>to))return false;
     if(!toks.length)return true;if(numQ&&String(r.fileNo).startsWith(q))return true;return toks.every(t=>r.hay.includes(t))});
@@ -1081,34 +1103,35 @@ function runSearch(){if(!sPool)sPool=searchPool();
     $('#sDocs').innerHTML=[...m].slice(0,8).map(([k,g])=>{const e=doctorEmail(k);return `<button class="btn sm" type="button" data-doc="${esc(k)}" title="${esc(e?.email||'no email on file')}">${esc(g.name)} · ${g.n} file${g.n===1?'':'s'}${g.open?` · <span style="color:var(--late)">${g.open} stalled</span>`:''}</button>`}).join('')}else $('#sDocs').innerHTML='';
   const pill={Complete:'p-done',Incomplete:'p-e1',Delinquent:'p-late',Pending:'p-pend','Not audited':'p-open'};
   const where={audit:'Audited',queue:'Worklist',fu:'Stalled (manual)'};
-  $('#sRes').innerHTML=!any?'':R.length?`<table><thead><tr><th>File / patient</th><th class="r">Age</th><th>Department / ward</th><th>Doctor</th><th>Admitted</th><th>Discharged</th><th class="r">LOS</th><th>Type</th><th>Status</th></tr></thead><tbody>${R.slice(0,300).map((r,i)=>`<tr data-i="${i}" style="cursor:pointer"${sSel===r?' class="sel"':''}><td><div class="mono">${esc(r.fileNo)}</div>${r.name?`<div class="small muted">${esc(r.name)}</div>`:''}</td><td class="r mono">${ageNum(r)??'—'}</td><td>${esc(r.dept||'—')}${r.ward?`<div class="small muted">${esc(r.ward)}</div>`:''}</td><td class="small">${esc(r.dn||'—')}</td><td class="small nowrap">${fmtDT(r.adm,r.admT)}</td><td class="small nowrap">${fmtDT(r.dis,r.disT)}</td><td class="r mono">${r.los??'—'}</td><td><span class="pill ${r.type==='quick'?'p-quick':'p-full'}">${r.type==='quick'?'Quick':'Full'}</span></td><td><span class="pill ${pill[r.status]||'p-open'}">${esc(r.status)}</span><div class="small muted">${where[r.kind]}</div></td></tr>`).join('')}</tbody></table>`:'<p class="muted" style="padding:14px 16px;margin:0">No file matches. Check the spelling, or clear a filter.</p>';
+  $('#sRes').innerHTML=!any?'':R.length?`<table><thead><tr><th>File / patient</th><th class="r">Age</th><th>Department / ward</th><th>Doctor</th><th>Admitted</th><th>Discharged</th><th class="r">LOS</th><th>Type</th><th>Status</th></tr></thead><tbody>${R.slice(0,300).map((r,i)=>`<tr data-i="${i}" style="cursor:pointer"${sSel===r?' class="sel"':''}><td><div class="mono">${esc(r.fileNo)}</div>${r.name?`<div class="small muted">${esc(r.name)}</div>`:''}</td><td class="r mono">${ageNum(r)??'—'}</td><td>${esc(r.dept||'—')}${r.ward?`<div class="small muted">${esc(r.ward)}</div>`:''}</td><td class="small">${esc(r.dn||'—')}</td><td class="small nowrap">${fmtDT(r.adm,r.admT)}</td><td class="small nowrap">${fmtDT(r.dis,r.disT)}</td><td class="r mono">${r.los??'—'}</td><td><span class="pill ${r.type==='quick'?'p-quick':'p-full'}">${r.type==='quick'?'Quick':'Full'}</span></td><td><span class="pill ${pill[r.status]||'p-open'}">${esc(r.status)}</span>${r.kind==='audit'&&r.a.ov?' <span class="small muted" title="Set by you">✎</span>':r.kind==='audit'&&isFixed(r.a)?' <span class="small muted" title="Fixed after follow-up">↺</span>':''}<div class="small muted">${where[r.kind]}</div></td></tr>`).join('')}</tbody></table>`:'<p class="muted" style="padding:14px 16px;margin:0">No file matches. Check the spelling, or clear a filter.</p>';
   if(sSel&&!R.includes(sSel)){sSel=null;$('#sDetail').hidden=true}}
-function showFile(r){sSel=r;const el=$('#sDetail');el.hidden=false;const a=r.a,f=r.f||(r.kind==='fu'?r.f:null);
+function showFile(r,quiet){sSel=r;const el=$('#sDetail');el.hidden=false;const a=r.a,f=r.f||(r.kind==='fu'?r.f:null);
   const e=r.dk?doctorEmail(r.dk):null;const kv=(k,v)=>`<dt>${k}</dt><dd>${v}</dd>`;
   let defs='';if(r.kind==='audit'&&!isQuick(a)&&a.sc){const d=defsOf(a);defs=d.length?`<ul style="margin:4px 0 0;padding-left:18px">${d.map(x=>`<li>${esc(x.c)} <span class="muted">(${x.d.map(k=>DIMS[k]).join(', ')})</span></li>`).join('')}</ul>`:'<span style="color:var(--ok)">None</span>'}
   else if(f&&f.defs&&f.defs.length)defs=`<ul style="margin:4px 0 0;padding-left:18px">${f.defs.map(x=>`<li>${esc(x.c||x)}</li>`).join('')}</ul>`;
   const fuTxt=f?`${esc((STAGE[fuStage(f)]||[''])[0])}${f.e1?` · 1st email ${f.e1==='?'?'sent (date unknown)':fmtD(f.e1)}`:''}${f.e2?` · 2nd email ${f.e2==='?'?'sent':fmtD(f.e2)}`:''}${f.done&&f.status==='done'?` · completed ${f.done==='?'?'':fmtD(f.done)}`:''}`:'—';
   const others=sPool.filter(x=>x!==r&&String(x.fileNo)===String(r.fileNo));
   el.innerHTML=`<div class="row"><div><h3 style="margin:0">File ${esc(r.fileNo)}${r.name?' · '+esc(r.name):''}</h3><div class="small muted">${{audit:'Audited',queue:'In worklist, not audited yet',fu:'Stalled file added by hand'}[r.kind]}</div></div><span class="spacer"></span>
-    ${r.kind==='audit'?'<button class="btn sm primary" type="button" id="sOpen">Open audit</button>':''}${r.kind==='queue'?'<button class="btn sm primary" type="button" id="sOpen">Audit this file</button>':''}<button class="btn sm" type="button" id="sCopy">Copy details</button><button class="btn sm" type="button" id="sClose">Close</button></div>
+    ${r.kind==='audit'?'<button class="btn sm primary" type="button" id="sOpen">Open audit</button><button class="btn sm" type="button" id="sStat">Change status</button>':''}${r.kind==='queue'?'<button class="btn sm primary" type="button" id="sOpen">Audit this file</button>':''}<button class="btn sm" type="button" id="sCopy">Copy details</button><button class="btn sm" type="button" id="sClose">Close</button></div>
     <div class="cols2" style="margin-top:10px"><dl class="kv">
       ${kv('File number','<span class="mono">'+esc(r.fileNo)+'</span>')}${kv('Patient',esc(r.name||'—'))}${kv('Age',ageNum(r)!=null?ageNum(r)+' years':'—')}
       ${kv('Admitted',fmtDT(r.adm,r.admT))}${kv('Discharged',fmtDT(r.dis,r.disT))}${kv('Length of stay',r.los!=null?r.los+' day'+(r.los===1?'':'s'):'—')}
       ${kv('Department',esc(r.dept||'—'))}${kv('Ward',esc(r.ward||'—'))}${kv('Discharge to',esc(r.to||'—'))}</dl>
       <dl class="kv">${kv('Responsible doctor',esc(r.dn||'—'))}${kv('Doctor email',e?`<span class="mono">${esc(e.email)}</span> ${e.verified?'<span class="pill p-ver">confirmed</span>':'<span class="pill p-check">unconfirmed</span>'}`:'—')}
-      ${kv('Audit type',r.type==='quick'?'Quick audit':'Full audit')}${kv('Status',esc(r.status))}${r.kind==='audit'?kv('Audited by',esc(a.auditor||'—'))+kv('Audit date',a.auditDate?fmtD(a.auditDate):'—'):''}
+      ${kv('Audit type',r.type==='quick'?'Quick audit':'Full audit')}${kv('Status',r.kind==='audit'?esc(statusLabel(a))+(a.ov?' <span class="pill p-ver">set by you</span>':''):esc(r.status))}${r.kind==='audit'&&a.hist&&a.hist.length?kv('Status history',histHtml(a)):''}${r.kind==='audit'?kv('Audited by',esc(a.auditor||'—'))+kv('Audit date',a.auditDate?fmtD(a.auditDate):'—'):''}
       ${kv('Follow-up',fuTxt)}${kv('Deficiencies',defs||'—')}${(a&&a.note)||(f&&f.note)?kv('Note',esc((a&&a.note)||f.note)):''}</dl></div>
     ${others.length?`<p class="small" style="margin:10px 0 0"><b>Other admissions or records for this file:</b> ${others.map((x,i)=>`<a href="#" data-o="${i}">${fmtD(x.dis)} · ${esc(x.status)}</a>`).join(' · ')}</p>`:''}`;
-  $('#sClose').onclick=()=>{sSel=null;el.hidden=true;runSearch()};
+  $('#sClose').onclick=()=>{sSel=null;el.hidden=true;runSearch()};if($('#sStat'))$('#sStat').onclick=()=>openStatus([a]);
   $('#sCopy').onclick=async()=>{const t=el.innerText.replace(/\n{2,}/g,'\n').replace(/^(Open audit|Audit this file|Copy details|Close)\n?/gm,'');try{await navigator.clipboard.writeText(t);toast('Details copied')}catch(err){toast('Could not copy')}};
   el.querySelectorAll('[data-o]').forEach(x=>x.onclick=ev=>{ev.preventDefault();showFile(others[+x.dataset.o])});
   const op=$('#sOpen');if(op)op.onclick=()=>{if(r.kind==='audit'){go('audit');editAudit(a)}else{go('audit');if((a.type||'full')!==auMode)setMode(a.type||'full',true);resetAudit();fillFromQueue(a);$('#auMsg').textContent='Details filled from the worklist. Score the standards and save.';renderQueue();$('#auForm').scrollIntoView({behavior:'smooth',block:'start'})}};
-  el.scrollIntoView({behavior:'smooth',block:'start'});runSearch()}
+  if(!quiet)el.scrollIntoView({behavior:'smooth',block:'start'});runSearch()}
 $('#sRes').addEventListener('click',e=>{const tr=e.target.closest('tr[data-i]');if(tr)showFile(sLast[+tr.dataset.i])});
 $('#sDocs').addEventListener('click',e=>{const b=e.target.closest('[data-doc]');if(!b)return;$('#sDoc').value=b.dataset.doc;$('#sQ').value='';runSearch()});
 let sT=0;$('#sQ').addEventListener('input',()=>{clearTimeout(sT);sT=setTimeout(runSearch,120)});
 ['#sWhere','#sType','#sStatus','#sDept','#sDoc','#sFrom','#sTo'].forEach(id=>$(id).addEventListener('change',runSearch));['#sAgeMin','#sAgeMax'].forEach(id=>$(id).addEventListener('input',runSearch));
 $('#sClear').onclick=()=>{['#sQ','#sAgeMin','#sAgeMax','#sFrom','#sTo'].forEach(id=>$(id).value='');['#sWhere','#sType','#sStatus','#sDept','#sDoc'].forEach(id=>$(id).value='');sSel=null;$('#sDetail').hidden=true;runSearch();$('#sQ').focus()};
+$('#sBulk').onclick=()=>{const L=sLast.filter(r=>r.kind==='audit').map(r=>r.a);if(!L.length){toast('Search or filter first: only audited files can change status');return}openStatus(L)};
 $('#sExport').onclick=()=>{const R=sLast;if(!R.length){toast('Nothing to export');return}
   const rec=r=>r.kind==='audit'?recFromAudit(r.a):r.kind==='queue'?recFromQueue(r.a):{fileNo:r.fileNo,name:'',adm:'',dis:r.dis,dept:r.dept,ward:'',doc:r.doc,to:'',age:'',auditor:'',e1:r.f.e1||'',e2:r.f.e2||'',inc:r.f.status!=='done',com:r.f.status==='done',del:fuEverLate(r.f),sc:null};
   const by=(a,b)=>(a.dis||'').localeCompare(b.dis||'');const L=[...R].sort(by);
@@ -1169,6 +1192,41 @@ $('#dirAdd').onclick=()=>{const n=cleanNm($('#dirName').value),em=$('#dirEmail')
 $('#dirExport').onclick=()=>{const rows=[['Name','Email','Source','Added'],...S.contacts.map(c=>[c.name,c.email,c.src||S.contactsFile||'',c.added||''])];const wb=XLSX.utils.book_new();const ws=XLSX.utils.aoa_to_sheet(rows);ws['!cols']=[{wch:40},{wch:40},{wch:28},{wch:12}];XLSX.utils.book_append_sheet(wb,ws,'Contacts');
   const m=dirCoverage().miss;XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet([['Doctor without email','Files'],...m.map(o=>[o.name,o.files])]),'Missing');downloadWB(wb,`Doctor-emails_${isoDay(new Date())}.xlsx`)};
 
+
+/* ---------- CHANGE A FILE'S STATUS BY HAND (with history) ---------- */
+const fuFor=a=>S.fu.find(x=>x.auditId===a.id);
+function isFixed(a){if(a.ov&&OVST[a.ov])return a.ov==='fixed';if(auditStatus(a)!=='Complete')return false;const f=fuIdx.get(a.id)||fuFor(a);return !!(f&&f.status==='done')}
+const statusLabel=a=>isFixed(a)?'Complete (fixed after follow-up)':auditStatus(a);
+function newFu(a,status){const f={id:uid(),auditId:a.id,fileNo:a.fileNo,dept:a.dept,dis:a.dis,doctor:a.doc,doctorKey:docKey(a.doc),email:'',emailVerified:false,defs:isQuick(a)||!a.sc?[]:defsOf(a),note:a.note||'',status,e1:'',e2:'',done:'',delinqFlag:false,created:isoDay(new Date()),src:'status'};
+  const e=doctorEmail(f.doctorKey);if(e){f.email=e.email;f.emailVerified=e.verified}S.fu.push(f);return f}
+function setStatus(a,ov,o={}){const from=statusLabel(a);let f=fuFor(a);const day=o.date||isoDay(new Date());
+  if(ov==='auto')delete a.ov;
+  else if(ov==='pending'){delete a.ov;a.pending=true}
+  else{a.pending=false;a.ov=ov;
+    if(ov==='complete'&&f&&f.status!=='done'){f.status='done';f.done=day}
+    if(ov==='fixed'){if(!f)f=newFu(a,'done');f.status='done';f.done=day;if(isQuick(a))a.result='incomplete'}
+    if(ov==='incomplete'||ov==='delinquent'){if(!f)f=newFu(a,'open');if(f.status==='done'){f.status=f.e2?'e2':f.e1?'e1':'open';f.done=''}f.delinqFlag=ov==='delinquent';if(isQuick(a))a.result='incomplete'}
+    if(ov==='complete'&&isQuick(a))a.result='complete'}
+  indexFu();const to=statusLabel(a);if(from!==to||o.note)(a.hist=a.hist||[]).push({d:isoDay(new Date()),from,to,note:o.note||'',by:S.settings.auditor||''});return from!==to}
+function logHist(a,from,note){const to=statusLabel(a);if(from!==to)(a.hist=a.hist||[]).push({d:isoDay(new Date()),from,to,note:note||'',by:S.settings.auditor||''})}
+const histHtml=a=>(a.hist&&a.hist.length)?`<ol class="small" style="margin:4px 0 0;padding-left:18px">${a.hist.map(h=>`<li>${fmtD(h.d)}: ${esc(h.from)} → <b>${esc(h.to)}</b>${h.note?` <span class="muted">· ${esc(h.note)}</span>`:''}</li>`).join('')}</ol>`:'<span class="muted">No changes yet</span>';
+let stTarget=[];
+function openStatus(list){stTarget=list.filter(Boolean);if(!stTarget.length){toast('No audited files to change');return}const one=stTarget.length===1?stTarget[0]:null;
+  $('#stTitle').textContent=one?`Change status · file ${one.fileNo}${one.name?' · '+one.name:''}`:`Change status of ${stTarget.length} files`;
+  $('#stNow').innerHTML=one?`Now: <b>${esc(statusLabel(one))}</b>${one.ov?' <span class="pill p-ver">set by you</span>':''}`:(()=>{const c={};stTarget.forEach(a=>{const k=statusLabel(a);c[k]=(c[k]||0)+1});return 'Now: '+Object.entries(c).map(([k,n])=>`${esc(k)} <b>${n}</b>`).join(' · ')})();
+  $('#stHist').innerHTML=one?histHtml(one):'';$('#stHistBox').hidden=!one;
+  $('#stDate').value=isoDay(new Date());$('#stNote').value='';document.querySelectorAll('#stDlg input[name="stv"]').forEach(r=>r.checked=false);
+  if(one){const cur=one.ov||(one.pending?'pending':'auto');const r=document.querySelector(`#stDlg input[name="stv"][value="${cur}"]`);if(r)r.checked=true}
+  stDateVis();$('#stDlg').showModal()}
+function stDateVis(){const v=document.querySelector('#stDlg input[name="stv"]:checked')?.value;$('#stDateBox').hidden=!(v==='fixed'||v==='complete')}
+$('#stDlg').addEventListener('change',e=>{if(e.target.name==='stv')stDateVis()});
+$('#stClose').onclick=()=>$('#stDlg').close();
+$('#stSave').onclick=()=>{const v=document.querySelector('#stDlg input[name="stv"]:checked')?.value;if(!v){toast('Choose a status');return}
+  const snap=JSON.stringify({a:stTarget.map(a=>[a.id,a.ov,a.pending,a.result,a.hist]),f:S.fu});let n=0;
+  for(const a of stTarget)if(setStatus(a,v,{date:$('#stDate').value,note:$('#stNote').value.trim()}))n++;
+  save();$('#stDlg').close();renderAll();
+  toast(`${n} file${n===1?'':'s'} changed to ${$(`#stDlg input[value="${v}"]`).closest('label').querySelector('b').textContent}`,()=>{const o=JSON.parse(snap);for(const [id,ov,pd,res,h] of o.a){const a=S.audits.find(x=>x.id===id);if(!a)continue;if(ov)a.ov=ov;else delete a.ov;a.pending=pd;a.result=res;if(h)a.hist=h;else delete a.hist}S.fu=o.f;indexFu();save();renderAll()})};
+
 /* ---------- EXCEL TEMPLATES (match MR.xlsx and AUG2222.xlsx exactly) ---------- */
 const CRIT_RAW=["3.6.sufficient information of  the patient and his care provider", "   4.1.1.Patient full names (Three Names)     ", "3.21. multidisciplinary team", "4.3.16.patient EDU BY Physician", "4.3.16.patient EDU BY Nurses", "4.3.18. Transfer sumary from unit to unit", "Patient discharge instruction", "Multidisiplinary care plan", "Patient discharge planning", "4.3.3 DOCTOR Assessment ", "4.3.5. Progress Note", "4.3.6. The plan of care", "4.3.17. Transfer to Another facility", "4.3.10. Operative notes", "Health educator", "Dietition", "Physiotherapist", "\r\nSocial Worker", "4.3.24. VTE", "4.3.11.  pre Anesthesia ", "4.3.21. Discharge Summary", "4.3.22. Death Summary", "4.3.2.PT history and Physical Examination", "4.3.4. Physician Orders", "4.3.23.  Laboratory", "4.3.23. Radiology ", "4.3.7.Consultation", "4.2.1.Upload all forms&No grammatical/spelling errors", "4.3.25. Histopathology reports", "4.3.13. Nursing pre-operative Checklist", "4.3.9. General Consent and Informed Consent", "4.3.12. Nursing assessment", "4.2.2.Medical Record entries o be completed and dated ", "4.2.3. Abbreviations and Symbols", "4.2.5.Corrections or Overwriting of Errors.", "4.3.1.1.Documentation by Medical staff", "4.3.1.2 Documentation by Nursing Staff", "4.3.14. When additional or specialized assessments are required", "4.3.15. Verbal and Telephone Orders", "4.2.4. Late entries"];
 const DT_FMT='dd/mm/yyyy\\ h:mm\\ AM/PM';
@@ -1182,7 +1240,7 @@ const fno=v=>v===''||v==null?'':(isNaN(+v)?v:+v);
 const ageV=v=>v===''||v==null?'':(isNaN(+v)?v:+v);
 function recFromAudit(a){const f=S.fu.find(x=>x.auditId===a.id),st=auditStatus(a);
   return {fileNo:a.fileNo,name:a.name,adm:a.adm,admT:a.admT,dis:a.dis,disT:a.disT,los:a.los,dept:a.dept,ward:a.ward,doc:a.doc,to:a.dischargeTo,age:a.age,auditor:a.auditor,e1:f?.e1||'',e2:f?.e2||'',
-    inc:(f&&f.src==='excel'&&a.incX!==undefined)?a.incX:(!!f||(isQuick(a)&&a.result==='incomplete')),com:st==='Complete',del:!!(f&&fuEverLate(f)),sc:isQuick(a)?null:a.sc,note:a.note||''}}
+    inc:a.ov&&OVST[a.ov]?['fixed','incomplete','delinquent'].includes(a.ov):(f&&f.src==='excel'&&a.incX!==undefined)?a.incX:(!!f||(isQuick(a)&&a.result==='incomplete')),com:st==='Complete',del:!!(f&&fuEverLate(f)),sc:isQuick(a)?null:a.sc,note:a.note||''}}
 const recFromQueue=q=>({fileNo:q.fileNo,name:q.name,adm:q.adm,admT:q.admT,dis:q.dis,disT:q.disT,los:q.los,dept:q.dept,ward:q.ward,doc:q.doc,to:q.dischargeTo,age:q.age,auditor:'',sc:null});
 const recFromPrep=r=>({fileNo:r._reg,name:r._name,adm:r._adm,admT:r._admT,dis:r._dis,disT:r._disT,los:typeof r._los==='number'?r._los:r._los,dept:r._dept,ward:r._ward,doc:r._doc,to:r._to,age:r._age,auditor:'',sc:null});
 /* ---------- STYLED EXCEL from the team's own templates (MR.xlsx / AUG2222.xlsx) ----------
@@ -1274,7 +1332,7 @@ function computeDash(){
   if(pc<100&&A0.length){const n=Math.max(1,Math.round(A0.length*pc/100));const seed=S.settings.sampleSeed||1;A=A0.map(a=>[hash(a.id+'|'+seed),a]).sort((x,y)=>x[0]-y[0]).slice(0,n).map(x=>x[1])}
   const st=A.map(a=>auditStatus(a));const c=k=>st.filter(s=>s===k).length;
   const total=A.length,complete=c('Complete'),late=c('Delinquent'),incomplete=c('Incomplete')+late,pending=c('Pending');
-  const firstPass=A.filter(firstPassOk).length;const AF=A.filter(a=>!isQuick(a));
+  const firstPass=A.filter(firstPassOk).length,fixedN=A.filter(isFixed).length,everInc=A.filter(a=>isFixed(a)||['Incomplete','Delinquent'].includes(auditStatus(a))).length,ovN=A.filter(a=>a.ov).length;const AF=A.filter(a=>!isQuick(a));
   const types=['full','quick'].map(t=>{const idx=A.map((a,i)=>i).filter(i=>typeOf(A[i])===t);const cc=k=>idx.filter(i=>st[i]===k).length;return {t,files:idx.length,complete:cc('Complete'),inc:cc('Incomplete')+cc('Delinquent'),late:cc('Delinquent'),pending:cc('Pending')}}).filter(x=>x.files);
   const L=A.map(a=>a.los).filter(v=>typeof v==='number').sort((x,y)=>x-y);
   const losAvg=L.length?L.reduce((s,v)=>s+v,0)/L.length:0,losMed=L.length?(L.length%2?L[(L.length-1)/2]:(L[L.length/2-1]+L[L.length/2])/2):0,losMax=L.length?L[L.length-1]:0,bed=L.reduce((s,v)=>s+v,0);
@@ -1294,7 +1352,7 @@ function computeDash(){
   const ageRows=[...AGE_BANDS.map(([l,lo,hi])=>({l,f:a=>{const n=ageNum(a);return n!=null&&n>=lo&&n<=hi}})),{l:'Not recorded',f:a=>ageNum(a)==null}].map(b=>{const idx=A.map((a,i)=>i).filter(i=>b.f(A[i]));const cc=k=>idx.filter(i=>st[i]===k).length;
     return {l:b.l,files:idx.length,complete:cc('Complete'),inc:cc('Incomplete')+cc('Delinquent'),pending:cc('Pending')}});
   const agesKnown=A.map(ageNum).filter(v=>v!=null);
-  return {ag,ageRows,ageAvg:agesKnown.length?agesKnown.reduce((x,y)=>x+y,0)/agesKnown.length:null,ageN:agesKnown.length,pc,popN:A0.length,sample:A,ty,AFn:AF.length,types,p,dp,dk,total,complete,incomplete,late,pending,firstPass,losAvg,losMed,losMax,bed,req,dims,depts,docs,bands,months,
+  return {fixedN,everInc,ovN,ag,ageRows,ageAvg:agesKnown.length?agesKnown.reduce((x,y)=>x+y,0)/agesKnown.length:null,ageN:agesKnown.length,pc,popN:A0.length,sample:A,ty,AFn:AF.length,types,p,dp,dk,total,complete,incomplete,late,pending,firstPass,losAvg,losMed,losMax,bed,req,dims,depts,docs,bands,months,
     fu:{F:F.length,em:em.length,e2:e2.length,resp:resp.length,noresp:noresp.length,esc:esc_.length,noemail:noemail.length,gap:gaps.length?gaps.reduce((s,v)=>s+v,0)/gaps.length:null,docs:byDoc.size,docsAll:respDocs.filter(g=>g.resp===g.sent).length},respDocs}}
 function bar(v,max,cls=''){return `<div class="bar ${cls}" title="${v}"><i style="width:${max?Math.max(2,v/max*100):0}%"></i></div>`}
 function hash(str){let h=2166136261;for(let i=0;i<str.length;i++){h^=str.charCodeAt(i);h=Math.imul(h,16777619)}return h>>>0}
@@ -1303,10 +1361,10 @@ const sampleLabel=d=>d.pc<100?`Sample ${d.pc}% (${d.total} of ${d.popN} files)`:
 function typeLabel(){return {full:'Full audit',quick:'Quick audit','':'Full + quick audits'}[$('#dType').value]}
 function periodLabel(){const s=$('#dPeriod');return s.options[s.selectedIndex]?.text||'All periods'}
 function renderDash(){dashFilters();const d=computeDash();lastDash=d;
-  $('#dLede').innerHTML=`${esc(typeLabel())} · ${esc(periodLabel())} · ${esc(d.dp||'all departments')} · ${esc(d.dk?docName(d.dk):'all doctors')}${d.ag?' · <b>'+esc(d.ag.label)+'</b>':''} · ${d.pc<100?`<b style="color:var(--accent)">random sample ${d.pc}%: ${d.total} of ${d.popN} files</b>`:`${d.total} files`}`;
+  $('#dLede').innerHTML=`${esc(typeLabel())} · ${esc(periodLabel())} · ${esc(d.dp||'all departments')} · ${esc(d.dk?docName(d.dk):'all doctors')}${d.ag?' · <b>'+esc(d.ag.label)+'</b>':''} · ${d.ovN?`<span title="Statuses you changed by hand">${d.ovN} status${d.ovN===1?'':'es'} set by hand ✎</span> · `:''}${d.pc<100?`<b style="color:var(--accent)">random sample ${d.pc}%: ${d.total} of ${d.popN} files</b>`:`${d.total} files`}`;
   const tile=(n,l,s,c='')=>`<div class="stat ${c}"><div class="n">${n}</div><div class="l">${l}</div>${s?`<div class="s">${s}</div>`:''}</div>`;
   $('#dKpi').innerHTML=tile(d.total,'Total files')+tile(d.complete,'Complete',pctS(d.complete,d.total),'ok')+tile(d.incomplete,'Incomplete',`${d.late} of them delinquent`,'warn')+tile(d.pending,'Pending','audit not final')+tile(d.late,'Delinquent',pctS(d.late,d.total),'late');
-  $('#dKpi2').innerHTML=tile(pctS(d.complete,d.total),'Completion rate','complete ÷ total')+tile(pctS(d.firstPass,d.total),'Complete at audit','complete on first review')+tile(d.losAvg.toFixed(2),'Avg LOS (days)',`median ${d.losMed}`)+tile(d.losMax,'Max LOS (days)')+tile(d.bed,'Total bed-days');
+  $('#dKpi2').innerHTML=tile(pctS(d.complete,d.total),'Completion rate','complete ÷ total')+tile(pctS(d.firstPass,d.total),'Complete at audit','complete on first review')+tile(d.fixedN,'Fixed after follow-up',d.everInc?`${pctS(d.fixedN,d.everInc)} of ${d.everInc} incomplete files corrected`:'no incomplete files','ok')+tile(d.losAvg.toFixed(2),'Avg LOS (days)',`median ${d.losMed}`)+tile(d.losMax,'Max LOS (days)')+tile(d.bed,'Total bed-days');
   const segs=[['Complete',d.complete,'var(--ok)'],['Incomplete',d.incomplete-d.late,'var(--warn)'],['Delinquent',d.late,'var(--late)'],['Pending',d.pending,'var(--na)']];
   $('#dStatus').innerHTML=d.total?`<div class="stack" role="img" aria-label="File status">${segs.filter(s=>s[1]).map(s=>`<i style="width:${s[1]/d.total*100}%;background:${s[2]}" title="${s[0]}: ${s[1]} (${pctS(s[1],d.total)})"></i>`).join('')}</div>
     <table style="margin-top:6px"><tbody>${segs.map(s=>`<tr><td><span class="sw" style="background:${s[2]}"></span>${s[0]}</td><td class="r mono">${s[1]}</td><td class="r mono muted">${pctS(s[1],d.total)}</td></tr>`).join('')}</tbody></table>`:'<p class="muted">No files in this selection.</p>';
@@ -1337,10 +1395,10 @@ $('#dPct').addEventListener('change',()=>{$('#dPct').value=samplePct();S.setting
 $('#dReshuffle').onclick=()=>{if(samplePct()>=100){toast('Set a sample below 100% first');return}S.settings.sampleSeed=(Date.now()%1e9)||1;save();renderDash();toast('New random sample drawn')};
 $('#dReset').onclick=()=>{$('#dPct').value=100;S.settings.samplePct=100;$('#dType').value='full';$('#dPeriod').value='';$('#dDept').value='';$('#dDoc').value='';$('#dAge').value='';$('#dAgeMin').value='';$('#dAgeMax').value='';$('#dAgeCustom').hidden=true;renderDash()};
 $('#copyReport').onclick=async()=>{const d=lastDash;if(!d)return;const top=d.req.filter(r=>r.miss).sort((a,b)=>b.miss-a.miss).slice(0,5);
-  const t=`Medical Records Completion Report\nAudit type: ${typeLabel()}\nPeriod: ${periodLabel()}\nSample: ${sampleLabel(d)}${d.dp?'\nDepartment: '+d.dp:''}${d.dk?'\nDoctor: '+docName(d.dk):''}${d.ag?'\nAge: '+d.ag.label:''}\n\nTotal files audited: ${d.total}\nComplete: ${d.complete} (${pctS(d.complete,d.total)})\nIncomplete: ${d.incomplete} (${pctS(d.incomplete,d.total)}), of which delinquent: ${d.late}\nPending: ${d.pending}\nComplete at first audit: ${pctS(d.firstPass,d.total)}\nAverage LOS: ${d.losAvg.toFixed(2)} days (median ${d.losMed}, max ${d.losMax}); total bed-days: ${d.bed}\n\n${d.AFn?'':'(no full audits in this selection)'}Compliance by dimension (full audits): ${d.dims.map(x=>`${DIMS[x.k]} ${x.o+x.z?((x.o/(x.o+x.z))*100).toFixed(1)+'%':'—'}`).join(', ')}\n\nTop deficient requirements:\n${top.map((r,i)=>`${i+1}. ${r.name}: ${r.miss} files missing (compliance ${(r.comp*100).toFixed(1)}%)`).join('\n')||'None'}\n\nEmail follow-up:\n1st reminders sent: ${d.fu.em}\n2nd reminders sent: ${d.fu.e2}\nCompleted after email: ${d.fu.resp} (response rate ${pctS(d.fu.resp,d.fu.em)})\nStill incomplete after email: ${d.fu.noresp}\nEscalated to delinquent: ${d.fu.esc}`;
+  const t=`Medical Records Completion Report\nAudit type: ${typeLabel()}\nPeriod: ${periodLabel()}\nSample: ${sampleLabel(d)}${d.dp?'\nDepartment: '+d.dp:''}${d.dk?'\nDoctor: '+docName(d.dk):''}${d.ag?'\nAge: '+d.ag.label:''}\n\nTotal files audited: ${d.total}\nComplete: ${d.complete} (${pctS(d.complete,d.total)})\nIncomplete: ${d.incomplete} (${pctS(d.incomplete,d.total)}), of which delinquent: ${d.late}\nPending: ${d.pending}\nComplete at first audit: ${pctS(d.firstPass,d.total)}\nFixed after follow-up: ${d.fixedN} of ${d.everInc} incomplete files (${pctS(d.fixedN,d.everInc)})\nAverage LOS: ${d.losAvg.toFixed(2)} days (median ${d.losMed}, max ${d.losMax}); total bed-days: ${d.bed}\n\n${d.AFn?'':'(no full audits in this selection)'}Compliance by dimension (full audits): ${d.dims.map(x=>`${DIMS[x.k]} ${x.o+x.z?((x.o/(x.o+x.z))*100).toFixed(1)+'%':'—'}`).join(', ')}\n\nTop deficient requirements:\n${top.map((r,i)=>`${i+1}. ${r.name}: ${r.miss} files missing (compliance ${(r.comp*100).toFixed(1)}%)`).join('\n')||'None'}\n\nEmail follow-up:\n1st reminders sent: ${d.fu.em}\n2nd reminders sent: ${d.fu.e2}\nCompleted after email: ${d.fu.resp} (response rate ${pctS(d.fu.resp,d.fu.em)})\nStill incomplete after email: ${d.fu.noresp}\nEscalated to delinquent: ${d.fu.esc}`;
   try{await navigator.clipboard.writeText(t);toast('Report summary copied')}catch(e){$('#bkText').hidden=false;$('#bkText').value=t;go('data');$('#bkText').select();toast('Press Ctrl+C to copy the summary')}};
 $('#exportDash').onclick=()=>{const d=lastDash;if(!d)return;const wb=XLSX.utils.book_new();const add=(n,rows)=>XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(rows),n);
-  add('Summary',[['Audit type',typeLabel()],['Sample',sampleLabel(d)],['Period',periodLabel()],['Department',d.dp||'All'],['Doctor',d.dk?docName(d.dk):'All'],['Age',d.ag?d.ag.label:'All ages'],[],['Total files',d.total],['Complete',d.complete],['Incomplete',d.incomplete],['Delinquent',d.late],['Pending',d.pending],['Completion rate',d.total?d.complete/d.total:0],['Complete at first audit',d.total?d.firstPass/d.total:0],['Avg LOS',+d.losAvg.toFixed(2)],['Median LOS',d.losMed],['Max LOS',d.losMax],['Total bed-days',d.bed],...d.dims.map(x=>[DIMS[x.k]+' compliance',x.o+x.z?x.o/(x.o+x.z):''])]);
+  add('Summary',[['Audit type',typeLabel()],['Sample',sampleLabel(d)],['Period',periodLabel()],['Department',d.dp||'All'],['Doctor',d.dk?docName(d.dk):'All'],['Age',d.ag?d.ag.label:'All ages'],[],['Total files',d.total],['Complete',d.complete],['Incomplete',d.incomplete],['Delinquent',d.late],['Pending',d.pending],['Completion rate',d.total?d.complete/d.total:0],['Complete at first audit',d.total?d.firstPass/d.total:0],['Fixed after follow-up (was incomplete, now complete)',d.fixedN],['Statuses set by hand',d.ovN],['Avg LOS',+d.losAvg.toFixed(2)],['Median LOS',d.losMed],['Max LOS',d.losMax],['Total bed-days',d.bed],...d.dims.map(x=>[DIMS[x.k]+' compliance',x.o+x.z?x.o/(x.o+x.z):''])]);
   add('Requirements',[['Requirement','Files missing','Files complete','Compliance'],...d.req.filter(r=>r.app).map(r=>[r.name,r.miss,r.ok,r.comp])]);
   add('Departments',[['Department','Files','Incomplete','% incomplete','Avg LOS'],...d.depts.map(g=>[g.name,g.files,g.inc,g.files?g.inc/g.files:0,g.losN?+(g.losS/g.losN).toFixed(2):''])]);
   add('Doctors',[['Doctor','Incomplete','Total files','% incomplete'],...d.docs.map(g=>[g.name,g.inc,g.files,g.inc/g.files])]);
@@ -1888,7 +1946,7 @@ $('#toastUndo').onclick=()=>{if(undoFn){undoFn();undoFn=null;$('#toast').hidden=
 function renderFlow(){$('#flow').innerHTML=`<span class="st">Audit with ✗</span><span class="ar">→</span><span class="st">Stalled: send 1st email</span><span class="ar">→ ${R()} days →</span><span class="st" style="border-color:var(--warn)">2nd reminder due</span><span class="ar">→ ${D()} days after 1st email →</span><span class="st" style="border-color:var(--late);color:var(--late)">Delinquent</span><span class="ar">· any time →</span><span class="st" style="border-color:var(--ok);color:var(--ok)">Completed (leaves the list)</span>`}
 function renderAll(){indexFu();$('#sampleBanner').hidden=!S.sample;renderFiles();
   const nq=S.queue.length;$('#auBadge').hidden=!nq;$('#auBadge').textContent=nq;
-  if(cur==='audit'){renderQueue();renderAudits()}if(cur==='search')renderSearch();if(cur==='dashboard')renderDash();if(cur==='doctors')renderDoctors();if(cur==='data')renderData();if(cur==='guide')renderFlow()}
+  if(cur==='audit'){renderQueue();renderAudits()}if(cur==='search'){const keep=sSel;renderSearch();if(keep&&keep.kind==='audit'){const r=sPool.find(x=>x.kind==='audit'&&x.a===keep.a);if(r)showFile(r,true)}}if(cur==='dashboard')renderDash();if(cur==='doctors')renderDoctors();if(cur==='data')renderData();if(cur==='guide')renderFlow()}
 $('#dPct').value=S.settings.samplePct||100;
 rebuildDoctors();indexFu();auMode=S.settings.auMode==='quick'?'quick':'full';setMode(auMode);(async()=>{const imp=await checkImportLink();go(imp?'files':(location.hash.slice(1)||'files'))})();
 setTimeout(()=>notifyNow(false),1500);
