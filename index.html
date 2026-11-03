@@ -128,6 +128,7 @@ dialog::backdrop{background:rgb(10 20 24 / .45)}
 .toast button{background:none;border:1px solid var(--bg);color:var(--bg);border-radius:4px;font:600 12px var(--f-body);padding:3px 8px;cursor:pointer}
 .drop{border:1.5px dashed var(--line);border-radius:8px;padding:14px;display:grid;gap:8px;background:var(--sunk)}
 #sRes tr.sel td{background:var(--accent-soft)}#sRes .nowrap{white-space:nowrap}
+.dlbar{position:fixed;left:50%;transform:translateX(-50%);bottom:76px;z-index:60;background:var(--surface);border:1px solid var(--accent);border-radius:10px;box-shadow:0 6px 24px rgba(0,0,0,.18);padding:10px 12px;display:flex;gap:12px;align-items:center;flex-wrap:wrap;max-width:calc(100vw - 32px)}
 .kv{display:grid;grid-template-columns:max-content 1fr;gap:4px 14px;font-size:13px;margin:0}
 .kv dt{color:var(--muted)} .kv dd{margin:0;min-width:0;word-break:break-word}
 /* audit form */
@@ -947,7 +948,8 @@ function editAudit(a){setTimeout(()=>{if(isQuick(a)&&a.pending&&!form.result)$('
   const e=doctorEmail(docKey(a.doc));emailLine($('#aDocLine'),e?.email,e?.verified,a.doc);$('#auTitle').textContent=`Editing file ${a.fileNo}`;$('#auSave').textContent='Save changes';$('#auMsg').textContent='';renderCrits();$('#auForm').scrollIntoView({behavior:'smooth',block:'start'})}
 $('#auCancel').onclick=()=>{resetAudit();$('#auMsg').textContent=''};
 $('#auForm').addEventListener('submit',e=>{e.preventDefault();if(form.batch){saveBatch();return}
-  const fileNo=$('#aFile').value.trim(),dis=$('#aDis').value,adm=$('#aAdm').value,dept=$('#aDept').value.trim(),doc=$('#aDoc').value.trim(),pend=$('#aPending').checked,quick=auMode==='quick';
+  const fileNo=$('#aFile').value.trim(),dis=$('#aDis').value,adm=$('#aAdm').value,dept=$('#aDept').value.trim(),pend=$('#aPending').checked,quick=auMode==='quick';
+  let doc=$('#aDoc').value.trim();{const q0=form.queueId&&S.queue.find(x=>x.id===form.queueId),old=form.id&&S.audits.find(x=>x.id===form.id),raw=(q0&&q0.doc)||(old&&old.doc);if(raw&&doc&&docKey(raw)===docKey(doc))doc=raw}
   const msg=t=>{$('#auMsg').innerHTML=`<span style="color:var(--late)">${esc(t)}</span>`};
   if(!fileNo||!dis||!dept||!doc)return msg('Fill file number, discharge date, department and doctor.');
   if(adm&&adm>dis)return msg('Admission date is after the discharge date.');
@@ -1228,12 +1230,23 @@ function tplBytes(kind,recs){
 function dlBytes(bytes,name){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([bytes],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}));
   a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),4000)}
 /* Exports the full list as an MR.xlsx-style file and the quick list as an AUG2222.xlsx-style file. Returns the file names. */
-function exportFQ(full,quick,base){const names=[];
-  try{if(full.length){const n=`${base}_FULL.xlsx`;dlBytes(tplBytes('full',full),n);names.push(n)}
-    if(quick.length){const n=`${base}_QUICK.xlsx`;setTimeout(()=>dlBytes(tplBytes('quick',quick),n),full.length?700:0);names.push(n)}
-    if(!names.length)toast('Nothing to export');else if(inFrame)toast('If nothing downloaded, use the local copy MR-Followup.html. Downloads are blocked inside Claude.')}
-  catch(e){toast('Export failed: '+e.message)}
-  return names}
+function exportFQ(full,quick,base){const files=[];
+  try{if(full.length)files.push({name:`${base}_FULL.xlsx`,bytes:tplBytes('full',full),n:full.length,kind:'Full audit'});
+    if(quick.length)files.push({name:`${base}_QUICK.xlsx`,bytes:tplBytes('quick',quick),n:quick.length,kind:'Quick audit'})}
+  catch(e){toast('Export failed: '+e.message);return []}
+  if(!files.length){toast('Nothing to export');return []}
+  files.forEach((f,i)=>setTimeout(()=>dlBytes(f.bytes,f.name),i*900));showDlBar(files);
+  if(inFrame)toast('Downloads are blocked inside Claude. Use the installed app.');
+  return files.map(f=>f.name)}
+let dlFiles=[];
+function showDlBar(files){dlFiles=files;let bar=$('#dlBar');if(!bar){bar=document.createElement('div');bar.id='dlBar';bar.className='dlbar';document.body.appendChild(bar)}
+  const canShare=!!(navigator.canShare&&window.File&&(()=>{try{return navigator.canShare({files:[new File([new Uint8Array(1)],'t.xlsx',{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'})]})}catch(e){return false}})());
+  bar.innerHTML=`<div><b>Excel ready</b> <span class="small muted">${files.length>1?'Two files: if only one arrived, press the other button.':'Saved to Downloads.'}</span></div><div class="row" style="gap:6px">${files.map((f,i)=>`<button class="btn sm" type="button" data-dl="${i}" title="${esc(f.name)}">⬇ ${f.kind} (${f.n})</button>`).join('')}${canShare?'<button class="btn sm primary" type="button" data-share>Share…</button>':''}<button class="btn sm" type="button" data-x aria-label="Close">✕</button></div>`;
+  bar.hidden=false;clearTimeout(bar._t);bar._t=setTimeout(()=>bar.hidden=true,60000)}
+document.addEventListener('click',async e=>{const bar=e.target.closest('#dlBar');if(!bar)return;const d=e.target.closest('[data-dl]');
+  if(d){const f=dlFiles[+d.dataset.dl];dlBytes(f.bytes,f.name);return}
+  if(e.target.closest('[data-x]')){bar.hidden=true;return}
+  if(e.target.closest('[data-share]')){try{await navigator.share({files:dlFiles.map(f=>new File([f.bytes],f.name,{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'})),title:dlFiles.map(f=>f.name).join(', ')})}catch(err){if(err&&err.name!=='AbortError')toast('Sharing is not available here. Use the download buttons.')}}});
 
 /* ---------- DASHBOARD ---------- */
 let lastDash=null;
