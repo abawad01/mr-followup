@@ -234,7 +234,7 @@ input[type=range]{accent-color:var(--accent)}
     </div>
     <div class="panel" id="queuePanel">
       <div class="row"><div><h2>Waiting to audit</h2><p class="lede" id="qLede"></p></div><span class="spacer"></span>
-        <input id="qQ" placeholder="Search file, doctor, department" style="max-width:240px" aria-label="Search worklist">
+        <input id="qQ" placeholder="Search file, patient, doctor, department" style="max-width:240px" aria-label="Search worklist">
         <select id="qDept" style="max-width:190px" aria-label="Department"></select><select id="qStill" style="max-width:200px" aria-label="Still in hospital"><option value="">All files</option><option value="only">Still in hospital only</option><option value="hide">Hide still in hospital</option></select></div>
       <div class="row small"><span class="muted">Discharged from</span><input id="qFrom" type="date" style="max-width:160px" aria-label="Discharged from"><span class="muted">to</span><input id="qTo" type="date" style="max-width:160px" aria-label="Discharged to"><button class="btn sm" id="qDateClr" type="button">Clear dates</button></div>
       <div class="row">
@@ -247,7 +247,7 @@ input[type=range]{accent-color:var(--accent)}
       </div>
       <div class="row small mix" id="qMix"><span class="muted">My worklists:</span><b id="qMixNow"></b><span class="spacer"></span>
         <label class="row" style="gap:6px">Full audit <input id="qMixPct" type="range" min="0" max="100" step="5" style="width:160px"> <b class="mono" id="qMixLbl"></b></label>
-        <button class="btn sm primary" type="button" id="qMixGo">Rebalance</button></div>
+        <button class="btn sm primary" type="button" id="qMixGo">Rebalance</button><button class="btn sm" type="button" id="qExport">Export to Excel</button></div>
       <div class="tablewrap qwrap" id="qWrap"><table>
         <thead><tr><th style="width:34px"><input type="checkbox" id="qAll" aria-label="Select all files shown"></th><th>File</th><th>Admitted</th><th>Discharged</th><th class="r">LOS</th><th>Department</th><th>Doctor</th><th></th></tr></thead>
         <tbody id="qRows"></tbody>
@@ -358,6 +358,19 @@ input[type=range]{accent-color:var(--accent)}
 
   <!-- ================= DOCTORS ================= -->
   <section id="view-doctors" class="tabview" hidden>
+    <div class="panel" id="lkPanel" style="border-color:var(--accent)">
+      <div><h2>Doctor email lookup</h2><p class="lede">Upload any Excel file with doctor names. The app lists each doctor once, finds their email, and shows which ones are missing so you can add them. Emails you add are kept for next time.</p></div>
+      <div class="row"><div class="drop" style="flex:1;min-width:240px"><input type="file" id="lkIn" accept=".xlsx,.xls,.csv"></div>
+        <label class="f" id="lkColBox" hidden style="min-width:220px">Doctor column<select id="lkCol"></select></label></div>
+      <div id="lkOut" hidden style="display:grid;gap:10px">
+        <div class="stats" id="lkStats"></div>
+        <div class="row"><button class="btn primary" type="button" id="lkCopy">Copy all emails for Outlook</button><button class="btn" type="button" id="lkXls">Export to Excel</button>
+          <select id="lkShow" style="max-width:190px" aria-label="Show"><option value="">All doctors</option><option value="miss">Missing email</option><option value="check">Needs checking</option><option value="ok">Have email</option></select>
+          <span class="spacer"></span><span class="small muted" id="lkFile"></span></div>
+        <textarea id="lkText" rows="3" class="mono" readonly hidden></textarea>
+        <div class="tablewrap"><table><thead><tr><th>Doctor</th><th class="r">Times in file</th><th>Email</th><th>Status</th><th>Add or fix email</th></tr></thead><tbody id="lkRows"></tbody></table></div>
+      </div>
+    </div>
     <div class="panel">
       <div class="row">
         <div><h2>Doctor directory</h2><p class="lede">Each doctor is matched to the contacts list by name. Confirm a match once and every email to that doctor uses it. Unconfirmed matches are flagged before sending.</p></div>
@@ -427,7 +440,7 @@ input[type=range]{accent-color:var(--accent)}
     </div>
     <div class="panel">
       <h3>Quick audit files</h3>
-      <p class="lede small" style="margin:0">Choose the slot that matches the file. Column names such as Registration_No or File No, and DoctorInCharge or Doctor, are recognised. Patient names are not read.</p>
+      <p class="lede small" style="margin:0">Choose the slot that matches the file. Column names such as Registration_No or File No, and DoctorInCharge or Doctor, are recognised. Patient names are kept in the worklist so you can find the file.</p>
       <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(min(100%,240px),1fr))">
         <div class="drop"><b class="small">1 · Audited, with status columns</b><input type="file" id="inQuick" accept=".xlsx,.xls"><span class="small muted">Like AUG2222.xlsx. compelet = Complete. incompelet, or an email without compelet = Not complete, and goes to Stalled files with its email dates. No status = Pending.</span></div>
         <div class="drop" style="border-color:var(--ok)"><b class="small" style="color:var(--ok)">2 · Audited and complete</b><input type="file" id="inQuickDone" accept=".xlsx,.xls,.csv"><span class="small muted">Every file in the sheet is saved as Complete, whatever its columns say. Nothing goes to Stalled files. A file already in the system is updated to Complete.</span></div>
@@ -1235,10 +1248,10 @@ async function zip(str){const u=new TextEncoder().encode(str);if(!('CompressionS
 async function unzip(t){const u=b64u.dec(t.slice(1));if(t[0]==='j')return new TextDecoder().decode(u);const ds=new Blob([u]).stream().pipeThrough(new DecompressionStream('deflate-raw'));return await new Response(ds).text()}
 async function packFiles(L,from){const dict=[],di=new Map();const d=v=>{v=v||'';if(!di.has(v)){di.set(v,dict.length);dict.push(v)}return di.get(v)};
   const days=iso=>iso?Math.round(dt(iso)/DAY-dt('2020-01-01')/DAY):'';
-  const rows=L.map(r=>[r._reg,days(r._adm),days(r._dis),typeof r._los==='number'?r._los:'',d(r._dept),d(r._ward),d(r._doc),d(r._to),r._t==='quick'?1:0]);
+  const rows=L.map(r=>[r._reg,days(r._adm),days(r._dis),typeof r._los==='number'?r._los:'',d(r._dept),d(r._ward),d(r._doc),d(r._to),r._t==='quick'?1:0,r._name||'']);
   return zip(JSON.stringify({v:1,f:from,d:dict,r:rows}))}
 async function unpackFiles(t){const o=JSON.parse(await unzip(t));if(o.v!==1)throw 0;const day=n=>n===''?'':addDays('2020-01-01',n);
-  return {from:o.f||'',items:o.r.map(x=>({id:uid(),type:x[8]?'quick':'full',fileNo:String(x[0]),adm:day(x[1]),dis:day(x[2]),los:x[3]===''?null:x[3],dept:o.d[x[4]],ward:o.d[x[5]],doc:o.d[x[6]],dischargeTo:o.d[x[7]]}))}}
+  return {from:o.f||'',items:o.r.map(x=>({id:uid(),type:x[8]?'quick':'full',fileNo:String(x[0]),adm:day(x[1]),dis:day(x[2]),los:x[3]===''?null:x[3],dept:o.d[x[4]],ward:o.d[x[5]],doc:o.d[x[6]],dischargeTo:o.d[x[7]],name:x[9]||''}))}}
 const appBase=()=>location.origin+location.pathname;
 $('#pMail').onclick=async()=>{if(!prepRes)return;const p=prepReadUI();const to=$('#pMateEmail').value.trim();p.mateEmail=to;save();
   const L=[...prepRes.mf.map(r=>({...r,_t:'full'})),...prepRes.mq.map(r=>({...r,_t:'quick'}))];if(!L.length){toast('No files for your colleague in this split');return}
@@ -1281,6 +1294,12 @@ function renderMix(){const m=mixNow();$('#qMix').hidden=!m.n;if(!m.n)return;cons
   $('#qMixNow').textContent=`${m.f} full · ${m.qk} quick (${cur}% full)`;if(document.activeElement!==$('#qMixPct')){$('#qMixPct').value=cur}mixLbl()}
 function mixLbl(){const m=mixNow(),pct=+$('#qMixPct').value,tf=Math.round(pct/100*m.n);$('#qMixLbl').textContent=`${pct}% → ${tf} full / ${m.n-tf} quick`;$('#qMixGo').disabled=tf===m.f}
 $('#qMixPct').addEventListener('input',mixLbl);
+$('#qExport').onclick=()=>{const head=['Registration_No','Patient / Guradian Name','Admission Date','Discharge Date','LOS','Department_Name','Ward Name','AdmittingDoctor','Discharge To','Still in hospital'];
+  const sheet=t=>{const L=S.queue.filter(q=>(q.type||'full')===t).sort((a,b)=>(a.dis||'').localeCompare(b.dis||''));
+    const ws=XLSX.utils.aoa_to_sheet([head,...L.map(q=>[isNaN(+q.fileNo)?q.fileNo:+q.fileNo,q.name||'',xd(q.adm),xd(q.dis),q.los??'',q.dept||'',q.ward||'',q.doc||'',q.dischargeTo||'',/still in hospital/i.test(q.dischargeTo||'')?'Yes':''])]);
+    ws['!cols']=head.map(h=>({wch:/Doctor|Patient/.test(h)?34:/Date|Discharge To/.test(h)?18:14}));return [ws,L.length]};
+  const wb=XLSX.utils.book_new();const [f,nf]=sheet('full'),[q,nq]=sheet('quick');XLSX.utils.book_append_sheet(wb,f,'Full audit');XLSX.utils.book_append_sheet(wb,q,'Quick audit');
+  downloadWB(wb,`My-worklists_${slug(S.settings.auditor||'me')}_${isoDay(new Date())}.xlsx`);toast(`Exported ${nf} full + ${nq} quick files`)};
 $('#qMixGo').onclick=()=>{const m=mixNow(),tf=Math.round(+$('#qMixPct').value/100*m.n);if(tf===m.f)return;const before=S.queue.map(q=>[q,q.type]);
   const fromT=tf<m.f?'full':'quick',toT=fromT==='full'?'quick':'full',src=S.queue.filter(q=>(q.type||'full')===fromT),need=Math.abs(tf-m.f);
   const asRow=q=>({_dept:q.dept||'',_doc:q.doc||'',_key:q.fileNo+'|'+q.dis,q});const [stay,move]=splitBalanced(src.map(asRow),(src.length-need)/src.length,'|mix');
@@ -1306,7 +1325,7 @@ function runPrep(){if(!prepRaw)return;const p=prepReadUI();const H=prepRaw.H,row
   const known=new Set([...S.audits.map(a=>a.fileNo+'|'+a.dis),...S.queue.map(q=>q.fileNo+'|'+q.dis)]);
   const depts={};const out=[];
   for(const X of rows0){const reg=cleanTxt(X[ci['Registration_No']]);if(!reg)continue;stats.read++;
-    const r={_reg:reg,_dis:toIso(X[ci['Discharge Date']]),_adm:toIso(X[ci['Admission Date']]),_dept:cleanTxt(X[ci['Department_Name']]),_doc:cleanTxt(X[ci[docCol]]),_to:cleanTxt(X[ci['Discharge To']]),_ward:cleanTxt(X[ci['Ward Name']]),_los:X[ci['LOS']],_X:X};
+    const r={_reg:reg,_dis:toIso(X[ci['Discharge Date']]),_adm:toIso(X[ci['Admission Date']]),_dept:cleanTxt(X[ci['Department_Name']]),_doc:cleanTxt(X[ci[docCol]]),_to:cleanTxt(X[ci['Discharge To']]),_name:cleanTxt(X[ci['Patient / Guradian Name']]),_ward:cleanTxt(X[ci['Ward Name']]),_los:X[ci['LOS']],_X:X};
     r._key=reg+'|'+r._dis;depts[r._dept]=(depts[r._dept]||0)+1;
     if(/still in hospital/i.test(r._to))stats.stillAll=(stats.stillAll||0)+1;
     if(p.still&&/still in hospital/i.test(r._to)){stats.still++;continue}
@@ -1328,7 +1347,7 @@ function runPrep(){if(!prepRaw)return;const p=prepReadUI();const H=prepRaw.H,row
   $('#pTable').innerHTML=`<table><thead><tr><th>Department</th><th class="r">In file</th><th class="r">Me: full</th><th class="r">Me: quick</th><th class="r">${mateName}: full</th><th class="r">${mateName}: quick</th></tr></thead><tbody>${D.map(d=>`<tr><td>${esc(d)}</td><td class="r mono">${by(out,d)}</td><td class="r mono">${by(full,d)}</td><td class="r mono">${by(quick,d)}</td><td class="r mono">${by(mf,d)}</td><td class="r mono">${by(mq,d)}</td></tr>`).join('')}<tr style="font-weight:600"><td>Still to do</td><td class="r mono">${out.length}</td><td class="r mono">${full.length}</td><td class="r mono">${quick.length}</td><td class="r mono">${mf.length}</td><td class="r mono">${mq.length}</td></tr></tbody></table>`;
   $('#pDlMate').textContent=`Download ${p.mate||"colleague"}'s file (${mate.length})`;$('#pMail').textContent=`Email ${p.mate||'colleague'} their ${mate.length} files`;$('#pMail').disabled=!mate.length;$('#pAdd').textContent=`Add my ${mine.length} files to my worklists (${full.length} full, ${quick.length} quick)`;
   $('#pNote').textContent='Your colleague\'s file has two sheets, Full audit and Quick audit. They upload it once in Data → Full audit worklist and both lists fill in. The split is balanced by department and doctor, and is the same every time for the same file, so re-uploading does not reshuffle who gets what.'}
-function prepToQueue(r,type){return {id:uid(),type,fileNo:r._reg,adm:r._adm,dis:r._dis,los:typeof r._los==='number'?r._los:(r._los!=null&&r._los!==''&&!isNaN(+r._los)?+r._los:null),dept:r._dept,ward:r._ward,doc:r._doc,dischargeTo:r._to}}
+function prepToQueue(r,type){return {id:uid(),type,fileNo:r._reg,adm:r._adm,dis:r._dis,los:typeof r._los==='number'?r._los:(r._los!=null&&r._los!==''&&!isNaN(+r._los)?+r._los:null),dept:r._dept,ward:r._ward,doc:r._doc,dischargeTo:r._to,name:r._name||''}}
 function prepSheet(L){const ci=prepRes.ci,dc=prepRes.docCol;const head=PREP_COLS.map(h=>h==='AdmittingDoctor'?dc:h);
   const rows=[head,...L.map(r=>head.map(h=>{const v=r._X[ci[h]];if((h==='Admission Date'||h==='Discharge Date')&&typeof v==='number')return {t:'n',v,z:'dd/mm/yyyy hh:mm'};if(h==='Department_Name')return r._dept;return v==null?'':v}))];
   const ws=XLSX.utils.aoa_to_sheet(rows);ws['!cols']=head.map(h=>({wch:/Name|Doctor/.test(h)?34:/Date/.test(h)?17:14}));return ws}
@@ -1344,6 +1363,45 @@ $('#pAdd').onclick=()=>{if(!prepRes)return;leaveSample();const have=new Set(S.qu
 $('#pDlMate').onclick=()=>{if(!prepRes)return;const nm=slug(prepRes.p.mate||'colleague');prepDownload(`Discharges_${nm}_${isoDay(new Date())}.xlsx`,[['Full audit',prepRes.mf],['Quick audit',prepRes.mq]])};
 $('#pDlAll').onclick=()=>{if(!prepRes)return;prepDownload(`Discharges_clean_${isoDay(new Date())}.xlsx`,[['Sheet1',prepRes.out]])};
 $('#pDlMine').onclick=()=>{if(!prepRes)return;prepDownload(`Discharges_mine_${isoDay(new Date())}.xlsx`,[['Full audit',prepRes.full],['Quick audit',prepRes.quick]])};
+
+/* ---------- DOCTOR EMAIL LOOKUP ---------- */
+let lk=null;
+const LK_DOC=['admittingdoctor','admitting doctor','doctorincharge','doctor in charge','doctor','doctor name','physician','consultant','attending','name','الطبيب','اسم الطبيب'];
+function lkMatch(k,raw){const o=S.doctors[k];if(o?.verified)return {email:o.verified.email,st:'ok',via:o.verified.name};
+  const A=k.split(' ');let best=null,bs=0;for(const c of S.contacts){const t=c._t||(c._t=toks(c.name));const sc=score(A,t);if(sc>bs){bs=sc;best=c}}
+  if(best&&bs>=0.9)return {email:best.email,st:'strong',via:best.name,score:bs};if(best&&bs>=0.75)return {email:best.email,st:'check',via:best.name,score:bs};return {email:'',st:'miss',via:best?best.name:'',score:bs}}
+function lkBuild(){if(!lk)return;$('#lkText').hidden=true;const ci=+$('#lkCol').value;const m=new Map();
+  for(const r of lk.rows){const raw=String(r[ci]??'').replace(/\s+/g,' ').trim();if(!raw)continue;const k=docKey(raw);if(!k)continue;const g=m.get(k)||{k,raw,names:new Set(),n:0};g.names.add(raw);g.n++;m.set(k,g)}
+  lk.docs=[...m.values()].map(g=>({...g,name:docName(g.k,g.raw),...lkMatch(g.k,g.raw)})).sort((a,b)=>({miss:0,check:1,strong:2,ok:3}[a.st]-{miss:0,check:1,strong:2,ok:3}[b.st])||b.n-a.n);lkRender()}
+function lkRender(){const D=lk.docs,c=st=>D.filter(d=>st.includes(d.st)).length,emails=[...new Set(D.filter(d=>d.st==='ok'||d.st==='strong').map(d=>d.email))];
+  $('#lkOut').hidden=false;$('#lkFile').textContent=`${lk.file}: ${lk.rows.length} rows`;
+  const tile=(n,l,s,cl='')=>`<div class="stat ${cl}"><div class="n">${n}</div><div class="l">${l}</div>${s?`<div class="s">${s}</div>`:''}</div>`;
+  $('#lkStats').innerHTML=tile(D.length,'Doctors','without repeats')+tile(emails.length,'Emails found','',"ok")+tile(c(['check']),'Need checking','confirm before copying','warn')+tile(c(['miss']),'Missing email','add below','late');
+  $('#lkCopy').textContent=`Copy ${emails.length} emails for Outlook`;$('#lkCopy').disabled=!emails.length;
+  const f=$('#lkShow').value;const L=D.filter(d=>!f||(f==='miss'&&d.st==='miss')||(f==='check'&&d.st==='check')||(f==='ok'&&(d.st==='ok'||d.st==='strong')));
+  const pill={ok:'<span class="pill p-ver">Confirmed</span>',strong:'<span class="pill p-strong">Found</span>',check:'<span class="pill p-check">Check</span>',miss:'<span class="pill p-none">Missing</span>'};
+  $('#lkRows').innerHTML=L.map(d=>`<tr data-k="${esc(d.k)}"><td><div>${esc(d.name)}</div>${d.names.size>1?`<div class="small muted">${d.names.size} spellings merged</div>`:''}</td><td class="r mono">${d.n}</td>
+    <td>${d.email?`<div class="mono small">${esc(d.email)}</div>`:'<span class="muted">—</span>'}${d.st==='check'||d.st==='strong'?`<div class="small muted">matched to ${esc(d.via)}</div>`:''}</td><td>${pill[d.st]}</td>
+    <td><div class="row" style="gap:4px;flex-wrap:nowrap">${d.st==='check'||d.st==='strong'?'<button class="btn sm okb" type="button" data-lk="ok">Confirm</button>':''}<input class="mono" data-lkin placeholder="${d.st==='miss'?'type email':'other email'}" style="min-width:170px;padding:4px 8px;font-size:12.5px" list="dlMail"><button class="btn sm" type="button" data-lk="set">Save</button></div></td></tr>`).join('')||'<tr><td colspan="5" class="muted">No doctors in this view.</td></tr>'}
+function lkSave(k,email,name){const d=lk.docs.find(x=>x.k===k);if(!d)return;const o=S.doctors[k]||(S.doctors[k]={key:k,name:d.name,raw:[d.raw],ids:[],files:0});o.verified={name:d.name,email};
+  if(!S.contacts.some(c=>c.email===email)){S.contacts.push({name:d.name,email});S.contactsReal=true}applyEmailToFu(k);save();Object.assign(d,{email,st:'ok',via:d.name});lkRender()}
+$('#lkRows').addEventListener('click',e=>{const b=e.target.closest('[data-lk]');if(!b)return;const tr=b.closest('tr'),k=tr.dataset.k,d=lk.docs.find(x=>x.k===k);
+  if(b.dataset.lk==='ok'){lkSave(k,d.email);toast(`${d.name}: ${d.email} confirmed`)}
+  if(b.dataset.lk==='set'){const v=tr.querySelector('[data-lkin]').value.trim().toLowerCase();if(!/^\S+@\S+\.\S+$/.test(v)){toast('Type a full email address');tr.querySelector('[data-lkin]').focus();return}lkSave(k,v);toast(`Saved ${v} for ${d.name}. It will be found next time.`)}});
+$('#lkRows').addEventListener('keydown',e=>{if(e.key==='Enter'&&e.target.matches('[data-lkin]')){e.preventDefault();e.target.closest('tr').querySelector('[data-lk="set"]').click()}});
+$('#lkIn').onchange=async e=>{const f=e.target.files[0];if(!f)return;try{const wb=await readWB(f);const ws=wb.Sheets[wb.SheetNames[0]];const A=XLSX.utils.sheet_to_json(ws,{header:1,raw:true,defval:null});
+    let hi=A.slice(0,30).findIndex(r=>r&&r.some(v=>LK_DOC.includes(normC(v??''))));let H,rows;
+    if(hi<0){hi=0;const w=Math.max(...A.slice(0,30).map(r=>(r||[]).length));H=Array.from({length:w},(_,i)=>`Column ${XLSX.utils.encode_col(i)}`);rows=A}else{H=A[hi].map((v,i)=>v==null||v===''?`Column ${XLSX.utils.encode_col(i)}`:String(v).trim());rows=A.slice(hi+1)}
+    rows=rows.filter(r=>r&&r.some(v=>v!=null&&v!==''));
+    let def=-1;for(const al of LK_DOC){const i=H.findIndex(h=>normC(h)===al);if(i>=0){def=i;break}}if(def<0)def=0;
+    $('#lkCol').innerHTML=H.map((h,i)=>`<option value="${i}">${esc(h)}</option>`).join('');$('#lkCol').value=def;$('#lkColBox').hidden=false;
+    lk={file:f.name,rows};fillMailList();lkBuild();if(!S.contacts.length)toast('No contacts list yet. Import it under Data so emails can be found.')}catch(err){toast(err.message||'Could not read this file')}e.target.value=''};
+$('#lkCol').addEventListener('change',lkBuild);$('#lkShow').addEventListener('change',lkRender);
+$('#lkCopy').onclick=async()=>{const em=[...new Set(lk.docs.filter(d=>d.st==='ok'||d.st==='strong').map(d=>d.email))].join('; ');const t=$('#lkText');t.hidden=false;t.value=em;t.select();
+  try{await navigator.clipboard.writeText(em);toast(`${em.split('; ').length} emails copied. Paste them in the To line in Outlook.${lk.docs.some(d=>d.st==='check')?' Doctors marked Check are not included until you confirm them.':''}`)}catch(e){toast('Press Ctrl+C to copy the selected emails')}};
+$('#lkXls').onclick=()=>{const rows=[['Doctor','Times in file','Email','Status','Matched to'],...lk.docs.map(d=>[d.name,d.n,d.email,{ok:'Confirmed',strong:'Found',check:'Check',miss:'Missing'}[d.st],d.via||''])];
+  const ws=XLSX.utils.aoa_to_sheet(rows);ws['!cols']=[{wch:38},{wch:12},{wch:34},{wch:12},{wch:36}];const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'Doctors');
+  const miss=lk.docs.filter(d=>d.st==='miss');if(miss.length)XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet([['Doctor','Email (fill in)'],...miss.map(d=>[d.name,''])]),'Missing emails');downloadWB(wb,`Doctor-emails_${isoDay(new Date())}.xlsx`)};
 
 /* ---------- STANDARDS & QUICK FILLS ---------- */
 function defaultPresets(){const find=(...w)=>S.criteria.map((c,i)=>[c.toLowerCase(),i]).filter(([c])=>w.some(x=>c.includes(x))).map(x=>x[1]);
@@ -1408,7 +1466,7 @@ $('#tReset').onclick=()=>{const old=S.settings.tpl?{...S.settings.tpl}:null;if(S
   toast(`Original ${tplN==='1'?'1st email':'2nd reminder'} text restored`,()=>{S.settings.tpl=old;save();$('#tSubj').value=tpl('s'+tplN);$('#tBody').value=tpl('b'+tplN);previewTpl()})};
 
 /* ---------- WORKLIST (files to audit) ---------- */
-const QAL={reg:['registration_no','registration no','registration number','file no','file no.','file number','file_no','mrn','medical record no','medical record number','reg no','patient file no'],adm:['admission date','admission','admit date','admission_date'],dis:['discharge date','discharge','discharged','discharge_date'],los:['los','length of stay'],dept:['department_name','department','dept','department name'],ward:['ward name','ward','ward_name'],doc:['admittingdoctor','admitting doctor','doctorincharge','doctor in charge','doctor','physician','consultant','doctor name','attending'],to:['discharge to','discharge_to','discharge type','discharge status'],staff:['staff name','auditor','audited by']};
+const QAL={reg:['registration_no','registration no','registration number','file no','file no.','file number','file_no','mrn','medical record no','medical record number','reg no','patient file no'],adm:['admission date','admission','admit date','admission_date'],dis:['discharge date','discharge','discharged','discharge_date'],los:['los','length of stay'],dept:['department_name','department','dept','department name'],ward:['ward name','ward','ward_name'],doc:['admittingdoctor','admitting doctor','doctorincharge','doctor in charge','doctor','physician','consultant','doctor name','attending'],to:['discharge to','discharge_to','discharge type','discharge status'],staff:['staff name','auditor','audited by'],name:['patient / guradian name','patient / guardian name','patient name','patient','name']};
 function toIso(v){if(v==null||v==='')return '';if(v instanceof Date)return isoDay(v);
   if(typeof v==='number'){const p=XLSX.SSF.parse_date_code(v);return p?isoDay(new Date(p.y,p.m-1,p.d)):''}
   const s=String(v).trim();let m=s.match(/^(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{4})/);if(m)return isoDay(new Date(+m[3],+m[2]-1,+m[1]));
@@ -1418,13 +1476,13 @@ function parseWorklist(wb,sheet){
   const hi=A.slice(0,30).findIndex(r=>r&&r.some(v=>QAL.reg.includes(normC(v??''))));
   if(hi<0)throw new Error('Could not find a file number column (for example Registration_No or File No) in the first sheet.');
   const H=A[hi].map(v=>normC(v??''));const col=k=>{for(const al of QAL[k]){const i=H.indexOf(al);if(i>=0)return i}return -1};
-  const c={reg:col('reg'),adm:col('adm'),dis:col('dis'),los:col('los'),dept:col('dept'),ward:col('ward'),doc:col('doc'),to:col('to'),staff:col('staff')};
+  const c={reg:col('reg'),adm:col('adm'),dis:col('dis'),los:col('los'),dept:col('dept'),ward:col('ward'),doc:col('doc'),to:col('to'),staff:col('staff'),name:col('name')};
   const sub=A[hi+1]||[];const hasTAC=sub.some((v,i)=>String(v??'').trim()==='T'&&String(sub[i+1]??'').trim()==='A');
   const g=(X,k)=>c[k]>=0?X[c[k]]:null;const out=[];
   for(let r=hi+1;r<A.length;r++){const X=A[r];if(!X)continue;const no=String(g(X,'reg')??'').trim();if(!no||!/\d/.test(no))continue;
     const adm=toIso(g(X,'adm')),dis=toIso(g(X,'dis'));const lv=g(X,'los');
     out.push({id:uid(),fileNo:no,adm,dis,los:typeof lv==='number'?lv:(lv!=null&&lv!==''&&!isNaN(+lv)?+lv:(adm&&dis?Math.max(0,daysBetween(adm,dis)):null)),
-      dept:String(g(X,'dept')??'').trim(),ward:String(g(X,'ward')??'').trim(),doc:String(g(X,'doc')??'').replace(/\s+/g,' ').trim(),dischargeTo:String(g(X,'to')??'').trim(),auditor:String(g(X,'staff')??'').trim()})}
+      dept:String(g(X,'dept')??'').trim(),ward:String(g(X,'ward')??'').trim(),doc:String(g(X,'doc')??'').replace(/\s+/g,' ').trim(),dischargeTo:String(g(X,'to')??'').trim(),auditor:String(g(X,'staff')??'').trim(),name:String(g(X,'name')??'').replace(/\s+/g,' ').trim()})}
   if(!out.length)throw new Error('No rows with a file number were found.');
   return {rows:out,hasTAC,missing:['dis','doc','dept'].filter(k=>c[k]<0)}}
 async function importQueueFile(e,type){const file=e.target.files[0];if(!file)return;try{const wb=await readWB(file);
@@ -1477,10 +1535,10 @@ function renderQueue(){try{renderMix()}catch(e){}const nf=S.queue.filter(q=>(q.t
   ds.innerHTML='<option value="">All departments</option>'+depts.map(d=>`<option>${esc(d)}</option>`).join('');if(depts.includes(cd))ds.value=cd;
   const s=$('#qQ').value.trim().toLowerCase(),dp=ds.value,fr=$('#qFrom').value,to=$('#qTo').value;
   const sf=$('#qStill').value,isStill=q=>/still in hospital/i.test(q.dischargeTo||'');
-  const L=Q.filter(q=>(!dp||q.dept===dp)&&(sf!=='only'||isStill(q))&&(sf!=='hide'||!isStill(q))&&(!fr||(q.dis&&q.dis>=fr))&&(!to||(q.dis&&q.dis<=to))&&(!s||(q.fileNo+' '+q.doc+' '+q.dept).toLowerCase().includes(s))).sort((a,b)=>(a.dis||'9').localeCompare(b.dis||'9'));
+  const L=Q.filter(q=>(!dp||q.dept===dp)&&(sf!=='only'||isStill(q))&&(sf!=='hide'||!isStill(q))&&(!fr||(q.dis&&q.dis>=fr))&&(!to||(q.dis&&q.dis<=to))&&(!s||(q.fileNo+' '+(q.name||'')+' '+q.doc+' '+q.dept).toLowerCase().includes(s))).sort((a,b)=>(a.dis||'9').localeCompare(b.dis||'9'));
   $('#qLede').textContent=`${Q.length} file${Q.length===1?'':'s'} waiting for ${auMode==='quick'?'a quick':'a full'} audit, oldest discharge first. ${auMode==='quick'?'Press ✓ Complete to save straight away, or ✗ Not complete to add what is missing.':'Press Audit to fill the form below.'}`;
   qShown=L;[...qSel].forEach(id=>{if(!S.queue.some(q=>q.id===id))qSel.delete(id)});
-  $('#qRows').innerHTML=L.slice(0,300).map(q=>`<tr data-q="${q.id}" class="${form.queueId===q.id?'q-active':''}"><td><input type="checkbox" data-sel aria-label="Select file ${esc(q.fileNo)}" ${qSel.has(q.id)?'checked':''}></td><td class="mono">${esc(q.fileNo)}</td><td class="mono">${fmtS(q.adm)}</td><td class="mono">${fmtS(q.dis)}</td><td class="r mono">${q.los??'—'}</td><td>${esc(q.dept||'—')}${isStill(q)?'<div><span class="pill p-due" title="Discharge To: Patient still in hospital">Still in hospital</span></div>':''}</td><td>${esc(q.doc?docName(docKey(q.doc),q.doc):'—')}</td><td><div class="acts" style="min-width:0">${auMode==='quick'?'<button class="btn sm okb" type="button" data-qa="ok">✓ Complete</button><button class="btn sm danger" type="button" data-qa="no">✗ Not complete</button>':'<button class="btn sm primary" type="button" data-qa="start">Audit</button>'}<button class="btn sm" type="button" data-qa="rm">Remove</button></div></td></tr>`).join('')||'<tr><td colspan="8" class="muted">No files match.</td></tr>';updSel()}
+  $('#qRows').innerHTML=L.slice(0,300).map(q=>`<tr data-q="${q.id}" class="${form.queueId===q.id?'q-active':''}"><td><input type="checkbox" data-sel aria-label="Select file ${esc(q.fileNo)}" ${qSel.has(q.id)?'checked':''}></td><td><div class="mono">${esc(q.fileNo)}</div>${q.name?`<div class="small muted">${esc(q.name)}</div>`:''}</td><td class="mono">${fmtS(q.adm)}</td><td class="mono">${fmtS(q.dis)}</td><td class="r mono">${q.los??'—'}</td><td>${esc(q.dept||'—')}${isStill(q)?'<div><span class="pill p-due" title="Discharge To: Patient still in hospital">Still in hospital</span></div>':''}</td><td>${esc(q.doc?docName(docKey(q.doc),q.doc):'—')}</td><td><div class="acts" style="min-width:0">${auMode==='quick'?'<button class="btn sm okb" type="button" data-qa="ok">✓ Complete</button><button class="btn sm danger" type="button" data-qa="no">✗ Not complete</button>':'<button class="btn sm primary" type="button" data-qa="start">Audit</button>'}<button class="btn sm" type="button" data-qa="rm">Remove</button></div></td></tr>`).join('')||'<tr><td colspan="8" class="muted">No files match.</td></tr>';updSel()}
 function fillFromQueue(q){setTimeout(()=>{if(/still in hospital/i.test(q.dischargeTo||''))$('#auMsg').innerHTML='<span class="pill p-due">Still in hospital</span> <span>The system lists this patient as still in hospital. Audit now, or leave it in the worklist for later.</span>'},0);$('#aFile').value=q.fileNo;$('#aAdm').value=q.adm||'';$('#aDis').value=q.dis||'';$('#aLos').value=q.los??'';$('#aDept').value=q.dept||'';$('#aWard').value=q.ward||'';$('#aDoc').value=q.doc?docName(docKey(q.doc),q.doc):'';$('#aTo').value=q.dischargeTo||'';
   form.queueId=q.id;const e=doctorEmail(docKey(q.doc));emailLine($('#aDocLine'),e?.email,e?.verified,q.doc);$('#auTitle').textContent=`Auditing file ${q.fileNo}`}
 $('#qRows').addEventListener('click',e=>{const b=e.target.closest('button[data-qa]');if(!b)return;const q=S.queue.find(x=>x.id===b.closest('tr').dataset.q);if(!q)return;
