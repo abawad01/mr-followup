@@ -130,6 +130,8 @@ dialog::backdrop{background:rgb(10 20 24 / .45)}
 #sRes tr.sel td{background:var(--accent-soft)}#sRes .nowrap{white-space:nowrap}
 .stopt{display:grid;grid-template-columns:22px minmax(0,1fr);gap:8px;align-items:start;text-align:left;padding:6px 8px;border:1px solid var(--line);border-radius:8px;cursor:pointer}.stopt input{margin:3px 0 0;width:auto}.stopt:has(input:checked){border-color:var(--accent);background:var(--accent-soft)}
 #rvDlg{width:min(1000px,96vw);max-width:96vw;overflow-x:hidden}#rvDlg .dlg{max-width:none!important;width:auto!important;min-width:0}#rvDlg .tablewrap{overflow:auto}.rvb{min-width:34px}.rvb.on.ok{background:var(--ok);color:#fff;border-color:var(--ok)}.rvb.on.no{background:var(--late);color:#fff;border-color:var(--late)}#rvRows tr.no td{background:color-mix(in srgb,var(--late) 8%,transparent)}
+.kpihead{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:6px 16px;font-size:13px;margin:8px 0}.kpihead b{color:var(--ink)}.kpifx{display:inline-grid;text-align:center;vertical-align:middle}.kpifx span:first-child{border-bottom:1px solid var(--ink);padding:0 4px}
+#kpiTable td.low{color:var(--late);font-weight:600}#kpiTable td.man{background:color-mix(in srgb,var(--accent) 7%,transparent)}#kpiTable input{width:56px;padding:2px 4px;text-align:center}
 .dlbar{position:fixed;left:50%;transform:translateX(-50%);bottom:76px;z-index:60;background:var(--surface);border:1px solid var(--accent);border-radius:10px;box-shadow:0 6px 24px rgba(0,0,0,.18);padding:10px 12px;display:flex;gap:12px;align-items:center;flex-wrap:wrap;max-width:calc(100vw - 32px)}
 .kv{display:grid;grid-template-columns:max-content 1fr;gap:4px 14px;font-size:13px;margin:0}
 .kv dt{color:var(--muted)} .kv dd{margin:0;min-width:0;word-break:break-word}
@@ -283,6 +285,13 @@ input[type=range]{accent-color:var(--accent)}
         <label class="f">Auditor<input id="aAuditor"></label>
         <label class="f" style="align-content:end"><span class="row" style="color:var(--ink);font-size:13px"><input type="checkbox" id="aPending"> Audit not final (pending)</span></label>
       </div>
+      <div id="kpiBox" hidden style="border:1px solid var(--line);border-radius:8px;padding:10px 12px;display:grid;gap:8px">
+        <div class="row"><b class="small">VTE prophylaxis · surgical patient</b><span class="small muted">for the KPI report (Dashboard)</span></div>
+        <div class="row" style="gap:16px">
+          <label class="f" style="min-width:220px">Needs pharmacological prophylaxis?<select id="kVteNeed"><option value="">Not recorded</option><option value="1">Yes</option><option value="0">No (not indicated)</option></select></label>
+          <label class="f" style="min-width:200px">Received it?<select id="kVteGot"><option value="">Not recorded</option><option value="1">Yes</option><option value="0">No</option></select></label>
+        </div>
+      </div>
       <div id="quickOnly" hidden style="display:grid;gap:12px">
         <h3>Result</h3>
         <div class="result" role="radiogroup" aria-label="Result">
@@ -370,6 +379,21 @@ input[type=range]{accent-color:var(--accent)}
     </div></div>
     <div class="stats" id="dKpi"></div>
     <div class="stats" id="dKpi2"></div>
+    <div class="panel" id="kpiPanel">
+      <div class="row"><div><h3 style="margin:0">KPI · <span id="kpiName"></span></h3><div class="small muted" id="kpiSub"></div></div><span class="spacer"></span>
+        <label class="f" style="min-width:110px">Year<select id="kpiYear"></select></label>
+        <button class="btn sm" type="button" id="kpiEdit">Edit months</button><button class="btn sm" type="button" id="kpiSet">Settings</button><button class="btn sm" type="button" id="kpiCopy">Copy table for Word</button><button class="btn sm" type="button" id="kpiXls">Export to Excel</button></div>
+      <div class="kpihead" id="kpiHead"></div>
+      <div class="tablewrap" id="kpiTable"></div>
+      <div id="kpiChart" style="margin-top:8px"></div>
+      <div class="small muted" id="kpiNote"></div>
+      <div id="kpiSetBox" hidden style="border-top:1px solid var(--line);padding-top:10px;display:grid;gap:10px">
+        <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(180px,1fr))">
+          <label class="f">Indicator name<input id="kpiNm"></label><label class="f">Code<input id="kpiCode" class="mono"></label><label class="f">Department<input id="kpiDept"></label>
+          <label class="f">Target %<input id="kpiTarget" type="number" min="0" max="100"></label><label class="f">Trigger (below) %<input id="kpiTrig" type="number" min="0" max="100"></label></div>
+        <div><b class="small">Surgical departments</b> <span class="small muted">(patients counted in this KPI; the audit form asks the two VTE questions only for these)</span><div class="chips" id="kpiDepts" style="margin-top:6px"></div></div>
+      </div>
+    </div>
     <div class="panel" id="dByAudP" hidden><h3>By auditor</h3><div class="tablewrap" id="dByAud"></div></div>
     <div class="cols2">
       <div class="panel"><h3>File status</h3><div id="dStatus"></div></div>
@@ -983,8 +1007,8 @@ function setMode(m,keep){auMode=m==='quick'?'quick':'full';S.settings.auMode=auM
 document.querySelectorAll('.seg button').forEach(b=>b.onclick=()=>{if(b.dataset.mode!==auMode){setMode(b.dataset.mode);$('#auMsg').textContent=''}});
 function renderResult(){['complete','incomplete'].forEach(r=>$('#r'+(r==='complete'?'Complete':'Incomplete')).setAttribute('aria-checked',form.result===r));updCount()}
 $('#quickOnly').addEventListener('click',e=>{const b=e.target.closest('[data-r]');if(!b)return;form.result=form.result===b.dataset.r?null:b.dataset.r;if(form.result)$('#aPending').checked=false;renderResult();if(form.result==='incomplete')$('#aNote').focus()});
-function resetAudit(){form={id:null,sc:blankSc(),result:null};setTimeout(renderBatch,0);$('#auForm').reset();$('#aDate').value=isoDay(new Date());$('#aAuditor').value=S.settings.auditor||'';$('#aDocLine').textContent='';$('#auTitle').textContent=auMode==='quick'?'New quick audit':'New audit';$('#auSave').textContent='Save audit';renderCrits();renderResult()}
-function editAudit(a){setTimeout(()=>{if(isQuick(a)&&a.pending&&!form.result)$('#auMsg').innerHTML='<span style="color:var(--warn)">This file is pending. Choose Complete or Not complete, then save.</span>'},0);if(typeOf(a)!==auMode)setMode(typeOf(a),true);form={id:a.id,sc:isQuick(a)?blankSc():(a.sc+('?'.repeat(Math.max(0,S.criteria.length*3-a.sc.length)))).split(''),result:a.result||null};$('#aFile').value=a.fileNo;$('#aAdm').value=a.adm||'';$('#aDis').value=a.dis||'';$('#aLos').value=a.los??'';$('#aDept').value=a.dept;$('#aWard').value=a.ward;$('#aDoc').value=a.doc;$('#aTo').value=a.dischargeTo||'';$('#aDate').value=a.auditDate||'';$('#aAuditor').value=a.auditor||'';$('#aPending').checked=!!a.pending;$('#aNote').value=a.note||'';renderResult();
+function resetAudit(){setTimeout(kpiVis,0);form={id:null,sc:blankSc(),result:null};setTimeout(renderBatch,0);$('#auForm').reset();$('#aDate').value=isoDay(new Date());$('#aAuditor').value=S.settings.auditor||'';$('#aDocLine').textContent='';$('#auTitle').textContent=auMode==='quick'?'New quick audit':'New audit';$('#auSave').textContent='Save audit';renderCrits();renderResult()}
+function editAudit(a){setTimeout(()=>{if(isQuick(a)&&a.pending&&!form.result)$('#auMsg').innerHTML='<span style="color:var(--warn)">This file is pending. Choose Complete or Not complete, then save.</span>'},0);if(typeOf(a)!==auMode)setMode(typeOf(a),true);form={id:a.id,sc:isQuick(a)?blankSc():(a.sc+('?'.repeat(Math.max(0,S.criteria.length*3-a.sc.length)))).split(''),result:a.result||null};$('#aFile').value=a.fileNo;$('#aAdm').value=a.adm||'';$('#aDis').value=a.dis||'';$('#aLos').value=a.los??'';$('#aDept').value=a.dept;$('#aWard').value=a.ward;$('#aDoc').value=a.doc;$('#aTo').value=a.dischargeTo||'';$('#aDate').value=a.auditDate||'';$('#aAuditor').value=a.auditor||'';$('#aPending').checked=!!a.pending;$('#aNote').value=a.note||'';$('#kVteNeed').value=a.vte&&a.vte.need!=null?String(a.vte.need):'';$('#kVteGot').value=a.vte&&a.vte.got!=null?String(a.vte.got):'';kpiVis();renderResult();
   const e=doctorEmail(docKey(a.doc));emailLine($('#aDocLine'),e?.email,e?.verified,a.doc);$('#auTitle').textContent=`Editing file ${a.fileNo}`;$('#auSave').textContent='Save changes';$('#auMsg').textContent='';renderCrits();$('#auForm').scrollIntoView({behavior:'smooth',block:'start'})}
 $('#auCancel').onclick=()=>{resetAudit();$('#auMsg').textContent=''};
 $('#auForm').addEventListener('submit',e=>{e.preventDefault();if(form.batch){saveBatch();return}
@@ -1002,6 +1026,7 @@ $('#auForm').addEventListener('submit',e=>{e.preventDefault();if(form.batch){sav
   let a=form.id?S.audits.find(x=>x.id===form.id):null;if(!a){a={id:uid(),src:'site'};S.audits.push(a)}
   Object.assign(a,{type:auMode,fileNo,adm,dis,los:adm?Math.max(0,daysBetween(adm,dis)):null,dept,ward:$('#aWard').value.trim(),doc,dischargeTo:$('#aTo').value.trim(),auditor:$('#aAuditor').value.trim(),auditDate:$('#aDate').value,pending:pend},
     quick?{sc:'',result:form.result||'',note:$('#aNote').value.trim()}:{sc:form.sc.join('')});
+  {const n=$('#kVteNeed').value,g=$('#kVteGot').value;if(isSurg(dept)&&(n||g))a.vte={need:n===''?null:+n,got:g===''?null:+g};else delete a.vte}
   rebuildDoctors();const defs=defsOf(a);let f=S.fu.find(x=>x.auditId===a.id);const k=docKey(doc);let note='';
   const needs=quick?(a.result==='incomplete'&&!pend):(defs.length&&!pend);
   if(needs){
@@ -1138,7 +1163,7 @@ function showFile(r,quiet){sSel=r;const el=$('#sDetail');el.hidden=false;const a
       ${kv('Department',esc(r.dept||'—'))}${kv('Ward',esc(r.ward||'—'))}${kv('Discharge to',esc(r.to||'—'))}</dl>
       <dl class="kv">${kv('Responsible doctor',esc(r.dn||'—'))}${kv('Doctor email',e?`<span class="mono">${esc(e.email)}</span> ${e.verified?'<span class="pill p-ver">confirmed</span>':'<span class="pill p-check">unconfirmed</span>'}`:'—')}
       ${kv('Audit type',r.type==='quick'?'Quick audit':'Full audit')}${kv('Status',r.kind==='audit'?esc(statusLabel(a))+(a.ov?' <span class="pill p-ver">set by you</span>':''):esc(r.status))}${r.kind==='audit'&&a.hist&&a.hist.length?kv('Status history',histHtml(a)):''}${r.kind==='audit'?kv('Audited by',esc(a.auditor||'—'))+kv('Audit date',a.auditDate?fmtD(a.auditDate):'—'):''}
-      ${kv('Follow-up',fuTxt)}${kv('Deficiencies',defs||'—')}${(a&&a.note)||(f&&f.note)?kv('Note',esc((a&&a.note)||f.note)):''}</dl></div>
+      ${r.kind==='audit'&&a.vte?kv('VTE prophylaxis',`needed: ${a.vte.need==null?'—':a.vte.need?'yes':'no'} · received: ${a.vte.got==null?'—':a.vte.got?'yes':'no'}`):''}${kv('Follow-up',fuTxt)}${kv('Deficiencies',defs||'—')}${(a&&a.note)||(f&&f.note)?kv('Note',esc((a&&a.note)||f.note)):''}</dl></div>
     ${others.length?`<p class="small" style="margin:10px 0 0"><b>Other admissions or records for this file:</b> ${others.map((x,i)=>`<a href="#" data-o="${i}">${fmtD(x.dis)} · ${esc(x.status)}</a>`).join(' · ')}</p>`:''}`;
   $('#sClose').onclick=()=>{sSel=null;el.hidden=true;runSearch()};if($('#sStat'))$('#sStat').onclick=()=>openStatus([a]);
   $('#sCopy').onclick=async()=>{const t=el.innerText.replace(/\n{2,}/g,'\n').replace(/^(Open audit|Audit this file|Copy details|Close)\n?/gm,'');try{await navigator.clipboard.writeText(t);toast('Details copied')}catch(err){toast('Could not copy')}};
@@ -1303,6 +1328,65 @@ function renderTeam(){const on=!!TEAM;$('#teamOff').hidden=on;$('#teamOn').hidde
   $('#tmInfo').innerHTML=Object.entries(per).map(([n,c])=>`${esc(n)} <b>${c}</b>`).join(' · ')+` files`;
   $('#tmNote').textContent=`From ${TEAM.files.map(f=>f.name).join(', ')}.${both?` ${both} file${both===1?'':'s'} audited by both of you: counted once, your audit kept.`:''} Pick the month in Period. Closing the report removes only these colleague files from the dashboard.`}
 
+
+/* ---------- KPI: VTE PROPHYLAXIS FOR SURGICAL PATIENTS ---------- */
+const MON=['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];
+function kpiCfg(){if(!S.kpi)S.kpi={};if(!S.kpi.vte)S.kpi.vte={name:'VTE Prophylaxis for Surgical Patients',code:'FCH-HW-KPI',dept:'Medical Record',target:100,trigger:95,surg:null,
+  manual:{'2026-01':{n:100,d:100},'2026-02':{n:100,d:100},'2026-03':{n:26,d:26},'2026-04':{n:100,d:100},'2026-05':{n:100,d:100},'2026-06':{n:98,d:98},'2026-07':{n:100,d:100},'2026-08':{n:132,d:132},'2026-09':{n:126,d:126}}};return S.kpi.vte}
+const allDepts=()=>[...new Set(dashAudits().map(a=>a.dept).concat(S.queue.map(q=>q.dept)).filter(Boolean))].sort();
+const surgGuess=d=>/surg|ortho|\bent\b|\burolog|\bobs|gyn|plastic|vascular|ophthal/i.test(d);
+function surgList(){const c=kpiCfg();return c.surg||allDepts().filter(surgGuess)}
+const isSurg=d=>!!d&&surgList().some(x=>x.toUpperCase()===String(d).trim().toUpperCase());
+function kpiVis(){const box=$('#kpiBox');if(box)box.hidden=!isSurg($('#aDept').value)}
+$('#aDept').addEventListener('input',kpiVis);$('#aDept').addEventListener('change',kpiVis);
+function kpiMonths(y){const c=kpiCfg();const L=dashAudits().filter(a=>isSurg(a.dept)&&(a.dis||'').startsWith(y));
+  return MON.map((m,i)=>{const k=`${y}-${String(i+1).padStart(2,'0')}`,M=L.filter(a=>a.dis.startsWith(k)),need=M.filter(a=>a.vte&&a.vte.need===1),
+    auto={n:need.filter(a=>a.vte.got===1).length,d:need.length,surg:M.length,unrec:M.filter(a=>!a.vte||a.vte.need==null||(a.vte.need===1&&a.vte.got==null)).length},man=c.manual[k];
+    const use=man&&man.d!==''&&man.d!=null?{n:+man.n,d:+man.d,src:'manual'}:auto.d?{n:auto.n,d:auto.d,src:'audits'}:null;return {k,m,auto,man,use,r:use&&use.d?use.n/use.d*100:null}})}
+let kpiEditing=false;
+function renderKpi(){const c=kpiCfg();const ys=[...new Set([String(new Date().getFullYear()),...Object.keys(c.manual).map(k=>k.slice(0,4)),...dashAudits().map(a=>(a.dis||'').slice(0,4)).filter(Boolean)])].sort().reverse();
+  const ysel=$('#kpiYear'),cy=ysel.value||String(new Date().getFullYear());ysel.innerHTML=ys.map(y=>`<option>${y}</option>`).join('');ysel.value=ys.includes(cy)?cy:ys[0];const y=ysel.value;
+  const R=kpiMonths(y),done=R.filter(r=>r.r!=null),mean=done.length?done.reduce((s,r)=>s+r.r,0)/done.length:null,sn=done.reduce((s,r)=>s+r.use.n,0),sd=done.reduce((s,r)=>s+r.use.d,0);
+  $('#kpiName').textContent=c.name;$('#kpiSub').textContent=`${c.code} · Department: ${c.dept} · ${y}`;
+  $('#kpiHead').innerHTML=`<div>Target: <b>${c.target}%</b></div><div>Trigger: <b>&lt;${c.trigger}%</b></div><div>KPI type: <b>Process &amp; Outcome</b></div>
+    <div style="grid-column:1/-1">Formula: <span class="kpifx"><span>Total # of surgical patients who received VTE pharmacological prophylaxis</span><span>Total # of surgical patients who need pharmacological prophylaxis</span></span> × 100</div>`;
+  const f1=v=>v==null?'':(Math.round(v*10)/10)+'%';
+  const cell=(r,key)=>{if(kpiEditing)return `<td class="r"><input class="mono" data-k="${r.k}" data-f="${key}" value="${r.man&&r.man[key]!=null?r.man[key]:''}" placeholder="${r.auto.d?r.auto[key]:''}"></td>`;return `<td class="r mono${r.use&&r.use.src==='manual'?' man':''}">${r.use?r.use[key]:''}</td>`};
+  $('#kpiTable').innerHTML=`<table><thead><tr><th>Month</th>${R.map(r=>`<th class="r">${r.m}</th>`).join('')}<th class="r">Year</th></tr></thead><tbody>
+    <tr><td>Numerator</td>${R.map(r=>cell(r,'n')).join('')}<td class="r mono">${sn||''}</td></tr>
+    <tr><td>Denominator</td>${R.map(r=>cell(r,'d')).join('')}<td class="r mono">${sd||''}</td></tr>
+    <tr><td><b>Result</b></td>${R.map(r=>`<td class="r mono ${r.r!=null&&r.r<c.trigger?'low':''}"><b>${f1(r.r)}</b></td>`).join('')}<td class="r mono"><b>${f1(sd?sn/sd*100:null)}</b></td></tr>
+    <tr><td class="small muted">Source</td>${R.map(r=>`<td class="r small muted" title="${r.auto.surg} surgical files audited${r.auto.unrec?`, ${r.auto.unrec} without VTE answers`:''}">${r.use?(r.use.src==='manual'?'typed':'audits'):''}${r.auto.unrec?` <span style="color:var(--warn)">${r.auto.unrec}?</span>`:''}</td>`).join('')}<td></td></tr>
+  </tbody></table>`;
+  $('#kpiNote').innerHTML=`Overall average (mean of monthly results): <b>${f1(mean)}</b> · whole year (all patients together): <b>${f1(sd?sn/sd*100:null)}</b>. Shaded = typed by you; otherwise counted from your audits (surgical departments, by discharge month). <span style="color:var(--warn)">n?</span> = surgical files audited without the VTE answers.${kpiEditing?' <b>Type numbers to replace a month; leave both empty to count from audits.</b>':''}`;
+  // chart
+  const W=760,H=200,pl=34,pr=10,pt=26,pb=24,vals=done.map(r=>r.r),lo=Math.max(0,Math.floor((Math.min(c.trigger-5,...vals,c.target-10)-6)/5)*5),hi=Math.max(100,c.target)+10,x=i=>pl+(W-pl-pr)*(i+.5)/12,yy=v=>pt+(H-pt-pb)*(1-(v-lo)/(hi-lo));
+  const pts=R.map((r,i)=>r.r!=null?[x(i),yy(r.r),r]:null).filter(Boolean);
+  $('#kpiChart').innerHTML=`<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;display:block;font-family:inherit;color:var(--ink)" role="img" aria-label="${esc(c.name)} ${y}"><text x="${W/2}" y="14" text-anchor="middle" font-size="13" font-weight="600" fill="currentColor">${esc(c.name)} ${y}</text>
+    ${[lo,(lo+hi)/2,hi].map(v=>`<line x1="${pl}" x2="${W-pr}" y1="${yy(v)}" y2="${yy(v)}" stroke="var(--line)"/><text x="${pl-4}" y="${yy(v)+4}" text-anchor="end" font-size="10" fill="currentColor" opacity=".6">${Math.round(v)}</text>`).join('')}
+    <line x1="${pl}" x2="${W-pr}" y1="${yy(c.target)}" y2="${yy(c.target)}" stroke="#e8743b" stroke-width="2.5"/><line x1="${pl}" x2="${W-pr}" y1="${yy(c.trigger)}" y2="${yy(c.trigger)}" stroke="var(--late)" stroke-width="1" stroke-dasharray="4 4"/><text x="${W-pr}" y="${yy(c.trigger)-3}" text-anchor="end" font-size="9" fill="var(--late)">trigger &lt;${c.trigger}%</text>
+    ${pts.length>1?`<polyline fill="none" stroke="#2f4f9e" stroke-width="2" points="${pts.map(p=>p[0]+','+p[1]).join(' ')}"/>`:''}
+    ${pts.map(([px,py,r])=>`<circle cx="${px}" cy="${py}" r="13" fill="${r.r<c.trigger?'var(--late)':'#2f4f9e'}"/><text x="${px}" y="${py+3.5}" text-anchor="middle" font-size="10" font-weight="700" fill="#fff">${Math.round(r.r)}</text>`).join('')}
+    ${R.map((r,i)=>`<text x="${x(i)}" y="${H-6}" text-anchor="middle" font-size="10" fill="currentColor" opacity=".7">${r.m}</text>`).join('')}</svg>`;
+  $('#kpiEdit').textContent=kpiEditing?'Done':'Edit months';
+  if(!$('#kpiSetBox').hidden){$('#kpiNm').value=c.name;$('#kpiCode').value=c.code;$('#kpiDept').value=c.dept;$('#kpiTarget').value=c.target;$('#kpiTrig').value=c.trigger;
+    const sl=surgList();$('#kpiDepts').innerHTML=allDepts().map(d=>`<label class="btn sm" style="gap:6px"><input type="checkbox" data-d="${esc(d)}" ${sl.some(x=>x.toUpperCase()===d.toUpperCase())?'checked':''}> ${esc(d)}</label>`).join('')||'<span class="small muted">Departments appear after you import or audit files.</span>'}
+  return {R,c,y,mean,sn,sd}}
+$('#kpiYear').addEventListener('change',renderKpi);
+$('#kpiEdit').onclick=()=>{kpiEditing=!kpiEditing;renderKpi()};
+$('#kpiTable').addEventListener('change',e=>{const i=e.target.closest('input[data-k]');if(!i)return;const c=kpiCfg(),k=i.dataset.k,m=c.manual[k]||{n:'',d:''};m[i.dataset.f]=i.value===''?'':+i.value;
+  if(m.n===''&&m.d==='')delete c.manual[k];else c.manual[k]=m;save();renderKpi()});
+$('#kpiSet').onclick=()=>{$('#kpiSetBox').hidden=!$('#kpiSetBox').hidden;renderKpi()};
+$('#kpiSetBox').addEventListener('change',e=>{const c=kpiCfg();if(e.target.dataset.d!=null){c.surg=[...$('#kpiDepts').querySelectorAll('input:checked')].map(x=>x.dataset.d)}
+  else{c.name=$('#kpiNm').value.trim()||c.name;c.code=$('#kpiCode').value.trim();c.dept=$('#kpiDept').value.trim();c.target=+$('#kpiTarget').value||100;c.trigger=+$('#kpiTrig').value||95}save();renderKpi();kpiVis()});
+$('#kpiCopy').onclick=async()=>{const k=renderKpi(),f=v=>v==null?'':Math.round(v)+'%';
+  const t=[['Month',...MON],['Numerator',...k.R.map(r=>r.use?r.use.n:'')],['Denominator',...k.R.map(r=>r.use?r.use.d:'')],['Result',...k.R.map(r=>f(r.r))],['Overall Average',f(k.mean)]].map(r=>r.join('\t')).join('\n');
+  try{await navigator.clipboard.writeText(t);toast('Table copied: paste it into the Word report')}catch(e){toast('Could not copy')}};
+$('#kpiXls').onclick=()=>{const k=renderKpi(),c=k.c;const rows=[[c.name],[`Code: ${c.code}`,'',`Department: ${c.dept}`],[`Target: ${c.target}%`,'',`Trigger: <${c.trigger}%`],['Formula: surgical patients who received VTE pharmacological prophylaxis ÷ surgical patients who need pharmacological prophylaxis × 100'],[],
+  ['Month',...MON,'Year'],['Numerator',...k.R.map(r=>r.use?r.use.n:''),k.sn],['Denominator',...k.R.map(r=>r.use?r.use.d:''),k.sd],['Result',...k.R.map(r=>r.r!=null?r.r/100:''),k.sd?k.sn/k.sd:''],['Source',...k.R.map(r=>r.use?(r.use.src==='manual'?'typed':'audits'):'')],[],['Overall Average (mean of months)',k.mean!=null?k.mean/100:'']];
+  const ws=XLSX.utils.aoa_to_sheet(rows);for(let i=1;i<=14;i++){const a=XLSX.utils.encode_cell({r:8,c:i});if(ws[a]&&typeof ws[a].v==='number')ws[a].z='0.0%'}if(ws.B12)ws.B12.z='0.0%';ws['!cols']=[{wch:30},...MON.map(()=>({wch:7})),{wch:8}];
+  const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'KPI');downloadWB(wb,`KPI_VTE_${k.y}.xlsx`)};
+
 /* ---------- EXCEL TEMPLATES (match MR.xlsx and AUG2222.xlsx exactly) ---------- */
 const CRIT_RAW=["3.6.sufficient information of  the patient and his care provider", "   4.1.1.Patient full names (Three Names)     ", "3.21. multidisciplinary team", "4.3.16.patient EDU BY Physician", "4.3.16.patient EDU BY Nurses", "4.3.18. Transfer sumary from unit to unit", "Patient discharge instruction", "Multidisiplinary care plan", "Patient discharge planning", "4.3.3 DOCTOR Assessment ", "4.3.5. Progress Note", "4.3.6. The plan of care", "4.3.17. Transfer to Another facility", "4.3.10. Operative notes", "Health educator", "Dietition", "Physiotherapist", "\r\nSocial Worker", "4.3.24. VTE", "4.3.11.  pre Anesthesia ", "4.3.21. Discharge Summary", "4.3.22. Death Summary", "4.3.2.PT history and Physical Examination", "4.3.4. Physician Orders", "4.3.23.  Laboratory", "4.3.23. Radiology ", "4.3.7.Consultation", "4.2.1.Upload all forms&No grammatical/spelling errors", "4.3.25. Histopathology reports", "4.3.13. Nursing pre-operative Checklist", "4.3.9. General Consent and Informed Consent", "4.3.12. Nursing assessment", "4.2.2.Medical Record entries o be completed and dated ", "4.2.3. Abbreviations and Symbols", "4.2.5.Corrections or Overwriting of Errors.", "4.3.1.1.Documentation by Medical staff", "4.3.1.2 Documentation by Nursing Staff", "4.3.14. When additional or specialized assessments are required", "4.3.15. Verbal and Telephone Orders", "4.2.4. Late entries"];
 const DT_FMT='dd/mm/yyyy\\ h:mm\\ AM/PM';
@@ -1439,7 +1523,7 @@ function samplePct(){const v=Math.round(+$('#dPct').value);return v>=1&&v<=100?v
 const sampleLabel=d=>d.pc<100?`Sample ${d.pc}% (${d.total} of ${d.popN} files)`:'All files (100%)';
 function typeLabel(){return {full:'Full audit',quick:'Quick audit','':'Full + quick audits'}[$('#dType').value]}
 function periodLabel(){const s=$('#dPeriod');return s.options[s.selectedIndex]?.text||'All periods'}
-function renderDash(){try{renderTeam()}catch(e){}dashFilters();const d=computeDash();lastDash=d;
+function renderDash(){try{renderTeam()}catch(e){}try{renderKpi()}catch(e){console.error(e)}dashFilters();const d=computeDash();lastDash=d;
   {const P=$('#dByAudP');P.hidden=!d.byAud;if(d.byAud){const m=Math.max(1,...d.byAud.map(r=>r.files));$('#dByAud').innerHTML=`<table><thead><tr><th>Auditor</th><th class="r">Files</th><th class="r">Full</th><th class="r">Quick</th><th class="r">Complete</th><th class="r">Incomplete</th><th class="r">Delinquent</th><th class="r">Pending</th><th class="r">Fixed after follow-up</th><th class="r">Completion</th><th></th></tr></thead><tbody>${d.byAud.map(r=>`<tr><td>${esc(r.n)}</td><td class="r mono">${r.files}</td><td class="r mono">${r.full}</td><td class="r mono">${r.quick}</td><td class="r mono">${r.complete}</td><td class="r mono">${r.inc}</td><td class="r mono">${r.late}</td><td class="r mono">${r.pending}</td><td class="r mono">${r.fixed}</td><td class="r mono">${pctS(r.complete,r.files)}</td><td style="width:110px">${bar(r.files,m)}</td></tr>`).join('')}</tbody></table>`}}
   $('#dLede').innerHTML=`${esc(typeLabel())} · ${esc(periodLabel())} · ${esc(d.dp||'all departments')} · ${esc(d.dk?docName(d.dk):'all doctors')}${d.ag?' · <b>'+esc(d.ag.label)+'</b>':''}${TEAM?` · <b style="color:var(--accent)">team report: ${esc(d.au||'all auditors')}</b>`:''} · ${d.ovN?`<span title="Statuses you changed by hand">${d.ovN} status${d.ovN===1?'':'es'} set by hand ✎</span> · `:''}${d.pc<100?`<b style="color:var(--accent)">random sample ${d.pc}%: ${d.total} of ${d.popN} files</b>`:`${d.total} files`}`;
   const tile=(n,l,s,c='')=>`<div class="stat ${c}"><div class="n">${n}</div><div class="l">${l}</div>${s?`<div class="s">${s}</div>`:''}</div>`;
@@ -1992,7 +2076,7 @@ function renderQueue(){try{renderMix()}catch(e){}const nf=S.queue.filter(q=>(q.t
   $('#qLede').textContent=`${Q.length} file${Q.length===1?'':'s'} waiting for ${auMode==='quick'?'a quick':'a full'} audit, oldest discharge first. ${auMode==='quick'?'Press ✓ Complete to save straight away, or ✗ Not complete to add what is missing.':'Press Audit to fill the form below.'}`;
   qShown=L;[...qSel].forEach(id=>{if(!S.queue.some(q=>q.id===id))qSel.delete(id)});
   $('#qRows').innerHTML=L.slice(0,300).map(q=>`<tr data-q="${q.id}" class="${form.queueId===q.id?'q-active':''}"><td><input type="checkbox" data-sel aria-label="Select file ${esc(q.fileNo)}" ${qSel.has(q.id)?'checked':''}></td><td><div class="mono">${esc(q.fileNo)}</div>${q.name?`<div class="small muted">${esc(q.name)}</div>`:''}</td><td class="mono">${fmtS(q.adm)}</td><td class="mono">${fmtS(q.dis)}</td><td class="r mono">${q.los??'—'}</td><td>${esc(q.dept||'—')}${isStill(q)?'<div><span class="pill p-due" title="Discharge To: Patient still in hospital">Still in hospital</span></div>':''}</td><td>${esc(q.doc?docName(docKey(q.doc),q.doc):'—')}</td><td><div class="acts" style="min-width:0">${auMode==='quick'?'<button class="btn sm okb" type="button" data-qa="ok">✓ Complete</button><button class="btn sm danger" type="button" data-qa="no">✗ Not complete</button>':'<button class="btn sm primary" type="button" data-qa="start">Audit</button>'}<button class="btn sm" type="button" data-qa="rm">Remove</button></div></td></tr>`).join('')||'<tr><td colspan="8" class="muted">No files match.</td></tr>';updSel()}
-function fillFromQueue(q){setTimeout(()=>{if(/still in hospital/i.test(q.dischargeTo||''))$('#auMsg').innerHTML='<span class="pill p-due">Still in hospital</span> <span>The system lists this patient as still in hospital. Audit now, or leave it in the worklist for later.</span>'},0);$('#aFile').value=q.fileNo;$('#aAdm').value=q.adm||'';$('#aDis').value=q.dis||'';$('#aLos').value=q.los??'';$('#aDept').value=q.dept||'';$('#aWard').value=q.ward||'';$('#aDoc').value=q.doc?docName(docKey(q.doc),q.doc):'';$('#aTo').value=q.dischargeTo||'';
+function fillFromQueue(q){setTimeout(kpiVis,0);setTimeout(()=>{if(/still in hospital/i.test(q.dischargeTo||''))$('#auMsg').innerHTML='<span class="pill p-due">Still in hospital</span> <span>The system lists this patient as still in hospital. Audit now, or leave it in the worklist for later.</span>'},0);$('#aFile').value=q.fileNo;$('#aAdm').value=q.adm||'';$('#aDis').value=q.dis||'';$('#aLos').value=q.los??'';$('#aDept').value=q.dept||'';$('#aWard').value=q.ward||'';$('#aDoc').value=q.doc?docName(docKey(q.doc),q.doc):'';$('#aTo').value=q.dischargeTo||'';
   form.queueId=q.id;const e=doctorEmail(docKey(q.doc));emailLine($('#aDocLine'),e?.email,e?.verified,q.doc);$('#auTitle').textContent=`Auditing file ${q.fileNo}`}
 $('#qRows').addEventListener('click',e=>{const b=e.target.closest('button[data-qa]');if(!b)return;const q=S.queue.find(x=>x.id===b.closest('tr').dataset.q);if(!q)return;
   if(b.dataset.qa==='ok'){leaveSample();const a={id:uid(),type:'quick',name:q.name||'',age:q.age??'',admT:q.admT??null,disT:q.disT??null,fileNo:q.fileNo,adm:q.adm,dis:q.dis,los:q.los,dept:q.dept,ward:q.ward,doc:q.doc,dischargeTo:q.dischargeTo,auditor:S.settings.auditor||'',auditDate:isoDay(new Date()),sc:'',result:'complete',note:'',pending:false,src:'site'};
