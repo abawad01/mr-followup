@@ -2279,7 +2279,8 @@ function vCalc(){
     else if(m.denAuto){den=m.denAuto;src='full Grid loaded'}
     else if(VSNAP[M]){den=VSNAP[M].den;src=VSNAP[M].src}
     const denOk=!!(fullMn&&fullMn<=vPrevStart(M)&&fullMx>=vMonEnd(M)),reOk=!!(mx&&mx>=vAdd(vMonEnd(M),90)),vteN=checks.filter(c=>c.M===M||(c.x.dc||c.x.ad).slice(0,7)===M).length;
-    return {M,den,src,denAuto:m.denAuto,denList:m.denList,a:m.a,b:m.b,aList:m.aList,bList:m.bList,denOk,reOk,vteN}});
+    const covered=src!=='full Grid loaded'||(fullMx>=vMonEnd(M));
+    return {M,den,src,denAuto:m.denAuto,denList:m.denList,a:m.a,b:m.b,aList:m.aList,bList:m.bList,denOk,reOk,vteN,covered}});
   const cen={};for(const o of all){const vc=o.c.filter(vVte);if(!vc.length)continue;const M=o.ad.slice(0,7);const z=cen[M]||(cen[M]={g:{PE:new Set(),DVT:new Set(),I82:new Set(),'I80.1/.8':new Set()},p:new Set(),v:0,t:{ER:new Set(),OPD:new Set(),IP:new Set(),other:new Set()}});
     z.v++;z.p.add(o.r);vc.forEach(c=>z.g[vGrp(c)].add(o.r));(z.t[o.t]||z.t.other).add(o.r)}
   return {rows,checks,cen,mn,mx,ipN:ip.length}}
@@ -2288,9 +2289,9 @@ function vStatus(r){const n=r.a+r.b,rt=vRate(n,r.den);if(rt==null)return 'No den
 function renderVte(){if(!$('#view-vte'))return;$('#vWide').checked=!!V.opt.wide;$('#vEr').checked=V.opt.erProxy!==false;
   const R=vCalc();
   $('#vCov').innerHTML=V.files.length?`Loaded: ${V.files.map(f=>`<b>${esc(f.name)}</b> <span class="muted">(${f.kind==='vte'?'VTE visits file':'full Grid'} · ${fmtD(f.from)}–${fmtD(f.to)})</span>`).join(' · ')}`:'Nothing loaded yet. Load this month\'s VTE file (and the full Grid if you have it).';
-  const last=R.rows.find(r=>r.den);const num=last?last.a+last.b:0,rt=last?vRate(num,last.den):null;
+  const pickM=$('#vCaseM').value;const last=(pickM&&R.rows.find(r=>r.M===pickM&&r.den))||R.rows.find(r=>r.den&&r.covered)||R.rows.find(r=>r.den);const num=last?last.a+last.b:0,rt=last?vRate(num,last.den):null;
   $('#vStats').innerHTML=last?`<div class="stat ${num?'late':'ok'}"><div class="l">${esc(vMonLbl(last.M))} · rate</div><div class="n">${rt==null?'—':rt.toFixed(1)}</div><div class="s">per 1000 discharges · ${(rt/10).toFixed(2)}%</div></div>
-    <div class="stat"><div class="l">Denominator</div><div class="n">${last.den}</div><div class="s">${esc(last.src)}</div></div>
+    <div class="stat"><div class="l">Denominator</div><div class="n">${last.den}</div><div class="s">${esc(last.src)}${last.src==='full Grid loaded'&&!last.denOk?' · patients admitted the month before are missing':''}</div></div>
     <div class="stat"><div class="l">A · secondary VTE</div><div class="n">${last.a}</div><div class="s">in the same stay</div></div>
     <div class="stat"><div class="l">B · VTE readmission</div><div class="n">${last.b}</div><div class="s">${last.reOk?'90 days covered':'provisional: 90 days not covered yet'}</div></div>`:'';
   $('#vMon').innerHTML=`<table><thead><tr><th>Discharge month</th><th class="r">Denominator</th><th>Type the denominator</th><th class="r">A</th><th class="r">B</th><th class="r">Rate /1000</th><th class="r">%</th><th>Result</th><th>Data</th></tr></thead><tbody>${R.rows.map(r=>{
@@ -2299,7 +2300,7 @@ function renderVte(){if(!$('#view-vte'))return;$('#vWide').checked=!!V.opt.wide;
     return `<tr><td class="nowrap"><b>${esc(vMonLbl(r.M))}</b></td><td class="r mono">${r.den??'—'}<div class="small muted" style="font-family:var(--f-body)">${esc(r.src||'')}</div></td>
       <td><input class="mono" type="number" min="0" data-vden="${r.M}" value="${V.den[r.M]??''}" placeholder="${r.denAuto||(VSNAP[r.M]?VSNAP[r.M].den:'')}" style="width:90px;padding:3px 6px"></td>
       <td class="r mono">${r.a}</td><td class="r mono">${r.b}</td><td class="r mono">${rt==null?'—':rt.toFixed(1)}</td><td class="r mono">${pc==null?'—':pc.toFixed(2)+'%'}</td><td>${tr}</td>
-      <td class="small">${r.src==='full Grid loaded'?(r.denOk?'<span class="pill p-ver">Denominator complete</span>':'<span class="pill p-check">Load the month before too</span>'):''} ${r.reOk?'<span class="pill p-ver">90 days covered</span>':'<span class="pill p-check">B provisional</span>'}</td></tr>`}).join('')||'<tr><td colspan="9" class="muted">No data</td></tr>'}</tbody></table>`;
+      <td class="small">${r.src==='full Grid loaded'?(!r.covered?'<span class="pill p-late">Month not in the Grid</span> <span class="muted">only patients admitted before it</span>':r.denOk?'<span class="pill p-ver">Denominator complete</span>':'<span class="pill p-check">Load the month before too</span>'):''} ${r.reOk?'<span class="pill p-ver">90 days covered</span>':'<span class="pill p-check">B provisional</span>'}</td></tr>`}).join('')||'<tr><td colspan="9" class="muted">No data</td></tr>'}</tbody></table>`;
   $('#vMonNote').textContent='Rate = (A + B) ÷ denominator × 1000. % = rate ÷ 10, compared with the 0.5% trigger. Denominator: the number you type, else the full Grid if loaded, else the saved snapshot.';
   const cm=Object.keys(R.cen).sort().reverse();
   $('#vCen').innerHTML=cm.length?`<table><thead><tr><th>Visit month</th><th class="r">PE (I26)</th><th class="r">DVT (I80.2/3)</th><th class="r">I82</th>${V.opt.wide?'<th class="r">I80.1/.8</th>':''}<th class="r">Patients</th><th class="r">Visits</th><th class="r">ER</th><th class="r">OPD</th><th class="r">IP</th></tr></thead><tbody>${cm.map(M=>{const z=R.cen[M];
@@ -2313,7 +2314,7 @@ $('#vIn').onchange=async e=>{const fs=[...e.target.files];if(!fs.length)return;t
 $('#vMon').addEventListener('change',e=>{const i=e.target.closest('[data-vden]');if(!i)return;if(i.value==='')delete V.den[i.dataset.vden];else V.den[i.dataset.vden]=+i.value;vSave();renderVte()});
 $('#vWide').onchange=e=>{V.opt.wide=e.target.checked;vSave();renderVte()};
 $('#vEr').onchange=e=>{V.opt.erProxy=e.target.checked;vSave();renderVte()};
-$('#vCaseM').onchange=renderVte;
+$('#vCaseM').onchange=renderVte;/* the month picked here also drives the cards above */
 $('#vClr').onclick=()=>{if(!V.files.length&&!Object.keys(V.den).length){toast('No VTE data loaded');return}const keep=V;V={v:2,visits:{},er:{},files:[],den:{},opt:keep.opt};vSave();renderVte();toast('VTE data cleared',()=>{V=keep;vSave();renderVte()})};
 $('#vXls').onclick=()=>{const R=vCalc();const wb=XLSX.utils.book_new();const pick=$('#vCaseM').value;const rows=R.rows.filter(r=>!pick||r.M===pick);
   const head=[['Incident of Hospital-Associated VTE · BH-MSA-KPI-127'],['Formula: (A + B) ÷ denominator × 1000'],
