@@ -1,5 +1,5 @@
 /* MR Follow-up offline support. Bump VERSION when index.html changes. */
-const VERSION = 'mrfu-2026-11-03-1';
+const VERSION = 'mrfu-2026-11-12-1';
 const CORE = ['./', './index.html', './manifest.webmanifest', './icon-192.png', './icon-512.png', './apple-touch-icon.png', './favicon-32.png'];
 const LIBS = ['https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js'];
 
