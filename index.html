@@ -222,11 +222,16 @@ input[type=range]{accent-color:var(--accent)}
     <div class="panel">
       <div class="row">
         <select id="fStatus" style="max-width:200px" aria-label="Show">
-          <option value="action">Needs action</option><option value="active">All not completed</option><option value="need1">1st email not sent</option><option value="need2">2nd reminder due</option><option value="late">Delinquent</option><option value="waiting">Waiting (within 3 days)</option><option value="done">Completed</option><option value="all">Everything</option>
+          <option value="action">Needs action</option><option value="active">All not completed</option><option value="need1">1st email not sent</option><option value="need2">2nd reminder due</option><option value="late">Delinquent</option><option value="waiting">Waiting (within 3 days)</option><option value="done">Completed</option><option value="all">Everything</option><option value="hidden">Removed from this screen</option>
         </select>
         <input id="q" placeholder="Search file, doctor, department" style="max-width:280px" aria-label="Search">
+        <select id="fWin" style="max-width:210px" aria-label="Discharge window" title="Files discharged before this window are hidden here only. They still count in the Dashboard.">
+          <option value="30">Discharged: last 30 days</option><option value="60">Discharged: last 60 days</option><option value="90">Discharged: last 90 days</option><option value="from">Discharged from a date…</option><option value="all">Any discharge date</option>
+        </select>
+        <input type="date" id="fFrom" style="max-width:160px" aria-label="Show files discharged on or after" hidden>
         <span class="spacer"></span><span class="small muted" id="regCount"></span>
       </div>
+      <div class="small muted" id="winNote" hidden style="margin:6px 0 2px"></div>
       <div class="tablewrap"><table>
         <thead><tr><th>File</th><th>Doctor</th><th>Deficiencies</th><th>Timeline</th><th>Status</th><th>Actions</th></tr></thead>
         <tbody id="rows"></tbody>
@@ -409,14 +414,6 @@ input[type=range]{accent-color:var(--accent)}
       <li>The Grid has no admission-type field, so "emergency" is estimated from the ER visit. A month stays <b>provisional</b> until the data covers 90 days after it.</li>
     </ul></div>
   </div>
-    </div>
-    <div class="panel" id="supPanel">
-      <div class="row"><div><h3 style="margin:0">Support report</h3><div class="small muted">Reads your data and tells you what is wrong, what to watch and what is going well, with what to do next.</div></div><span class="spacer"></span><button class="btn sm" type="button" id="supBtn">Show</button></div>
-      <div id="supBody" hidden style="display:grid;gap:12px">
-        <div class="row"><label class="f" style="min-width:170px">Period (by discharge)<select id="supP"></select></label><span class="spacer"></span><button class="btn sm" type="button" id="supCopy">Copy</button><button class="btn sm" type="button" id="supXls">Export to Excel</button></div>
-        <div class="stats" id="supSum"></div>
-        <div id="supList"></div>
-      </div>
     </div>
     <div class="panel" id="crPanel">
       <div class="row"><div><h3 style="margin:0">Creative report</h3><div class="small muted">Ask your own question: pick the data, add filters, choose how to group and what to count. Example: inpatients admitted on one day with diabetes.</div></div><span class="spacer"></span><button class="btn sm" type="button" id="crBtn">Show</button></div>
@@ -829,8 +826,10 @@ function fuStage(f){if(f.status==='done')return 'done';if(fuLate(f))return 'late
 function auditStatus(a){if(a.ov&&OVST[a.ov])return OVST[a.ov];if(a.pending)return 'Pending';const f=fuIdx.get(a.id);if(f&&f.status!=='done')return fuLate(f)?'Delinquent':'Incomplete';if(isQuick(a)&&a.result==='incomplete'&&!f)return 'Incomplete';return 'Complete'}
 const firstPassOk=a=>a.ov&&OVST[a.ov]?a.ov==='complete':isQuick(a)?(a.result==='complete'&&!a.pending&&!fuIdx.get(a.id)):!hasZero(a);
 const fuMine=f=>!f.by||f.by===DEV;
-const fuVisible=f=>($('#fScope')?.value==='all')||fuMine(f);
-const actionCount=()=>S.fu.filter(f=>fuMine(f)&&['need1','need2','late'].includes(fuStage(f))).length;
+const fuCut=()=>{const w=(S.settings&&S.settings.fuWin)||'30';if(w==='all')return '';if(w==='from')return (S.settings.fuFrom)||'';return addDays(isoDay(today()),-(+w||30))};
+const fuInWin=f=>{const c=fuCut();if(!c)return true;const d=known(f.dis)?f.dis:known(f.e1)?f.e1:'';return !d||d>=c};
+const fuVisible=f=>(($('#fScope')?.value==='all')||fuMine(f))&&($('#fStatus')?.value==='hidden'?!!f.hid:(!f.hid&&fuInWin(f)));
+const actionCount=()=>S.fu.filter(f=>fuMine(f)&&!f.hid&&fuInWin(f)&&['need1','need2','late'].includes(fuStage(f))).length;
 
 /* ---------- doctors ---------- */
 function rebuildDoctors(){
@@ -944,14 +943,20 @@ const STAGE={need1:['1st email not sent','p-open'],waiting:['Waiting','p-e1'],ne
 function renderFiles(){
   $('#rulesLede').textContent=`2nd reminder is due ${R()} days after the 1st email. A file not completed ${D()} days after the 1st email becomes delinquent.`;
   const others=S.fu.some(f=>!fuMine(f));$('#fScope').hidden=!others;if(!others)$('#fScope').value='mine';
+  const w=(S.settings.fuWin)||'30';$('#fWin').value=w;$('#fFrom').hidden=w!=='from';if(w==='from'&&!$('#fFrom').value&&S.settings.fuFrom)$('#fFrom').value=S.settings.fuFrom;
+  const scope=f=>($('#fScope')?.value==='all')||fuMine(f);
+  const hid=S.fu.filter(f=>scope(f)&&!f.hid&&!fuInWin(f));const hidOpen=hid.filter(f=>fuStage(f)!=='done').length;const rem=S.fu.filter(f=>scope(f)&&f.hid).length;
+  $('#winNote').hidden=!hid.length&&!rem;
+  $('#winNote').innerHTML=hid.length?`${hid.length} older file${hid.length===1?'':'s'} hidden here (discharged before <span class="mono">${fmtD(fuCut())}</span>${hidOpen?`, ${hidOpen} not completed`:''}). They still count in the Dashboard. <button type="button" class="btn sm" id="winAll">Show them</button>`:'';
+  if(rem)$('#winNote').innerHTML+=`${hid.length?' · ':''}${rem} file${rem===1?'':'s'} removed from this screen (status kept in Dashboard & Excel). <button type="button" class="btn sm" id="winRem">${$('#fStatus').value==='hidden'?'Back to list':'View / restore'}</button>`;
   const st=S.fu.filter(fuVisible).map(f=>[f,fuStage(f)]);const cnt=k=>st.filter(x=>x[1]===k).length;
   const mStart=isoDay(new Date(today().getFullYear(),today().getMonth(),1));
-  const doneMonth=S.fu.filter(fuVisible).filter(f=>f.status==='done'&&known(f.done)&&f.done>=mStart).length;
+  const doneMonth=S.fu.filter(scope).filter(f=>f.status==='done'&&known(f.done)&&f.done>=mStart).length;
   const sel=$('#fStatus').value;
   const cards=[['need1','Send 1st email',cnt('need1'),'',''],['need2','2nd reminder due',cnt('need2'),'warn',`${R()}+ days since 1st email`],['late','Delinquent',cnt('late'),'late',`${D()}+ days since 1st email`],['waiting','Waiting',cnt('waiting'),'info',`emailed, within ${R()} days`],['done','Completed this month',doneMonth,'ok','']];
   $('#alerts').innerHTML=cards.map(([k,l,n,c,s])=>`<button type="button" class="stat ${c}" data-f="${k}" aria-pressed="${sel===k}"><div class="n">${n}</div><div class="l">${l}</div>${s?`<div class="s">${s}</div>`:''}</button>`).join('');
   const q=$('#q').value.trim().toLowerCase();
-  let L=st.filter(([f,s])=>{if(sel==='action'&&!['need1','need2','late'].includes(s))return false;if(sel==='active'&&s==='done')return false;if(['need1','need2','late','waiting','done'].includes(sel)&&s!==sel)return false;
+  let L=st.filter(([f,s])=>{if(sel==='action'&&!['need1','need2','late'].includes(s))return false;if(sel==='active'&&s==='done')return false;if(['need1','need2','late','waiting','done'].includes(sel)&&s!==sel)return false;if(sel==='hidden'&&!f.hid)return false;
     if(q&&!(f.fileNo+' '+f.doctor+' '+f.dept+' '+f.email).toLowerCase().includes(q))return false;return true});
   const order={late:0,need2:1,need1:2,waiting:3,done:4};
   L.sort((a,b)=>(order[a[1]]-order[b[1]])||String(a[0].e1||a[0].dis).localeCompare(String(b[0].e1||b[0].dis)));
@@ -971,7 +976,7 @@ function renderFiles(){
       <td>${defsHtml(f)}</td>
       <td><div class="tl">${tl.join('')}</div></td>
       <td><span class="pill ${sc}">${sl}</span>${s==='late'&&f.status==='e1'?'<div style="margin-top:4px"><span class="pill p-due">2nd not sent</span></div>':''}</td>
-      <td><div class="acts">${btn}${s!=='done'?'<button class="btn sm okb" data-act="done">Completed</button>':'<button class="btn sm" data-act="reopen">Reopen</button>'}<button class="btn sm" data-act="preview">Preview</button>${f.auditId?'<button class="btn sm" data-act="status">Status</button>':''}<button class="btn sm danger" data-act="del" title="Delete">Delete</button><span class="confirm" hidden>Delete? <button class="btn sm danger" data-act="delyes">Yes</button><button class="btn sm" data-act="delno">No</button></span></div></td></tr>`}).join('')
+      <td><div class="acts">${btn}${s!=='done'?'<button class="btn sm okb" data-act="done">Completed</button>':'<button class="btn sm" data-act="reopen">Reopen</button>'}<button class="btn sm" data-act="preview">Preview</button>${f.auditId?'<button class="btn sm" data-act="status">Status</button>':''}${f.hid?`<button class="btn sm primary" data-act="unhide">Restore</button><span class="small muted">removed ${fmtS(f.hid)}</span>`:`<button class="btn sm danger" data-act="del" title="Remove from this screen only">Remove</button><span class="confirm" hidden>Remove from this screen? Status stays in Dashboard &amp; Excel. <button class="btn sm danger" data-act="delyes">Yes</button><button class="btn sm" data-act="delno">No</button></span>`}</div></td></tr>`}).join('')
     :`<tr><td colspan="6" class="muted" style="padding:18px">${S.fu.length?(sel==='action'?'Nothing needs action today.':'No files match this filter.'):'No stalled files yet. Files with a ✗ in the Audit tab appear here automatically.'}</td></tr>`;
   const n=actionCount();$('#navBadge').hidden=!n;$('#navBadge').textContent=n;
   document.title=n?`(${n}) MR Follow-up`:'MR Follow-up'}
@@ -985,9 +990,13 @@ $('#rows').addEventListener('click',e=>{const b=e.target.closest('button[data-ac
   if(a==='reopen'){f.status=f.e2?'e2':f.e1?'e1':'open';f.done='';save();renderAll();toast(`File ${f.fileNo} reopened`)}
   if(a==='del'){tr.querySelector('.confirm').hidden=false;b.hidden=true}
   if(a==='delno'){tr.querySelector('.confirm').hidden=true;tr.querySelector('[data-act="del"]').hidden=false}
-  if(a==='delyes'){const i=S.fu.indexOf(f);S.fu.splice(i,1);save();renderAll();toast(`File ${f.fileNo} deleted`,()=>{S.fu.splice(i,0,f);save();renderAll()})}});
+  if(a==='delyes'){f.hid=isoDay(today());save();renderAll();toast(`File ${f.fileNo} removed from this screen (status kept)`,()=>{delete f.hid;save();renderAll()})}
+  if(a==='unhide'){delete f.hid;save();renderAll();toast(`File ${f.fileNo} restored`)}});
 $('#alerts').addEventListener('click',e=>{const b=e.target.closest('.stat');if(!b)return;$('#fStatus').value=$('#fStatus').value===b.dataset.f?'action':b.dataset.f;renderFiles()});
-$('#q').addEventListener('input',renderFiles);$('#fScope').addEventListener('change',renderFiles);$('#fStatus').addEventListener('change',renderFiles);
+$('#q').addEventListener('input',renderFiles);
+$('#fWin').addEventListener('change',e=>{S.settings.fuWin=e.target.value;if(e.target.value==='from'&&!S.settings.fuFrom){S.settings.fuFrom=addDays(isoDay(today()),-30);$('#fFrom').value=S.settings.fuFrom}save();renderFiles()});
+$('#fFrom').addEventListener('change',e=>{S.settings.fuFrom=e.target.value;save();renderFiles()});
+$('#winNote').addEventListener('click',e=>{if(e.target.id==='winRem'){$('#fStatus').value=$('#fStatus').value==='hidden'?'action':'hidden';renderFiles();return}if(e.target.id!=='winAll')return;S.settings.fuWin='all';save();renderFiles()});$('#fScope').addEventListener('change',renderFiles);$('#fStatus').addEventListener('change',renderFiles);
 
 /* manual add */
 let fDefs=[],fDocKey='',fVerified=false;
@@ -2364,7 +2373,7 @@ $('#vteShow').onclick=()=>{S.settings.vteShow=!S.settings.vteShow;save();vteVis(
 vteVis();
 </script>
 <script>
-/* ===== SUPPORT REPORT (automatic findings) and CREATIVE REPORT (build your own question) ===== */
+/* ===== CREATIVE REPORT (build your own question) ===== */
 const ICD_GROUPS={'Diabetes (E10–E14)':['E10','E11','E12','E13','E14'],'Hypertension (I10–I15)':['I10','I11','I12','I13','I15'],'VTE (I26, I80.2/3, I82)':['I26','I80.2','I80.3','I82'],
   'Ischaemic heart disease (I20–I25)':['I20','I21','I22','I23','I24','I25'],'Heart failure (I50)':['I50'],'Stroke (I60–I64)':['I60','I61','I62','I63','I64'],'Pneumonia (J12–J18)':['J12','J13','J14','J15','J16','J17','J18'],
   'Asthma / COPD (J44–J46)':['J44','J45','J46'],'Chronic kidney disease (N18)':['N18'],'Pregnancy & childbirth (O)':['O'],'Sepsis (A40–A41)':['A40','A41'],'Cancer (C00–C97)':['C'],
@@ -2469,61 +2478,8 @@ $('#crXls').onclick=()=>{const res=lastCR||crRun();const wb=XLSX.utils.book_new(
     if(CR.set==='audits')Object.assign(o,{'Audit type':r.type,Status:r.status,'Fixed after follow-up':r.fixed,Operation:r.operation,Auditor:r.auditor,'Deficient standards':r.defs.join('; ')});else Object.assign(o,{'Diagnosis codes':(r.dx||[]).join(', '),'Principal (first) code':r.dx1,'Diagnosis groups':r.dxGroups.join('; ')});return o}).concat(res.R.length?[]:[{'File no':'No records'}])),'Records');
   downloadWB(wb,`Creative-report_${isoDay(new Date())}.xlsx`)};
 
-/* ---------- SUPPORT REPORT: reads the data and says what is wrong and what is good ---------- */
-function supportFindings(p){const A=dashAudits().filter(a=>inPeriod(a,p)),F=[],add=(sev,area,title,detail,action)=>F.push({sev,area,title,detail,action:action||''});
-  const n=A.length;if(!n){add('warn','Data','No audited files in this period','Nothing to analyse yet.','Choose another period or audit some files.');return F}
-  const st=A.map(auditStatus),cnt=k=>st.filter(x=>x===k).length,comp=cnt('Complete'),inc=cnt('Incomplete'),late=cnt('Delinquent'),pend=cnt('Pending'),rate=comp/n*100;
-  /* overall */
-  add(rate>=95?'good':rate>=85?'warn':'bad','Overall',`Completion ${rate.toFixed(1)}% (${comp} of ${n} files)`,`${inc} incomplete, ${late} delinquent, ${pend} pending.`,rate<95?'Target 95%: follow up the incomplete files on Stalled files.':'');
-  if(p&&!p.includes('Q')){const [y,m]=p.split('-').map(Number),pd=new Date(y,m-2,1),pp=`${pd.getFullYear()}-${String(pd.getMonth()+1).padStart(2,'0')}`,B=dashAudits().filter(a=>inPeriod(a,pp));
-    if(B.length>=10){const r0=B.filter(a=>auditStatus(a)==='Complete').length/B.length*100,dlt=rate-r0;if(Math.abs(dlt)>=3)add(dlt>0?'good':'bad','Trend',`Completion ${dlt>0?'up':'down'} ${Math.abs(dlt).toFixed(1)} points vs ${pp}`,`${r0.toFixed(1)}% in ${pp} → ${rate.toFixed(1)}% now.`,dlt<0?'Look at the departments and standards below to see where it dropped.':'')}}
-  const fp=A.filter(firstPassOk).length/n*100;add(fp>=90?'good':fp>=75?'warn':'bad','Overall',`Complete at first review: ${fp.toFixed(1)}%`,'Files that needed no follow-up at all.',fp<90?'Share the most frequent deficiencies (below) with the doctors.':'');
-  /* departments */
-  const byD=new Map();A.forEach((a,i)=>{const d=a.dept||'(no department)';const o=byD.get(d)||{n:0,c:0};o.n++;if(st[i]==='Complete')o.c++;byD.set(d,o)});
-  const D=[...byD].filter(([,o])=>o.n>=5).map(([d,o])=>({d,n:o.n,r:o.c/o.n*100})).sort((a,b)=>a.r-b.r);
-  D.filter(x=>x.r<rate-10||x.r<80).slice(0,3).forEach(x=>add('bad','Departments',`${x.d}: ${x.r.toFixed(1)}% complete`,`${x.n} files, ${(rate-x.r).toFixed(1)} points below the overall rate.`,'Check its doctors in the table "Incomplete files by doctor".'));
-  D.filter(x=>x.r>=98).slice(-3).reverse().forEach(x=>add('good','Departments',`${x.d}: ${x.r.toFixed(1)}% complete`,`${x.n} files.`));
-  /* doctors */
-  const byK=new Map();A.forEach((a,i)=>{if(st[i]!=='Incomplete'&&st[i]!=='Delinquent')return;const k=docKey(a.doc||'');if(!k)return;const o=byK.get(k)||{n:0,l:0,raw:a.doc};o.n++;if(st[i]==='Delinquent')o.l++;byK.set(k,o)});
-  [...byK].sort((a,b)=>b[1].n-a[1].n).filter(([,o])=>o.n>=3).slice(0,3).forEach(([k,o])=>add('bad','Doctors',`${docName(k,o.raw)}: ${o.n} incomplete files${o.l?` (${o.l} delinquent)`:''}`,doctorEmail(k)?'Has an email on file.':'No email on file: reminders cannot be sent.',doctorEmail(k)?'Send the reminders from Stalled files.':'Add the email in Doctors → Email directory.'));
-  const noMail=[...new Set(S.fu.filter(f=>f.status!=='done'&&!f.email).map(f=>f.doctor))].filter(Boolean);if(noMail.length)add('bad','Doctors',`${noMail.length} doctor${noMail.length===1?'':'s'} with stalled files have no email`,noMail.slice(0,6).join(', ')+(noMail.length>6?'…':''),'Doctors → Email directory → Show doctors still without an email.');
-  /* standards */
-  const full=A.filter(a=>!isQuick(a)&&a.sc&&!a.pending);if(full.length>=5){const rows=S.criteria.map((c,i)=>{let ap=0,d=0;for(const a of full){const t=a.sc.slice(i*3,i*3+3);if([...t].some(x=>x==='1'||x==='0')){ap++;if(t.includes('0'))d++}}return {c,ap,d,r:ap?d/ap*100:0}}).filter(x=>x.ap>=5).sort((a,b)=>b.r-a.r);
-    rows.filter(x=>x.r>=10).slice(0,4).forEach(x=>add('bad','Standards',`${x.c}: deficient in ${x.r.toFixed(1)}% of files`,`${x.d} of ${x.ap} files where it applies.`,'Remind the departments concerned; add it to the next staff education session.'));
-    rows.filter(x=>x.r===0&&x.ap>=20).slice(0,3).forEach(x=>add('good','Standards',`${x.c}: no deficiency`,`${x.ap} files checked.`));
-    const dim=[0,1,2].map(j=>{let s=0,o=0;for(const a of full)for(let i=0;i<S.criteria.length;i++){const ch=a.sc[i*3+j];if(ch==='1'||ch==='0'){s++;if(ch==='1')o++}}return {j,r:s?o/s*100:100}}).sort((a,b)=>a.r-b.r);
-    if(dim[0].r<97)add(dim[0].r<90?'bad':'warn','Standards',`Weakest dimension: ${['Timely','Appropriate','Complete'][dim[0].j]} (${dim[0].r.toFixed(1)}% met)`,`Timely ${dim.find(x=>x.j===0).r.toFixed(1)}% · Appropriate ${dim.find(x=>x.j===1).r.toFixed(1)}% · Complete ${dim.find(x=>x.j===2).r.toFixed(1)}%.`,dim[0].j===0?'Late documentation: check signing times with the departments.':'')}
-  /* follow-up */
-  const ids=new Set(A.map(a=>a.id)),FU=S.fu.filter(f=>f.auditId?ids.has(f.auditId):inPeriod({dis:f.dis},p));
-  const need1=FU.filter(f=>fuStage(f)==='need1').length,need2=FU.filter(f=>fuStage(f)==='need2').length,lt=FU.filter(f=>f.status!=='done'&&fuLate(f)).length;
-  if(need1)add('bad','Follow-up',`${need1} stalled file${need1===1?'':'s'}: 1st email not sent`,'These doctors have not been told yet.','Stalled files → filter "1st email not sent".');
-  if(need2)add('warn','Follow-up',`${need2} file${need2===1?'':'s'}: 2nd reminder due`,'','Stalled files → filter "2nd reminder due".');
-  if(lt)add('bad','Follow-up',`${lt} delinquent file${lt===1?'':'s'} still open`,'Past the delinquency limit after the 1st email.','Escalate to the department head.');
-  const done=FU.filter(f=>f.status==='done'&&known(f.e1)&&known(f.done));if(done.length>=3){const ds=done.map(f=>daysBetween(f.e1,f.done)).filter(x=>x>=0).sort((a,b)=>a-b),med=ds[Math.floor(ds.length/2)];add(med<=3?'good':med<=7?'warn':'bad','Follow-up',`Doctors fix files in ${med} day${med===1?'':'s'} (median after the 1st email)`,`${done.length} files completed after an email.`)}
-  const fx=A.filter(isFixed).length,ever=A.filter(a=>isFixed(a)||['Incomplete','Delinquent'].includes(auditStatus(a))).length;if(ever>=3){const r=fx/ever*100;add(r>=70?'good':r>=40?'warn':'bad','Follow-up',`${r.toFixed(0)}% of incomplete files were fixed after follow-up`,`${fx} of ${ever}.`)}
-  /* worklist & data quality */
-  if(S.queue.length){const old=S.queue.filter(q=>q.dis).map(q=>daysBetween(q.dis,isoDay(new Date()))).sort((a,b)=>b-a)[0];add(old>30?'bad':old>14?'warn':'good','Workload',`${S.queue.length} files waiting to be audited`,old!=null?`The oldest was discharged ${old} days ago.`:'',old>14?'Audit the oldest first (the worklist is sorted that way).':'')}
-  const noAge=A.filter(a=>ageNum(a)==null).length;if(noAge/n>0.1)add('warn','Data quality',`${noAge} files (${(noAge/n*100).toFixed(0)}%) have no age`,'Age filters and age-based KPIs leave them out.','Data → Fill in missing details with the hospital Grid.');
-  const noName=A.filter(a=>!a.name).length;if(noName/n>0.1)add('warn','Data quality',`${noName} files have no patient name`,'','Data → Fill in missing details.');
-  if(pend)add('warn','Data quality',`${pend} audit${pend===1?'':'s'} still pending`,'Pending audits are left out of the KPIs.','Finish them on the Audit tab.');
-  const unk=full.filter(a=>a.sc.includes('?')).length;if(unk)add('warn','Data quality',`${unk} full audit${unk===1?'':'s'} with standards not audited (—)`,'Those standards are left out of the statistics.');
-  const longS=A.filter(a=>(losOf(a)||0)>30).length;if(longS)add('warn','Patients',`${longS} file${longS===1?'':'s'} with a stay over 30 days`,'Long stays carry more documentation; check they are complete.');
-  /* KPIs */
-  try{const y=(p||isoDay(new Date())).slice(0,4);for(const k of kpiList()){const R=kpiCalc(k,y).filter(r=>r.r!=null&&(!p||p.includes('Q')||r.key===p));const r=R[R.length-1];if(!r)continue;const bad=kBad(k,r.r);add(bad?'bad':'good','KPIs',`${k.name}: ${kFmt(k,r.r)}${kUnit(k)==='%'?'':' per 1,000'} in ${r.m} ${y}`,`${r.n} / ${r.d}. Target ${k.target}${kUnit(k)}, trigger ${kTrig(k).replace(/&gt;/,'>').replace(/&lt;/,'<')}.`,bad?'Below the trigger: open the KPI to see which files were not counted.':'')}}catch(e){}
-  return F}
-function renderSup(){if($('#supBody').hidden)return;const sel=$('#supP'),cv=sel.value;periodOptions(sel);if([...sel.options].some(o=>o.value===cv))sel.value=cv;const p=sel.value;
-  const F=supportFindings(p),ord={bad:0,warn:1,good:2},lbl={bad:['Problem','p-late'],warn:['Watch','p-due'],good:['Good','p-done']};F.sort((a,b)=>ord[a.sev]-ord[b.sev]);lastSup={p,F};
-  const c=k=>F.filter(f=>f.sev===k).length;
-  $('#supSum').innerHTML=`<div class="stat late"><div class="l">Problems</div><div class="n">${c('bad')}</div></div><div class="stat warn"><div class="l">To watch</div><div class="n">${c('warn')}</div></div><div class="stat ok"><div class="l">Going well</div><div class="n">${c('good')}</div></div>`;
-  $('#supList').innerHTML=F.map(f=>`<div class="row" style="align-items:flex-start;gap:10px;border-bottom:1px solid var(--line);padding:8px 0;flex-wrap:nowrap"><span class="pill ${lbl[f.sev][1]}" style="min-width:70px;text-align:center">${lbl[f.sev][0]}</span><div style="min-width:0"><div><span class="small muted">${esc(f.area)} ·</span> <b>${esc(f.title)}</b></div>${f.detail?`<div class="small muted">${esc(f.detail)}</div>`:''}${f.action?`<div class="small">→ ${esc(f.action)}</div>`:''}</div></div>`).join('')}
-let lastSup=null;
-$('#supP').addEventListener('change',renderSup);
-$('#supCopy').onclick=async()=>{if(!lastSup)return;const L={bad:'PROBLEM',warn:'WATCH',good:'GOOD'};const t=`Support report · ${lastSup.p||'all periods'} · ${isoDay(new Date())}\n\n`+lastSup.F.map(f=>`[${L[f.sev]}] ${f.area}: ${f.title}${f.detail?'\n   '+f.detail:''}${f.action?'\n   → '+f.action:''}`).join('\n');try{await navigator.clipboard.writeText(t);toast('Support report copied')}catch(e){toast('Could not copy')}};
-$('#supXls').onclick=()=>{if(!lastSup)return;const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(lastSup.F.map(f=>({Result:{bad:'Problem',warn:'Watch',good:'Good'}[f.sev],Area:f.area,Finding:f.title,Detail:f.detail,'What to do':f.action}))),'Support report');downloadWB(wb,`Support-report_${lastSup.p||'all'}_${isoDay(new Date())}.xlsx`)};
-
-/* both panels: hidden until you press Show */
-function repVis(){for(const [k,body,btn,fn] of [['supShow','#supBody','#supBtn',renderSup],['crShow','#crBody','#crBtn',renderCR]]){const on=!!S.settings[k];$(body).hidden=!on;$(btn).textContent=on?'Hide':'Show';if(on)fn()}}
-$('#supBtn').onclick=()=>{S.settings.supShow=!S.settings.supShow;save();repVis()};
+/* hidden until you press Show */
+function repVis(){for(const [k,body,btn,fn] of [['crShow','#crBody','#crBtn',renderCR]]){const on=!!S.settings[k];$(body).hidden=!on;$(btn).textContent=on?'Hide':'Show';if(on)fn()}}
 $('#crBtn').onclick=()=>{S.settings.crShow=!S.settings.crShow;save();repVis()};
 repVis();
 </script>
