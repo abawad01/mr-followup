@@ -574,6 +574,10 @@ input[type=range]{accent-color:var(--accent)}
         <p class="small muted" style="margin:0" id="pNote"></p>
       </div>
     </div>
+    <div class="panel" id="exclPanel">
+      <div class="row"><div><h3>Excluded files log <span class="small muted" style="font-weight:400">· private</span></h3><p class="lede small" style="margin:0">Every Grid you prepare is logged here by month: how many <b>still-in-hospital</b> rows (month-end discharge and re-admission of patients still admitted) and how many <b>repeated</b> rows were left out. Only you see this; it is not in the Dashboard or Reports.</p></div><span class="spacer"></span><button class="btn sm" id="exclX" type="button">Export to Excel</button></div>
+      <div class="tablewrap" id="exclTable"></div>
+    </div>
     <div class="panel" id="syncPanel" style="border-color:var(--accent)">
       <div><h3>Team sync (shared folder)</h3><p class="lede small" style="margin:0">Everyone points the app at the same shared folder, such as the department OneDrive or a network drive. Sync saves your work there as one file and merges everyone else's. Use a folder inside the hospital only, because the files contain file numbers.</p></div>
       <dl class="kv" id="syncInfo"></dl>
@@ -1744,7 +1748,7 @@ $('#docRows').addEventListener('click',e=>{const b=e.target.closest('button[data
 $('#confirmStrong').onclick=()=>{let n=0;for(const o of Object.values(S.doctors))if(!o.verified&&o.sugg&&o.sugg.score>=0.9){o.verified={name:o.sugg.name,email:o.sugg.email};applyEmailToFu(o.key);n++}save();renderAll();toast(`${n} doctors confirmed`)};
 
 /* ---------- DATA ---------- */
-function renderData(){try{renderGap()}catch(e){}
+function renderData(){try{renderGap()}catch(e){}try{renderExcl()}catch(e){}
   const ex=S.audits.filter(a=>a.src==='excel').length,si=S.audits.filter(a=>a.src==='site').length;const ds=S.audits.map(a=>a.dis).filter(Boolean).sort();
   $('#auditInfo').innerHTML=S.audits.length&&!S.sample?`<dt>Audits stored</dt><dd class="mono">${S.audits.length} (${S.audits.filter(a=>!isQuick(a)).length} full, ${S.audits.filter(isQuick).length} quick; ${ex} from Excel, ${si} entered here)</dd><dt>Discharges</dt><dd class="mono">${fmtD(ds[0])} – ${fmtD(ds[ds.length-1])}</dd><dt>Stalled files</dt><dd class="mono">${S.fu.length}</dd>${S.imports.length?`<dt>Last import</dt><dd>${esc(S.imports[S.imports.length-1].file)}, ${fmtD(S.imports[S.imports.length-1].date)}</dd>`:''}`:'<dt>Status</dt><dd>No real data yet</dd>';
   $('#contactInfo').innerHTML=S.contactsReal?`<dt>Emails</dt><dd class="mono">${new Set(S.contacts.map(c=>c.email)).size}</dd><dt>Last added</dt><dd>${esc((S.contactsLog&&S.contactsLog[0]?.src)||S.contactsFile||'')}</dd>`:'<dt>Status</dt><dd>Not imported yet</dd>';
@@ -2000,17 +2004,18 @@ function runPrep(){if(!prepRaw)return;const p=prepReadUI();const H=prepRaw.H,row
   const col=n=>H.findIndex(h=>normC(h)===normC(n));const ci={};['Registration_No','Patient / Guradian Name','Admission Date','Discharge Date','LOS','Department_Name','Ward Name','AdmittingDoctor','DoctorInCharge','Discharge To','Age'].forEach(n=>ci[n]=col(n));
   if(ci['Registration_No']<0||ci['Discharge Date']<0){$('#pOut').hidden=false;$('#pSum').innerHTML='<dt>Problem</dt><dd style="color:var(--late)">Registration_No or Discharge Date column not found in this file.</dd>';$('#pTable').innerHTML='';return}
   const docCol=ci[p.doc]>=0?p.doc:(ci.DoctorInCharge>=0?'DoctorInCharge':'AdmittingDoctor');
-  const stats={read:0,still:0,dept:0,dup:0,known:0};const seen=new Set();
+  const stats={read:0,still:0,dept:0,dup:0,known:0};const seen=new Set();const stillL=[],dupL=[];
   const known=new Set([...S.audits.map(a=>a.fileNo+'|'+a.dis),...S.queue.map(q=>q.fileNo+'|'+q.dis)]);
   const depts={};const out=[];
   for(const X of rows0){const reg=cleanTxt(X[ci['Registration_No']]);if(!reg)continue;stats.read++;
     const r={_reg:reg,_dis:toIso(X[ci['Discharge Date']]),_adm:toIso(X[ci['Admission Date']]),_dept:cleanTxt(X[ci['Department_Name']]),_doc:cleanTxt(X[ci[docCol]]),_to:cleanTxt(X[ci['Discharge To']]),_name:cleanTxt(X[ci['Patient / Guradian Name']]),_admT:typeof X[ci['Admission Date']]==='number'?X[ci['Admission Date']]:null,_disT:typeof X[ci['Discharge Date']]==='number'?X[ci['Discharge Date']]:null,_age:ci['Age']>=0?(X[ci['Age']]??''):'',_ward:cleanTxt(X[ci['Ward Name']]),_los:X[ci['LOS']],_X:X};
     r._key=reg+'|'+r._dis;depts[r._dept]=(depts[r._dept]||0)+1;
-    if(/still in hospital/i.test(r._to))stats.stillAll=(stats.stillAll||0)+1;
+    if(/still in hospital/i.test(r._to)){stats.stillAll=(stats.stillAll||0)+1;stillL.push({f:reg,a:r._adm,d:r._dis,dp:r._dept})}
     if(p.still&&/still in hospital/i.test(r._to)){stats.still++;continue}
     if(p.xdept.includes(r._dept)){stats.dept++;continue}
-    const exact=reg+'|'+X[ci['Discharge Date']];if(p.dup&&seen.has(r._key)){stats.dup++;continue}seen.add(r._key);
+    const exact=reg+'|'+X[ci['Discharge Date']];if(p.dup&&seen.has(r._key)){stats.dup++;dupL.push({f:reg,a:r._adm,d:r._dis,dp:r._dept});continue}seen.add(r._key);
     out.push(r)}
+  exclLog(stats,stillL,dupL,out,p);
   $('#pStillN').textContent=stats.stillAll?`(${stats.stillAll} in this file${p.still?', removed':', kept and flagged'})`:'(none in this file)';
   $('#pDeptRow').hidden=false;$('#pDepts').innerHTML=Object.keys(depts).sort().map(d=>`<label class="chip" style="padding:3px 10px;cursor:pointer"><input type="checkbox" data-xd="${esc(d)}" ${p.xdept.includes(d)?'checked':''}> ${esc(d)} <span class="muted mono">${depts[d]}</span></label>`).join('');
   // split the whole cleaned list first, so files already added never shift the split between people
@@ -2026,6 +2031,21 @@ function runPrep(){if(!prepRaw)return;const p=prepReadUI();const H=prepRaw.H,row
   $('#pTable').innerHTML=`<table><thead><tr><th>Department</th><th class="r">In file</th><th class="r">Me: full</th><th class="r">Me: quick</th><th class="r">${mateName}: full</th><th class="r">${mateName}: quick</th></tr></thead><tbody>${D.map(d=>`<tr><td>${esc(d)}</td><td class="r mono">${by(out,d)}</td><td class="r mono">${by(full,d)}</td><td class="r mono">${by(quick,d)}</td><td class="r mono">${by(mf,d)}</td><td class="r mono">${by(mq,d)}</td></tr>`).join('')}<tr style="font-weight:600"><td>Still to do</td><td class="r mono">${out.length}</td><td class="r mono">${full.length}</td><td class="r mono">${quick.length}</td><td class="r mono">${mf.length}</td><td class="r mono">${mq.length}</td></tr></tbody></table>`;
   $('#pDlMate').textContent=`Download ${p.mate||"colleague"}'s files only (${mate.length})`;$('#pMail').textContent=`Send to ${p.mate||'colleague'} as link`;$('#pMailX').textContent=`Send ${p.mate||'colleague'} their ${mate.length} files as Excel`;$('#pMail').disabled=!mate.length;$('#pAdd').textContent=`Add my ${mine.length} files to my worklists (${full.length} full, ${quick.length} quick)`;
   $('#pNote').textContent='Your colleague gets two Excel files, FULL and QUICK, in the MR and quick audit layout. Send them as Excel (they can audit in Excel or add both in Data → Full audit worklist) or as a link for the app. The split is balanced by department and doctor, and is the same every time for the same file, so re-uploading does not reshuffle who gets what.'}
+function exclLog(stats,stillL,dupL,out,p){const ms={};for(const r of [...out,...stillL.map(x=>({_dis:x.d}))]){const k=(r._dis||'').slice(0,7);if(k)ms[k]=(ms[k]||0)+1}
+  const m=Object.keys(ms).sort((a,b)=>ms[b]-ms[a])[0];if(!m)return;S.exclLog=S.exclLog||{};
+  S.exclLog[m]={m,file:prepRaw.name,at:isoDay(new Date()),read:stats.read,still:stats.stillAll||0,stillRemoved:!!p.still,dup:stats.dup,kept:out.length,stillL,dupL};save();renderExcl()}
+function renderExcl(){const el=$('#exclTable');if(!el)return;const L=Object.values(S.exclLog||{}).sort((a,b)=>b.m<a.m?-1:1);
+  if(!L.length){el.innerHTML='<p class="small muted">Nothing yet. Load a Grid in “Prepare discharge list” above and its excluded rows are logged here.</p>';$('#exclX').disabled=true;return}$('#exclX').disabled=false;
+  const ml=k=>['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][+k.slice(5,7)-1]+' '+k.slice(0,4);const pc=(n,d)=>d?` <span class="muted">(${Math.round(n/d*1000)/10}%)</span>`:'';
+  const ex=x=>(x.stillRemoved?x.still:0)+x.dup;const T=L.reduce((t,x)=>({read:t.read+x.read,still:t.still+x.still,dup:t.dup+x.dup,kept:t.kept+x.kept,ex:t.ex+ex(x)}),{read:0,still:0,dup:0,kept:0,ex:0});
+  el.innerHTML=`<table><thead><tr><th>Month</th><th>Grid file</th><th class="r">Rows read</th><th class="r">Still in hospital</th><th class="r">Repeated</th><th class="r">Total excluded</th><th class="r">Kept for audit</th><th></th></tr></thead><tbody>${L.map(x=>`<tr><td>${ml(x.m)}</td><td class="small">${esc(x.file)}<div class="muted">${fmtD(x.at)}</div></td><td class="r mono">${x.read}</td><td class="r mono">${x.still}${pc(x.still,x.read)}${x.stillRemoved?'':' <span class="small" style="color:var(--warn)" title="“Remove still in hospital” is off in the Grid panel, so these stayed in the worklists">kept, not excluded</span>'}</td><td class="r mono">${x.dup}${pc(x.dup,x.read)}</td><td class="r mono"><b>${ex(x)}</b>${pc(ex(x),x.read)}</td><td class="r mono">${x.kept}</td><td><button class="btn sm" data-exdel="${x.m}" title="Remove this month from the log">✕</button></td></tr>`).join('')}
+  ${L.length>1?`<tr style="font-weight:600"><td>Total</td><td></td><td class="r mono">${T.read}</td><td class="r mono">${T.still}${pc(T.still,T.read)}</td><td class="r mono">${T.dup}${pc(T.dup,T.read)}</td><td class="r mono">${T.ex}${pc(T.ex,T.read)}</td><td class="r mono">${T.kept}</td><td></td></tr>`:''}</tbody></table>
+  <p class="small muted" style="margin-top:6px">Still in hospital = “Still in Hospital” in Discharge To. Repeated = same file number and same discharge date more than once (one kept). Re-loading a month's Grid replaces its line.</p>`}
+$('#exclTable').addEventListener('click',e=>{const b=e.target.closest('[data-exdel]');if(!b)return;const k=b.dataset.exdel,old=S.exclLog[k];delete S.exclLog[k];save();renderExcl();toast('Month removed from the log',()=>{S.exclLog[k]=old;save();renderExcl()})});
+$('#exclX').addEventListener('click',()=>{const L=Object.values(S.exclLog||{}).sort((a,b)=>a.m<b.m?-1:1);if(!L.length)return;const wb=XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet([['Month','Grid file','Logged','Rows read','Still in hospital','Repeated','Total excluded','Excluded %','Kept for audit'],...L.map(x=>{const e=(x.stillRemoved?x.still:0)+x.dup;return [x.m,x.file,x.at,x.read,x.still+(x.stillRemoved?'':' (kept)'),x.dup,e,x.read?Math.round(e/x.read*1000)/10:0,x.kept]})]),'Summary');
+  const lst=k=>[['Month','File no','Admission','Discharge','Department'],...L.flatMap(x=>(x[k]||[]).map(r=>[x.m,r.f,r.a,r.d,r.dp]))];
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(lst('stillL')),'Still in hospital');XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(lst('dupL')),'Repeated');downloadWB(wb,'Excluded-files-log.xlsx')});
 function prepToQueue(r,type){return {id:uid(),type,fileNo:r._reg,adm:r._adm,dis:r._dis,los:typeof r._los==='number'?r._los:(r._los!=null&&r._los!==''&&!isNaN(+r._los)?+r._los:null),dept:r._dept,ward:r._ward,doc:r._doc,dischargeTo:r._to,name:r._name||'',age:r._age??'',admT:r._admT??null,disT:r._disT??null}}
 function prepSheet(L){const ci=prepRes.ci,dc=prepRes.docCol;const head=PREP_COLS.map(h=>h==='AdmittingDoctor'?dc:h);
   const rows=[head,...L.map(r=>head.map(h=>{const v=r._X[ci[h]];if((h==='Admission Date'||h==='Discharge Date')&&typeof v==='number')return {t:'n',v,z:'dd/mm/yyyy hh:mm'};if(h==='Department_Name')return r._dept;return v==null?'':v}))];
