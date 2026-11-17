@@ -205,6 +205,7 @@ input[type=range]{accent-color:var(--accent)}
     <button role="tab" data-tab="audit" id="tab-audit">Audit <span class="badge n" id="auBadge" title="Files waiting to audit" hidden></span></button>
     <button role="tab" data-tab="search" id="tab-search">Search</button>
     <button role="tab" data-tab="dashboard" id="tab-dashboard">Dashboard</button>
+    <button role="tab" data-tab="reports" id="tab-reports">Reports</button>
     <button role="tab" data-tab="doctors" id="tab-doctors">Doctors</button>
     <button role="tab" data-tab="data" id="tab-data">Data</button>
     <button role="tab" data-tab="guide" id="tab-guide">Guide</button>
@@ -461,6 +462,36 @@ input[type=range]{accent-color:var(--accent)}
   </section>
 
   <!-- ================= DOCTORS ================= -->
+  <section id="view-reports" class="tabview" hidden>
+    <div class="panel" id="rpCtl">
+      <h2>Reports</h2>
+      <p class="small muted" style="margin-top:-4px">Monthly reports ready to print or save as PDF. Every number and text can be edited, and any figure can be shown as %, as a count, or both.</p>
+      <div class="rpCards" id="rpCards" role="tablist" aria-label="Choose a report">
+        <button type="button" role="tab" data-rp="exec"><b>1 · Monthly report</b><span>For management: headline figures, trend, departments, KPIs, risks and actions.</span></button>
+        <button type="button" role="tab" data-rp="dept"><b>2 · Department scorecard</b><span>One page per department for its head: vs hospital, standards, physicians.</span></button>
+        <button type="button" role="tab" data-rp="impact"><b>3 · Audit impact</b><span>What your audit achieved this month and this year: proof of your work.</span></button>
+        <button type="button" role="tab" data-rp="heat"><b>4 · Standards heatmap</b><span>Departments × most missing standards, 3 months: where to train.</span></button>
+      </div>
+      <div class="rpCtlRow">
+        <label hidden>Report<select id="rpType"><option value="exec">Monthly report (management)</option><option value="dept">Department scorecard</option><option value="impact">Audit impact report</option><option value="heat">Standards heatmap</option></select></label>
+        <label>Month<select id="rpMonth"></select></label>
+        <label>Audits<select id="rpTy"><option value="">Full + quick</option><option value="full">Full only</option><option value="quick">Quick only</option></select></label>
+        <label id="rpDeptL" hidden>Department<select id="rpDept"></select></label>
+        <label>Numbers<select id="rpFmt"><option value="auto">Auto: % for big groups, counts for small</option><option value="pct">Percent</option><option value="count">Count (4 / 43)</option><option value="both">Both (4 / 43 · 9.3%)</option></select></label>
+        <label>Small group = fewer than<span><input type="number" id="rpMin" value="10" min="1" max="200"> files</span></label>
+      </div>
+      <div class="rpBar">
+        <button type="button" class="btn" id="rpEdit">Edit numbers &amp; text</button>
+        <button type="button" class="btn primary" id="rpPrint">Print / Save as PDF</button>
+        <button type="button" class="btn" id="rpCopy">Copy for Word / email</button>
+        <button type="button" class="btn" id="rpReset" hidden>Remove my edits</button>
+        <span class="small muted" id="rpEdN"></span>
+      </div>
+      <div class="rpHint">Edit mode: click any number to switch it between %, count and both, or type your own value. Click any text (risks, actions, findings, comments) to rewrite it. Edits are saved for this report and month only.</div>
+    </div>
+    <div id="rpDoc" class="rpDoc"></div>
+  </section>
+
   <section id="view-doctors" class="tabview" hidden>
     <div class="panel" id="lkPanel" style="border-color:var(--accent)">
       <div><h2>Doctor email lookup</h2><p class="lede">Upload any Excel file with doctor names. The app lists each doctor once, finds their email, and shows which ones are missing so you can add them. Emails you add are kept for next time.</p></div>
@@ -648,7 +679,7 @@ input[type=range]{accent-color:var(--accent)}
       <h2>User guide (PDF)</h2>
       <p class="small muted">The full manual for you and new team members, and a one-page card for the desk. Needs internet the first time; after that it opens offline in the installed app.</p>
       <div class="row" style="gap:8px;flex-wrap:wrap">
-        <a class="btn primary" href="MR-Followup-User-Guide.pdf" target="_blank" rel="noopener">Open full guide (28 pages)</a>
+        <a class="btn primary" href="MR-Followup-User-Guide.pdf" target="_blank" rel="noopener">Open full guide (30 pages)</a>
         <a class="btn" href="MR-Followup-Quick-Card.pdf" target="_blank" rel="noopener">Open quick card (1 page)</a>
       </div>
     </div>
@@ -1604,7 +1635,7 @@ const ageOk=(a,g)=>{if(!g)return true;const n=ageNum(a);if(g.none)return n==null
 const AGE_BANDS=[['Under 1',0,0],['1–14',1,14],['15–17',15,17],['18–44',18,44],['45–64',45,64],['65+',65,999]];
 function computeDash(){
   const ty=$('#dType').value,p=$('#dPeriod').value,dp=$('#dDept').value,dk=$('#dDoc').value,ag=ageSel(),au=TEAM?$('#dAud').value:'';
-  const A0=dashAudits().filter(a=>(!ty||typeOf(a)===ty)&&inPeriod(a,p)&&(!dp||a.dept===dp)&&(!dk||docKey(a.doc)===dk)&&ageOk(a,ag)&&(!au||audBy(a)===au)&&opOk(a,$('#dOp').value));
+  const Aall=dashAudits().filter(a=>(!ty||typeOf(a)===ty)&&inPeriod(a,p)&&(!dp||a.dept===dp)&&(!dk||docKey(a.doc)===dk)&&ageOk(a,ag)&&(!au||audBy(a)===au)&&opOk(a,$('#dOp').value));const pendOut=Aall.filter(a=>auditStatus(a)==='Pending').length;const A0=Aall.filter(a=>auditStatus(a)!=='Pending');
   const pc=samplePct();let A=A0;
   if(pc<100&&A0.length){const n=Math.max(1,Math.round(A0.length*pc/100));const seed=S.settings.sampleSeed||1;A=A0.map(a=>[hash(a.id+'|'+seed),a]).sort((x,y)=>x[0]-y[0]).slice(0,n).map(x=>x[1])}
   const st=A.map(a=>auditStatus(a));const c=k=>st.filter(s=>s===k).length;
@@ -1631,7 +1662,7 @@ function computeDash(){
   const agesKnown=A.map(ageNum).filter(v=>v!=null);
   const byAud=TEAM?[...new Set(A.map(audBy))].sort().map(n=>{const idx=A.map((a,i)=>i).filter(i=>audBy(A[i])===n);const cc=k=>idx.filter(i=>st[i]===k).length;
     return {n,files:idx.length,full:idx.filter(i=>!isQuick(A[i])).length,quick:idx.filter(i=>isQuick(A[i])).length,complete:cc('Complete'),inc:cc('Incomplete'),late:cc('Delinquent'),pending:cc('Pending'),fixed:idx.filter(i=>isFixed(A[i])).length}}):null;
-  return {byAud,au,fixedN,everInc,ovN,ag,ageRows,ageAvg:agesKnown.length?agesKnown.reduce((x,y)=>x+y,0)/agesKnown.length:null,ageN:agesKnown.length,pc,popN:A0.length,sample:A,ty,AFn:AF.length,types,p,dp,dk,total,complete,incomplete,late,pending,firstPass,losAvg,losMed,losMax,bed,req,dims,depts,docs,bands,months,
+  return {pendOut,byAud,au,fixedN,everInc,ovN,ag,ageRows,ageAvg:agesKnown.length?agesKnown.reduce((x,y)=>x+y,0)/agesKnown.length:null,ageN:agesKnown.length,pc,popN:A0.length,sample:A,ty,AFn:AF.length,types,p,dp,dk,total,complete,incomplete,late,pending,firstPass,losAvg,losMed,losMax,bed,req,dims,depts,docs,bands,months,
     fu:{F:F.length,em:em.length,e2:e2.length,resp:resp.length,noresp:noresp.length,esc:esc_.length,noemail:noemail.length,gap:gaps.length?gaps.reduce((s,v)=>s+v,0)/gaps.length:null,docs:byDoc.size,docsAll:respDocs.filter(g=>g.resp===g.sent).length},respDocs}}
 function bar(v,max,cls=''){return `<div class="bar ${cls}" title="${v}"><i style="width:${max?Math.max(2,v/max*100):0}%"></i></div>`}
 function hash(str){let h=2166136261;for(let i=0;i<str.length;i++){h^=str.charCodeAt(i);h=Math.imul(h,16777619)}return h>>>0}
@@ -1641,9 +1672,10 @@ function typeLabel(){return {full:'Full audit',quick:'Quick audit','':'Full + qu
 function periodLabel(){const s=$('#dPeriod');return s.options[s.selectedIndex]?.text||'All periods'}
 function renderDash(){try{renderTeam()}catch(e){}try{if(typeof repVis==='function')repVis()}catch(e){console.error(e)}try{if(typeof vteVis==='function')vteVis()}catch(e){}try{renderKpi()}catch(e){console.error(e)}dashFilters();const d=computeDash();lastDash=d;
   {const P=$('#dByAudP');P.hidden=!d.byAud;if(d.byAud){const m=Math.max(1,...d.byAud.map(r=>r.files));$('#dByAud').innerHTML=`<table><thead><tr><th>Auditor</th><th class="r">Files</th><th class="r">Full</th><th class="r">Quick</th><th class="r">Complete</th><th class="r">Incomplete</th><th class="r">Delinquent</th><th class="r">Pending</th><th class="r">Fixed after follow-up</th><th class="r">Completion</th><th></th></tr></thead><tbody>${d.byAud.map(r=>`<tr><td>${esc(r.n)}</td><td class="r mono">${r.files}</td><td class="r mono">${r.full}</td><td class="r mono">${r.quick}</td><td class="r mono">${r.complete}</td><td class="r mono">${r.inc}</td><td class="r mono">${r.late}</td><td class="r mono">${r.pending}</td><td class="r mono">${r.fixed}</td><td class="r mono">${pctS(r.complete,r.files)}</td><td style="width:110px">${bar(r.files,m)}</td></tr>`).join('')}</tbody></table>`}}
-  $('#dLede').innerHTML=`${esc(typeLabel())} · ${esc(periodLabel())} · ${esc(d.dp||'all departments')} · ${esc(d.dk?docName(d.dk):'all doctors')}${d.ag?' · <b>'+esc(d.ag.label)+'</b>':''}${$('#dOp').value?` · <b>${$('#dOp').value==='yes'?'with operation':'without operation'}</b>`:''}${TEAM?` · <b style="color:var(--accent)">team report: ${esc(d.au||'all auditors')}</b>`:''} · ${d.ovN?`<span title="Statuses you changed by hand">${d.ovN} status${d.ovN===1?'':'es'} set by hand ✎</span> · `:''}${d.pc<100?`<b style="color:var(--accent)">random sample ${d.pc}%: ${d.total} of ${d.popN} files</b>`:`${d.total} files`}`;
+  $('#dLede').innerHTML=(d.pendOut?`<span class="small">${d.pendOut} pending audit${d.pendOut>1?'s are':' is'} not counted · <a href="#" id="dPendGo">view in Search</a></span><br>`:'')+`${esc(typeLabel())} · ${esc(periodLabel())} · ${esc(d.dp||'all departments')} · ${esc(d.dk?docName(d.dk):'all doctors')}${d.ag?' · <b>'+esc(d.ag.label)+'</b>':''}${$('#dOp').value?` · <b>${$('#dOp').value==='yes'?'with operation':'without operation'}</b>`:''}${TEAM?` · <b style="color:var(--accent)">team report: ${esc(d.au||'all auditors')}</b>`:''} · ${d.ovN?`<span title="Statuses you changed by hand">${d.ovN} status${d.ovN===1?'':'es'} set by hand ✎</span> · `:''}${d.pc<100?`<b style="color:var(--accent)">random sample ${d.pc}%: ${d.total} of ${d.popN} files</b>`:`${d.total} files`}`;
+  {const g=$('#dPendGo');if(g)g.onclick=e=>{e.preventDefault();go('search');$('#sStatus').value='Pending';$('#sStatus').dispatchEvent(new Event('change'))}}
   const tile=(n,l,s,c='')=>`<div class="stat ${c}"><div class="n">${n}</div><div class="l">${l}</div>${s?`<div class="s">${s}</div>`:''}</div>`;
-  $('#dKpi').innerHTML=tile(d.total,'Total files')+tile(d.complete,'Complete',pctS(d.complete,d.total),'ok')+tile(d.incomplete,'Incomplete',`${d.late} of them delinquent`,'warn')+tile(d.pending,'Pending','audit not final')+tile(d.late,'Delinquent',pctS(d.late,d.total),'late');
+  $('#dKpi').innerHTML=tile(d.total,'Total files')+tile(d.complete,'Complete',pctS(d.complete,d.total),'ok')+tile(d.incomplete,'Incomplete',`${d.late} of them delinquent`,'warn')+tile(d.late,'Delinquent',pctS(d.late,d.total),'late');
   $('#dKpi2').innerHTML=tile(pctS(d.complete,d.total),'Completion rate','complete ÷ total')+tile(pctS(d.firstPass,d.total),'Complete at audit','complete on first review')+tile(d.fixedN,'Fixed after follow-up',d.everInc?`${pctS(d.fixedN,d.everInc)} of ${d.everInc} incomplete files corrected`:'no incomplete files','ok')+tile(d.losAvg.toFixed(2),'Avg LOS (days)',`median ${d.losMed}`)+tile(d.losMax,'Max LOS (days)')+tile(d.bed,'Total bed-days');
   const segs=[['Complete',d.complete,'var(--ok)'],['Incomplete',d.incomplete-d.late,'var(--warn)'],['Delinquent',d.late,'var(--late)'],['Pending',d.pending,'var(--na)']];
   $('#dStatus').innerHTML=d.total?`<div class="stack" role="img" aria-label="File status">${segs.filter(s=>s[1]).map(s=>`<i style="width:${s[1]/d.total*100}%;background:${s[2]}" title="${s[0]}: ${s[1]} (${pctS(s[1],d.total)})"></i>`).join('')}</div>
@@ -2218,7 +2250,7 @@ $('#qQ').addEventListener('input',renderQueue);$('#qStill').addEventListener('ch
 $('#aFile').addEventListener('change',()=>{if(form.id||form.queueId||form.batch)return;const no=$('#aFile').value.trim();const q=S.queue.find(x=>x.fileNo===no&&(x.type||'full')===auMode);if(!q)return;fillFromQueue(q);$('#auMsg').textContent='Found in the worklist. Details filled in.';renderQueue()});
 
 /* ---------- shell ---------- */
-const TABS=['files','audit','search','dashboard','doctors','data','guide'];let cur='files';
+const TABS=['files','audit','search','dashboard','reports','doctors','data','guide'];let cur='files';
 function go(t){if(!TABS.includes(t))t='files';cur=t;TABS.forEach(x=>{$('#view-'+x).hidden=x!==t;$('#tab-'+x).setAttribute('aria-selected',x===t)});try{if(location.hash!=='#'+t)history.replaceState(null,'','#'+t)}catch(e){}renderAll();scrollTo(0,0);if(t==='search')setTimeout(()=>$('#sQ').focus(),50)}
 document.querySelectorAll('#nav button').forEach(b=>b.onclick=()=>go(b.dataset.tab));
 document.addEventListener('click',e=>{const g=e.target.closest('[data-go]');if(g)go(g.dataset.go)});
@@ -2228,7 +2260,7 @@ $('#toastUndo').onclick=()=>{if(undoFn){undoFn();undoFn=null;$('#toast').hidden=
 function renderFlow(){$('#flow').innerHTML=`<span class="st">Audit with ✗</span><span class="ar">→</span><span class="st">Stalled: send 1st email</span><span class="ar">→ ${R()} days →</span><span class="st" style="border-color:var(--warn)">2nd reminder due</span><span class="ar">→ ${D()} days after 1st email →</span><span class="st" style="border-color:var(--late);color:var(--late)">Delinquent</span><span class="ar">· any time →</span><span class="st" style="border-color:var(--ok);color:var(--ok)">Completed (leaves the list)</span>`}
 function renderAll(){indexFu();$('#sampleBanner').hidden=!S.sample;renderFiles();
   const nq=S.queue.length;$('#auBadge').hidden=!nq;$('#auBadge').textContent=nq;
-  if(cur==='audit'){renderQueue();renderAudits()}if(cur==='search'){const keep=sSel;renderSearch();if(keep&&keep.kind==='audit'){const r=sPool.find(x=>x.kind==='audit'&&x.a===keep.a);if(r)showFile(r,true)}}if(cur==='dashboard')renderDash();if(cur==='doctors')renderDoctors();if(cur==='data')renderData();if(cur==='guide')renderFlow()}
+  if(cur==='audit'){renderQueue();renderAudits()}if(cur==='search'){const keep=sSel;renderSearch();if(keep&&keep.kind==='audit'){const r=sPool.find(x=>x.kind==='audit'&&x.a===keep.a);if(r)showFile(r,true)}}if(cur==='dashboard')renderDash();if(cur==='reports'&&window.renderReports)renderReports();if(cur==='doctors')renderDoctors();if(cur==='data')renderData();if(cur==='guide')renderFlow()}
 $('#dPct').value=S.settings.samplePct||100;
 rebuildDoctors();indexFu();auMode=S.settings.auMode==='quick'?'quick':'full';setMode(auMode);(async()=>{const imp=await checkImportLink();go(imp?'files':(location.hash.slice(1)||'files'))})();
 setTimeout(()=>notifyNow(false),1500);
@@ -2400,7 +2432,7 @@ function crRowA(a){const age=ageNum(a),los=losOf(a),st=auditStatus(a),op=hasOp(a
 function crRowV(o){const los=o.ad&&o.dc?daysBetween(o.ad,o.dc):null;return {_:o,file:String(o.r),name:'',adm:o.ad||'',dis:o.dc||'',admDay:wday(o.ad),disDay:wday(o.dc),admMonth:(o.ad||'').slice(0,7),disMonth:(o.dc||'').slice(0,7),age:o.a,ageGrp:ageGrp(o.a),los,losGrp:losGrp(los),
     dept:o.dep||'',ward:o.w||'',doctor:o.doc?docName(docKey(o.doc),o.doc):'',dx:o.c||[],dx1:(o.c||[])[0]||'',dxGroups:Object.keys(ICD_GROUPS).filter(g=>(o.c||[]).some(c=>icdIn(c,ICD_GROUPS[g])))}}
 const CR_SETS={
-  audits:{label:'Audited files (your audits)',rows:()=>dashAudits().map(crRowA)},
+  audits:{label:'Audited files (your audits)',rows:()=>dashAudits().filter(a=>auditStatus(a)!=='Pending').map(crRowA)},
   visits:{label:'Inpatient visits with diagnoses (Grid loaded in VTE KPI)',rows:()=>typeof V==='undefined'?[]:Object.values(V.visits).filter(o=>o.t==='IP').map(crRowV)}};
 const CR_F={file:['File number','text'],adm:['Admission date','date'],dis:['Discharge date','date'],admDay:['Admission weekday','cat'],disDay:['Discharge weekday','cat'],admMonth:['Admission month','cat'],disMonth:['Discharge month','cat'],
   age:['Age (years)','num'],ageGrp:['Age group','cat'],los:['Length of stay (days)','num'],losGrp:['Length of stay group','cat'],dept:['Department','cat'],ward:['Ward','cat'],doctor:['Doctor','cat'],
@@ -2562,13 +2594,13 @@ const STAGE={need1:'1st email not sent',waiting:'waiting (emailed)',need2:'2nd r
 let SAMPLE=null,ctl=null,turns=[],lastQ='';
 
 /* ---------- facts from the data (no patient names) ---------- */
-function stat(L){const r={files:L.length,complete:0,atAudit:0,fixed:0,incomplete:0,delinquent:0,pending:0};
+function stat(L){L=L.filter(a=>auditStatus(a)!=='Pending');const r={files:L.length,complete:0,atAudit:0,fixed:0,incomplete:0,delinquent:0,pending:0};
   for(const a of L){const s=auditStatus(a);if(s==='Complete'){r.complete++;if(isFixed(a))r.fixed++;else r.atAudit++}else if(s==='Delinquent'){r.delinquent++;r.incomplete++}else if(s==='Incomplete')r.incomplete++;else if(s==='Pending')r.pending++}
   r.completion=pct(r.complete,r.files-r.pending);r.atAuditRate=pct(r.atAudit,r.files-r.pending);return r}
 function months(){const s=new Set(S.audits.map(a=>mk(a.dis)).filter(Boolean));return [...s].sort()}
 function openFu(){return S.fu.filter(f=>fuMine(f)&&!f.hid).map(f=>({f,st:fuStage(f)})).filter(x=>x.st!=='done')}
 function docLabel(k,raw){try{return docName(k,raw)}catch(e){return raw||k||'—'}}
-function recentAudits(days){const c=addD(isoT(),-days);return S.audits.filter(a=>(a.dis||'')>=c)}
+function recentAudits(days){const c=addD(isoT(),-days);return S.audits.filter(a=>(a.dis||'')>=c&&auditStatus(a)!=='Pending')}
 function stdCounts(L){const C=S.criteria.map(c=>({c,files:0,T:0,A:0,C:0}));
   for(const a of L){if(isQuick(a)||!a.sc)continue;for(let i=0;i<C.length;i++){const t=a.sc.slice(i*3,i*3+3);if(!t.includes('0'))continue;C[i].files++;if(t[0]==='0')C[i].T++;if(t[1]==='0')C[i].A++;if(t[2]==='0')C[i].C++}}
   return C.filter(x=>x.files).sort((a,b)=>b.files-a.files)}
@@ -2609,7 +2641,6 @@ const LOCAL={
    if(c('need1'))todo.push({w:80+Math.min(9,c('need1')),h:`Send ${c('need1')} first email${c('need1')>1?'s':''}`,t:`The clock only starts when the 1st email is recorded. Stalled files → <b>Send 1st email</b>.`});
    const unconf=D.filter(d=>d.open&&!d.emailOk);if(unconf.length)todo.push({w:60+Math.min(9,unconf.length),h:`Confirm ${unconf.length} doctor email${unconf.length>1?'s':''}`,t:`${unconf.slice(0,4).map(d=>esc(d.name)).join(', ')}${unconf.length>4?'…':''} have open files but no confirmed email. Doctors → Doctor directory.`});
    const wl=W.full+W.quick;if(wl)todo.push({w:40+Math.min(9,W.over30),h:`Work down the worklists (${wl} file${wl>1?'s':''})`,t:`${W.full} full + ${W.quick} quick waiting${W.over30?`; ${W.over30} discharged more than 30 days ago`:''}. Oldest discharge: ${fmtD(W.oldestFull||W.oldestQuick)}.`});
-   const P=S.audits.filter(a=>a.pending).length;if(P)todo.push({w:30+Math.min(9,P),h:`Finish ${P} pending audit${P>1?'s':''}`,t:`Audit → filter status Pending → Edit.`});
    const hidW=O.filter(x=>!fuInWin(x.f)&&['late','need2','need1'].includes(x.st)).length;
    todo.sort((a,b)=>b.w-a.w);if(!todo.length)return '<p>Nothing urgent: no open stalled files, empty worklists and no pending audits.</p>';
    return `<ol>${todo.slice(0,3).map(x=>`<li><b>${x.h}.</b> ${x.t}</li>`).join('')}</ol>${hidW?`<p class="small muted">${hidW} of these files are older than your Stalled-files discharge window, so they are hidden there. Set the window to “Any discharge date” to see them, or Remove the ones you no longer chase.</p>`:''}${todo.length>3?`<p class="small muted">Also: ${todo.slice(3).map(x=>x.h.toLowerCase()).join(' · ')}.</p>`:''}`}},
@@ -2711,6 +2742,264 @@ $a('#advCopy').addEventListener('click',async()=>{const t=prompt(lastQ||$a('#adv
 window.mrAdvisor={facts:factsJSON,local:LOCAL,route,prompt};
 setMode();
 (async()=>{try{if(window.claude&&window.claude.use){const s=await window.claude.use('sample');if(s){SAMPLE=s;setMode()}}}catch(e){}})();
+})();
+</script>
+
+<style>
+.rpCards{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin:4px 0 14px}
+.rpCards button{display:flex;flex-direction:column;gap:4px;text-align:left;padding:12px 14px;border:1.5px solid var(--line);border-radius:10px;background:var(--bg);color:var(--ink);cursor:pointer;font:13px/1.4 var(--f-body)}
+.rpCards button b{font-size:14.5px;font-weight:600}
+.rpCards button span{color:var(--muted);font-size:12.5px}
+.rpCards button:hover{border-color:var(--accent)}
+.rpCards button[aria-selected=true]{border-color:var(--accent);background:var(--accent-soft);box-shadow:inset 0 0 0 1px var(--accent)}
+.rpCards button[aria-selected=true] b{color:var(--accent)}
+@media (max-width:900px){.rpCards{grid-template-columns:1fr 1fr}}
+.rpCtlRow{display:flex;flex-wrap:wrap;gap:10px 14px;align-items:flex-end}
+.rpCtlRow label{display:flex;flex-direction:column;gap:3px;font-size:12px;color:var(--muted)}
+.rpCtlRow select,.rpCtlRow input{min-width:120px}
+.rpCtlRow input[type=number]{width:70px;min-width:0}
+.rpBar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:12px}
+.rpEditOn .rpHint{display:block}
+.rpHint{display:none;margin-top:8px;font-size:12.5px;color:var(--accent)}
+.rpDoc{display:grid;gap:18px}
+.rpPage{background:#fff;color:#13232a;width:100%;max-width:210mm;margin:0 auto;padding:13mm 13mm 11mm;border-radius:6px;box-shadow:0 2px 14px rgba(0,0,0,.12);font:10pt/1.45 var(--f-body);--a:#0f5f6a;--m:#5a6b72;--l:#d9e1e4;--ok:#087443;--warn:#a15c07;--late:#b42318}
+.rpPage h1{font:700 17pt/1.15 var(--f-display);margin:0;color:var(--a)}
+.rpPage h2{font:700 11pt var(--f-body);margin:14px 0 6px;padding-bottom:3px;border-bottom:1.5px solid #13232a;letter-spacing:.01em}
+.rpPage .rpTop{display:flex;justify-content:space-between;gap:12px;align-items:flex-end;border-bottom:3px solid var(--a);padding-bottom:7px;margin-bottom:10px}
+.rpPage .rpMeta{font-size:8.5pt;color:var(--m);text-align:right}
+.rpPage .rpSub{color:var(--m);font-size:9.5pt;margin-top:3px}
+.rpTiles{display:grid;grid-template-columns:repeat(3,1fr);gap:7px}
+.rpTile{border:1px solid var(--l);border-radius:5px;padding:6px 9px}
+.rpTile .n{font:700 16pt/1.1 var(--f-display)}
+.rpTile .t{font-size:8pt;text-transform:uppercase;letter-spacing:.05em;color:var(--m);margin-top:2px}
+.rpTile .s{font-size:8.5pt;color:var(--m)}
+.rpTile.ok .n{color:var(--ok)}.rpTile.warn .n{color:var(--warn)}.rpTile.late .n{color:var(--late)}
+.rpPage table{width:100%;border-collapse:collapse;font-size:8.8pt;margin:2px 0 4px}
+.rpPage th{text-align:left;font-size:7.4pt;text-transform:uppercase;letter-spacing:.05em;color:var(--m);border-bottom:1px solid #13232a;padding:3px 5px;font-weight:600}
+.rpPage td{border-bottom:1px solid var(--l);padding:3px 5px;vertical-align:top}
+.rpPage .r{text-align:right;font-variant-numeric:tabular-nums}
+.rpPage .flag{display:inline-block;padding:0 6px;border-radius:8px;font-size:7.4pt;font-weight:700;text-transform:uppercase;letter-spacing:.03em}
+.flag.good{background:#e3f5ec;color:var(--ok)}.flag.watch{background:#fdf3e1;color:var(--warn)}.flag.review{background:#fdecea;color:var(--late)}.flag.small{background:#edf1f2;color:#56656b}
+.rpCols{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.rpText{min-height:1.4em;white-space:normal}
+.rpText ul{margin:2px 0;padding-left:16px}.rpText li{margin:1px 0}.rpText p{margin:0 0 3px}
+.rpNote{font-size:8pt;color:var(--m);margin-top:4px}
+.rpFoot{margin-top:12px;padding-top:5px;border-top:1px solid var(--l);font-size:7.6pt;color:var(--m);display:flex;justify-content:space-between}
+.rpBig{font:600 11pt/1.5 var(--f-body);background:#eef6f7;border-left:3px solid var(--a);padding:8px 11px;border-radius:4px;margin:4px 0 8px}
+.rpHeat td.c{text-align:center;font-variant-numeric:tabular-nums;font-size:8.2pt;padding:3px 2px}
+.rpHeat th.v{writing-mode:vertical-rl;transform:rotate(180deg);height:118px;vertical-align:bottom;text-transform:none;letter-spacing:0;font-size:7.6pt;padding:3px 1px;white-space:normal;max-width:24px}
+.rpSpark{display:block;width:100%;max-height:96px;margin:2px 0 4px}
+.fig.ed{text-decoration:underline dotted;text-underline-offset:2px}
+.rpEditing .fig{outline:1.5px dashed #0f5f6a66;outline-offset:1px;border-radius:2px;cursor:pointer}
+.rpEditing .fig:hover{background:#dcecee}
+.rpEditing .rpText{outline:1.5px dashed #0f5f6a66;outline-offset:3px;border-radius:3px;cursor:text}
+.rpEditing .rpText:empty::before{content:attr(data-ph);color:#9aa7ac}
+.rpText:empty{display:none}.rpEditing .rpText:empty{display:block}
+.rpPop{position:absolute;z-index:80;background:var(--surface);color:var(--ink);border:1px solid var(--line);border-radius:10px;box-shadow:0 10px 30px rgba(0,0,0,.2);padding:10px;width:280px;font-size:13px}
+.rpPop .seg{display:flex;gap:4px;margin:6px 0 8px;flex-wrap:wrap}
+.rpPop .seg button{flex:1;padding:4px 6px;border:1px solid var(--line);background:var(--bg);color:var(--ink);border-radius:6px;font:12px var(--f-body);cursor:pointer}
+.rpPop .seg button.on{background:var(--accent);color:#fff;border-color:var(--accent)}
+.rpPop input{width:100%}
+.rpPop .rowb{display:flex;gap:6px;justify-content:flex-end;margin-top:8px}
+@media (max-width:760px){.rpTiles{grid-template-columns:repeat(2,1fr)}.rpCols{grid-template-columns:1fr}.rpPage{padding:16px}}
+@media print{
+  html.rpPrint,html.rpPrint body{background:#fff!important}
+  html.rpPrint body *{visibility:hidden!important}
+  html.rpPrint .rpPage h2{break-after:avoid}
+  html.rpPrint #rpDoc,html.rpPrint #rpDoc *{visibility:visible!important}
+  html.rpPrint #rpDoc{position:absolute;left:0;top:0;width:100%;display:block}
+  html.rpPrint .rpPage{box-shadow:none;border-radius:0;max-width:none;padding:0;margin:0;break-after:page;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  html.rpPrint .rpPage:last-child{break-after:auto}
+  html.rpPrint .fig{outline:none!important;text-decoration:none!important;background:none!important}
+  html.rpPrint .rpText{outline:none!important}
+  html.rpPrint .rpPage tr,html.rpPrint .rpTile{break-inside:avoid}
+  @page{size:A4;margin:12mm}
+}
+</style>
+<script>
+(()=>{
+const $r=s=>document.querySelector(s);
+const MON=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const mL=k=>k?MON[+k.slice(5,7)-1]+' '+k.slice(0,4):'';
+const mShift=(k,n)=>{let y=+k.slice(0,4),m=+k.slice(5,7)-1+n;y+=Math.floor(m/12);m=((m%12)+12)%12;return y+'-'+String(m+1).padStart(2,'0')};
+const mk=d=>(d||'').slice(0,7);
+const med=a=>{if(!a.length)return null;const s=[...a].sort((x,y)=>x-y),h=s.length>>1;return s.length%2?s[h]:(s[h-1]+s[h])/2};
+const r1=x=>Math.round(x*10)/10;
+const dDays=(a,b)=>Math.round((dt(b)-dt(a))/864e5);
+let EDIT=false,KEY='',ED={},POP=null;
+
+/* ---------- data ---------- */
+function pool0(){const ty=$r('#rpTy').value;return dashAudits().filter(a=>!ty||typeOf(a)===ty)}
+function pool(){return pool0().filter(a=>auditStatus(a)!=='Pending')}
+const pendIn=m=>pool0().filter(a=>mk(a.dis)===m&&auditStatus(a)==='Pending').length;
+function stats(A){const st=A.map(auditStatus),c=k=>st.filter(s=>s===k).length;const late=c('Delinquent');
+  return {files:A.length,full:A.filter(a=>!isQuick(a)).length,quick:A.filter(isQuick).length,complete:c('Complete'),incomplete:c('Incomplete')+late,late,pending:c('Pending'),
+    first:A.filter(a=>auditStatus(a)==='Complete'&&!isFixed(a)).length,fixed:A.filter(isFixed).length,everInc:A.filter(a=>isFixed(a)||['Incomplete','Delinquent'].includes(auditStatus(a))).length}}
+const inM=(A,m)=>A.filter(a=>mk(a.dis)===m);
+const inRange=(A,from,to)=>A.filter(a=>{const k=mk(a.dis);return k>=from&&k<=to});
+function stdRows(A){const C=S.criteria.map((c,i)=>({i,c,files:0,T:0,A:0,C:0}));let n=0;
+  for(const a of A){if(isQuick(a)||!a.sc)continue;n++;for(let i=0;i<C.length;i++){const t=a.sc.slice(i*3,i*3+3);if(!t.includes('0'))continue;C[i].files++;if(t[0]==='0')C[i].T++;if(t[1]==='0')C[i].A++;if(t[2]==='0')C[i].C++}}
+  return {n,rows:C.filter(x=>x.files).sort((a,b)=>b.files-a.files)}}
+function boxes(A){let s=0,z=0;for(const a of A){if(isQuick(a)||!a.sc)continue;for(const ch of a.sc){if(ch==='1'||ch==='0')s++;if(ch==='0')z++}}return {scored:s,zero:z}}
+function depts(A){const M={};for(const a of A)(M[a.dept||'—']=M[a.dept||'—']||[]).push(a);return M}
+function fuOf(a){return fuIdx.get(a.id)||null}
+function fuAct(m){const F=S.fu.filter(f=>fuMine(f));const e1=F.filter(f=>known(f.e1)&&mk(f.e1)===m).length,e2=F.filter(f=>known(f.e2)&&mk(f.e2)===m).length;
+  const done=F.filter(f=>f.status==='done'&&known(f.done)&&mk(f.done)===m);const days=done.filter(f=>known(f.e1)).map(f=>dDays(f.e1,f.done)).filter(d=>d>=0);
+  const openLate=F.filter(f=>fuStage(f)==='late').length;return {e1,e2,done:done.length,medDays:med(days),openLate}}
+function flagOf(s,hosp,prev){const min=minN();if(s.files<min)return ['small','Small group'];const rate=s.incomplete/s.files,h=hosp.files?hosp.incomplete/hosp.files:0;
+  if(s.late>=2||(s.incomplete>=2&&rate>=Math.max(2*h,h+.05)))return ['review','Needs review'];
+  if(prev&&prev.files>=min&&(s.complete/s.files)<(prev.complete/prev.files)-.05)return ['watch','Watch'];return ['good','Good']}
+const minN=()=>Math.max(1,+$r('#rpMin').value||10);
+
+/* ---------- figures (editable, % / count / both) ---------- */
+function fmtRatio(n,d,f){if(!d)return '—';const p=r1(n/d*100)+'%';return f==='pct'?p:f==='count'?`${n} / ${d}`:`${n} / ${d} (${p})`}
+function F(id,n,d){const e=ED[id]||{};let f=e.f||$r('#rpFmt').value;if(f==='auto')f=d<minN()?'count':'pct';
+  const shown=e.t!=null&&e.t!==''?e.t:fmtRatio(n,d,f);return `<span class="fig${e.t||e.f?' ed':''}" data-fid="${esc(id)}" data-n="${n}" data-d="${d}" data-k="r" title="${esc(n+' of '+d)}">${esc(shown)}</span>`}
+function N(id,v){const e=ED[id]||{};const shown=e.t!=null&&e.t!==''?e.t:(v==null?'—':String(v));return `<span class="fig${e.t?' ed':''}" data-fid="${esc(id)}" data-v="${esc(v==null?'—':v)}" data-k="n">${esc(shown)}</span>`}
+function OPT(title,id,ph){const e=ED[id];if(!EDIT&&!(e&&e.x))return '';return `<h2>${title}</h2>`+TX(id,'',ph)}
+function TX(id,def,ph){const e=ED[id];const txt=e&&e.x!=null?e.x:def;return `<div class="rpText" data-tid="${esc(id)}" data-ph="${esc(ph||'Click to write…')}" ${EDIT?'contenteditable="true"':''}>${txtHtml(txt)}</div>`}
+function txtHtml(t){if(!t)return '';const L=t.split('\n');let o='',ul=false;for(const l of L){const m=l.match(/^\s*[-•*]\s+(.*)/);if(m){if(!ul){o+='<ul>';ul=true}o+=`<li>${esc(m[1])}</li>`}else{if(ul){o+='</ul>';ul=false}if(l.trim())o+=`<p>${esc(l)}</p>`}}if(ul)o+='</ul>';return o}
+function htmlTxt(el){const out=[];el.childNodes.forEach(n=>{if(n.nodeName==='UL')n.querySelectorAll('li').forEach(li=>out.push('- '+li.textContent.trim()));else{const t=(n.innerText!=null?n.innerText:n.textContent)||'';t.split('\n').forEach(x=>{if(x.trim())out.push(x.trim())})}});return out.join('\n')}
+
+/* ---------- page parts ---------- */
+const tile=(t,fig,s,c='')=>`<div class="rpTile ${c}"><div class="n">${fig}</div><div class="t">${t}</div>${s?`<div class="s">${s}</div>`:''}</div>`;
+function head(title,sub){const au=S.settings.auditor||'';return `<div class="rpTop"><div><h1>${title}</h1><div class="rpSub">${sub}</div></div><div class="rpMeta">${au?'Prepared by '+esc(au)+'<br>':''}Medical Records · Documentation audit<br>Generated ${fmtD(isoDay(new Date()))}</div></div>`}
+const foot=(t)=>`<div class="rpFoot"><span>${t} Pending audits are not included.</span><span>MR Follow-up</span></div>`;
+function scopeTxt(){const t=$r('#rpTy').value;return t==='full'?'Full audits':t==='quick'?'Quick audits':'Full + quick audits'}
+function trendSvg(rows){if(rows.length<2)return '';const W=640,H=86,pl=6,pt=16,pb=16,cw=(W-pl*2)/rows.length,bw=Math.min(54,cw*.5);
+  return `<svg class="rpSpark" viewBox="0 0 ${W} ${H}" style="height:auto" role="img" aria-label="Completion by month">${rows.map((r,i)=>{const v=r.files?r.complete/r.files:0,h=(H-pt-pb)*v,x=pl+i*cw+(cw-bw)/2;return `<rect x="${x}" y="${H-pb-h}" width="${bw}" height="${h}" rx="2" fill="${i===rows.length-1?'#0f5f6a':'#9cc6cb'}"/><text x="${x+bw/2}" y="${H-pb-h-4}" font-size="10" font-weight="600" text-anchor="middle" fill="#13232a">${r1(v*100)}%</text><text x="${x+bw/2}" y="${H-3}" font-size="9.5" text-anchor="middle" fill="#5a6b72">${MON[+r.m.slice(5,7)-1]}</text>`}).join('')}</svg>`}
+
+/* ---------- reports ---------- */
+function rExec(m){const P=pool(),A=inM(P,m),s=stats(A),pm=mShift(m,-1),ps=stats(inM(P,pm));
+  if(!A.length)return page(head('Monthly Documentation Report',`${mL(m)} · ${scopeTxt()}`)+'<p>No audited files discharged in this month.</p>');
+  const comp=s.files?s.complete/s.files:0,pcomp=ps.files?ps.complete/ps.files:null;
+  const delta=pcomp==null?'':`${comp>=pcomp?'▲':'▼'} ${r1(Math.abs(comp-pcomp)*100)} pts vs ${mL(pm)}`;
+  const T6=[];for(let i=5;i>=0;i--){const k=mShift(m,-i);const x=stats(inM(P,k));if(x.files)T6.push({m:k,...x})}
+  const D=depts(A),pD=depts(inM(P,pm));const drows=Object.entries(D).map(([d,L])=>{const x=stats(L);return {d,x,fl:flagOf(x,s,pD[d]?stats(pD[d]):null)}}).sort((a,b)=>b.x.files-a.x.files);
+  const SR=stdRows(A);const fa=fuAct(m);
+  const K=[];try{for(const k of kpiList()){const row=kpiCalc(k,m.slice(0,4)).find(r=>r.key===m);if(row&&row.d)K.push({k,row})}}catch(e){}
+  const rev=drows.filter(r=>r.fl[0]==='review'),watch=drows.filter(r=>r.fl[0]==='watch');
+  const risks=[];if(s.late)risks.push(`- ${s.late} file${s.late>1?'s are':' is'} delinquent (more than ${D_()} days after the first email).`);
+  if(rev.length)risks.push(`- ${rev.map(r=>r.d).slice(0,3).join(', ')} need${rev.length===1?'s':''} review: incomplete or delinquent files above the hospital level.`);
+  if(SR.rows[0])risks.push(`- "${SR.rows[0].c}" is the most frequently missing standard (${SR.rows[0].files} of ${SR.n} full audits).`);
+  if(watch.length)risks.push(`- Completion fell by more than 5 points in ${watch.map(r=>r.d).slice(0,3).join(', ')}.`);
+  const acts=[];if(s.late)acts.push('- Escalate delinquent files to the department heads concerned.');if(SR.rows[0])acts.push(`- Short awareness note to physicians on "${SR.rows[0].c}".`);if(rev.length)acts.push(`- Share the department scorecard with ${rev[0].d}.`);acts.push('- Continue weekly follow-up of open files until closed.');
+  const body=head('Monthly Documentation Report',`${mL(m)} (by discharge date) · ${scopeTxt()}`)+
+  `<div class="rpTiles">${tile('Files audited',N('files',s.files),`${s.full} full · ${s.quick} quick`)}${tile('Completion rate',F('comp',s.complete,s.files),esc(delta),'ok')}${tile('Complete at audit',F('first',s.first,s.files),'complete on first review')}
+   ${tile('Fixed after follow-up',F('fixed',s.fixed,s.everInc),'of files found incomplete','ok')}${tile('Still incomplete',F('inc',s.incomplete,s.files),'not yet completed','warn')}${tile('Delinquent',F('late',s.late,s.files),`over ${D_()} days after 1st email`,'late')}</div>
+  <h2>Six-month trend</h2>${trendSvg(T6)}<table><tr><th>Month</th><th class="r">Files</th><th class="r">Completion</th><th class="r">Complete at audit</th><th class="r">Delinquent</th></tr>${T6.map(r=>`<tr><td>${mL(r.m)}</td><td class="r">${N('t_f_'+r.m,r.files)}</td><td class="r">${F('t_c_'+r.m,r.complete,r.files)}</td><td class="r">${F('t_a_'+r.m,r.first,r.files)}</td><td class="r">${N('t_l_'+r.m,r.late)}</td></tr>`).join('')}</table>
+  <h2>Departments</h2><table><tr><th>Department</th><th class="r">Files</th><th class="r">Complete</th><th class="r">Incomplete</th><th class="r">Delinquent</th><th>Status</th></tr>${drows.map(({d,x,fl})=>`<tr><td>${esc(d)}</td><td class="r">${N('d_f_'+d,x.files)}</td><td class="r">${F('d_c_'+d,x.complete,x.files)}</td><td class="r">${F('d_i_'+d,x.incomplete,x.files)}</td><td class="r">${N('d_l_'+d,x.late)}</td><td><span class="flag ${fl[0]}">${fl[1]}</span></td></tr>`).join('')}</table>
+  <p class="rpNote">Small group = fewer than ${minN()} files: shown as counts, not a fair basis for a percentage.</p>
+  <div class="rpCols"><div><h2>Most missing standards</h2>${SR.rows.length?`<table><tr><th>Standard</th><th class="r">Files</th></tr>${SR.rows.slice(0,6).map(x=>`<tr><td>${esc(x.c)}</td><td class="r">${F('s_'+x.i,x.files,SR.n)}</td></tr>`).join('')}</table><p class="rpNote">Out of ${SR.n} full audits.</p>`:'<p>No deficient standards in full audits.</p>'}</div>
+   <div><h2>Follow-up activity in ${MON[+m.slice(5,7)-1]}</h2><table><tr><td>1st emails sent</td><td class="r">${N('fa_e1',fa.e1)}</td></tr><tr><td>2nd reminders sent</td><td class="r">${N('fa_e2',fa.e2)}</td></tr><tr><td>Files completed after follow-up</td><td class="r">${N('fa_d',fa.done)}</td></tr><tr><td>Median days, 1st email → completed</td><td class="r">${N('fa_md',fa.medDays==null?'—':fa.medDays)}</td></tr><tr><td>Delinquent files open today</td><td class="r">${N('fa_ol',fa.openLate)}</td></tr></table></div></div>
+  ${K.length?`<h2>Key performance indicators</h2><table><tr><th>KPI</th><th class="r">Numerator</th><th class="r">Denominator</th><th class="r">Result</th><th class="r">Target</th><th>Status</th></tr>${K.map(({k,row},i)=>{const lower=k.kind==='event';const v=row.r;const ok=v==null?null:lower?v<=k.target:v>=k.target;return `<tr><td>${esc(k.name)}</td><td class="r">${N('k_n'+i,row.n)}</td><td class="r">${N('k_d'+i,row.d)}</td><td class="r">${N('k_r'+i,v==null?'—':(Math.round(v*100)/100)+(lower?'':'%'))}</td><td class="r">${esc(String(k.target))}${lower?'':'%'}</td><td>${ok==null?'—':`<span class="flag ${ok?'good':'review'}">${ok?'On target':'Below target'}</span>`}</td></tr>`}).join('')}</table>`:''}
+  <div class="rpCols"><div><h2>Risks</h2>${TX('risks',risks.join('\n'),'Write the main risks…')}</div><div><h2>Actions</h2>${TX('acts',acts.join('\n'),'Write the actions…')}</div></div>
+  ${OPT('Comments','comm','Add comments for management (left out of the print when empty)…')}`;
+  return page(body+foot(`Completion = complete ÷ files audited. Fixed after follow-up = completed after a reminder email.`))}
+
+function rDept(m){const P=pool(),A=inM(P,m),hs=stats(A),sel=$r('#rpDept').value;const D=depts(A);
+  let list=sel?[sel]:Object.keys(D).sort((a,b)=>D[b].length-D[a].length);if(!list.length)return page(head('Department Scorecard',mL(m))+'<p>No audited files discharged in this month.</p>');
+  const ranked=Object.entries(D).filter(([d,L])=>L.length>=minN()).map(([d,L])=>[d,L.filter(a=>auditStatus(a)==='Complete').length/L.length]).sort((a,b)=>b[1]-a[1]).map(x=>x[0]);
+  return list.map(d=>{const L=D[d]||[],x=stats(L),pv=inM(P,mShift(m,-1)).filter(a=>a.dept===d);const fl=flagOf(x,hs,pv.length?stats(pv):null);const id=k=>'p_'+d+'_'+k;
+    const T6=[];for(let i=5;i>=0;i--){const k=mShift(m,-i);const all=inM(P,k),dd=all.filter(a=>a.dept===d);if(all.length)T6.push({m:k,d:stats(dd),h:stats(all)})}
+    const SR=stdRows(L);const DOC={};for(const a of L){const k=docKey(a.doc);(DOC[k]=DOC[k]||{k,raw:a.doc,L:[]}).L.push(a)}
+    const docs=Object.values(DOC).map(o=>{const s=stats(o.L);const F_=o.L.map(fuOf).filter(Boolean);const em=F_.filter(f=>f.e1);const done=em.filter(f=>f.status==='done');const days=done.filter(f=>known(f.e1)&&known(f.done)).map(f=>dDays(f.e1,f.done)).filter(v=>v>=0);return {...o,s,em:em.length,done:done.length,md:med(days)}}).sort((a,b)=>b.s.incomplete-a.s.incomplete||b.s.files-a.s.files);
+    const rank=ranked.indexOf(d);const comp=x.files?x.complete/x.files:0,hc=hs.files?hs.complete/hs.files:0;
+    const find=[];if(x.files<minN())find.push(`- Small group this month (${x.files} file${x.files>1?'s':''}): read the counts, not the percentages.`);
+    find.push(`- Completion ${x.files?r1(comp*100):0}% against ${r1(hc*100)}% for the hospital.`);if(x.late)find.push(`- ${x.late} delinquent file${x.late>1?'s':''} to escalate.`);if(SR.rows[0])find.push(`- Most missing: "${SR.rows[0].c}" (${SR.rows[0].files} file${SR.rows[0].files>1?'s':''}).`);
+    const body=head('Department Scorecard',`${esc(d)} · ${mL(m)} (by discharge date) · ${scopeTxt()}`)+
+    `<div class="rpTiles">${tile('Files audited',N(id('f'),x.files),`${x.full} full · ${x.quick} quick`)}${tile('Completion rate',F(id('c'),x.complete,x.files),`hospital ${fmtRatio(hs.complete,hs.files,'pct')}`,'ok')}${tile('Status',`<span class="flag ${fl[0]}" style="font-size:10pt">${fl[1]}</span>`,rank>=0?`rank ${rank+1} of ${ranked.length} departments`:`fewer than ${minN()} files: not ranked`)}
+     ${tile('Fixed after follow-up',F(id('x'),x.fixed,x.everInc),'of files found incomplete','ok')}${tile('Still incomplete',F(id('i'),x.incomplete,x.files),'','warn')}${tile('Delinquent',N(id('l'),x.late),'','late')}</div>
+    <h2>Six months: department vs hospital</h2><table><tr><th>Month</th><th class="r">Files</th><th class="r">Department completion</th><th class="r">Hospital completion</th><th class="r">Delinquent</th></tr>${T6.map(r=>`<tr><td>${mL(r.m)}</td><td class="r">${N(id('tf'+r.m),r.d.files)}</td><td class="r">${F(id('tc'+r.m),r.d.complete,r.d.files)}</td><td class="r">${F(id('th'+r.m),r.h.complete,r.h.files)}</td><td class="r">${N(id('tl'+r.m),r.d.late)}</td></tr>`).join('')}</table>
+    <div class="rpCols"><div><h2>Missing standards</h2>${SR.rows.length?`<table><tr><th>Standard</th><th class="r">Files</th><th class="r">T</th><th class="r">A</th><th class="r">C</th></tr>${SR.rows.slice(0,6).map(s=>`<tr><td>${esc(s.c)}</td><td class="r">${F(id('s'+s.i),s.files,SR.n)}</td><td class="r">${s.T}</td><td class="r">${s.A}</td><td class="r">${s.C}</td></tr>`).join('')}</table>`:'<p>None in full audits this month.</p>'}</div>
+     <div><h2>Findings</h2>${TX(id('find'),find.join('\n'))}<h2>Recommendation</h2>${TX(id('rec'),fl[0]==='review'?'- Review open files with the department head and agree a completion date.':fl[0]==='watch'?'- Monitor next month; brief physicians on the missing standards.':'- Keep current practice.')}</div></div>
+    <h2>Physicians</h2><table><tr><th>Physician</th><th class="r">Files</th><th class="r">Incomplete</th><th class="r">Delinquent</th><th class="r">Emailed</th><th class="r">Completed after email</th><th class="r">Median days to complete</th></tr>${docs.map(o=>`<tr><td>${esc(docName(o.k,o.raw))}</td><td class="r">${N(id('df'+o.k),o.s.files)}</td><td class="r">${F(id('di'+o.k),o.s.incomplete,o.s.files)}</td><td class="r">${N(id('dl'+o.k),o.s.late)}</td><td class="r">${N(id('de'+o.k),o.em)}</td><td class="r">${o.em?F(id('dd'+o.k),o.done,o.em):'—'}</td><td class="r">${N(id('dm'+o.k),o.md==null?'—':o.md)}</td></tr>`).join('')}</table>
+    <p class="rpNote">Confidential: for the department head. Physician figures are for follow-up, not for public ranking.</p>`;
+    return page(body+foot(`Status: Needs review = incomplete rate at least twice the hospital rate or 2+ delinquent files · Watch = completion down 5+ points from last month · Small group = fewer than ${minN()} files.`))}).join('')}
+
+function rImpact(m){const P=pool(),A=inM(P,m),y=m.slice(0,4),Y=inRange(P,y+'-01',m);const s=stats(A),sy=stats(Y),b=boxes(A),by=boxes(Y);
+  const F_=S.fu.filter(f=>fuMine(f));const doneIn=(from,to)=>F_.filter(f=>f.status==='done'&&known(f.done)&&mk(f.done)>=from&&mk(f.done)<=to);
+  const em=(from,to)=>F_.filter(f=>known(f.e1)&&mk(f.e1)>=from&&mk(f.e1)<=to).length+F_.filter(f=>known(f.e2)&&mk(f.e2)>=from&&mk(f.e2)<=to).length;
+  const dM=doneIn(m,m),dY=doneIn(y+'-01',m);const days=L=>med(L.filter(f=>known(f.e1)).map(f=>dDays(f.e1,f.done)).filter(v=>v>=0));
+  const T6=[];for(let i=5;i>=0;i--){const k=mShift(m,-i);const L=inM(P,k);if(L.length){const x=stats(L),sr=stdRows(L);T6.push({m:k,x,sr})}}
+  const top=stdRows(inRange(P,mShift(m,-5),m)).rows.slice(0,4);
+  const au=S.settings.auditor||'I';
+  const line=`In ${mL(m)}, ${au==='I'?'I':esc(au)} audited ${s.files} discharged files (${s.full} full, ${s.quick} quick)${b.scored?`, checking ${b.scored.toLocaleString('en')} documentation items`:''}. ${s.everInc} file${s.everInc===1?' was':'s were'} found incomplete; follow-up has already brought ${s.fixed} of them to complete${s.everInc?` (${r1(s.fixed/s.everInc*100)}%)`:''}. In ${y} to date, ${sy.fixed} incomplete files were completed after follow-up.`;
+  const body=head('Audit Impact Report',`${mL(m)} and ${y} to date · ${scopeTxt()}`)+
+  TX('impact_line',line)+
+  `<h2>What the audit did</h2><table><tr><th>Measure</th><th class="r">${mL(m)}</th><th class="r">${y} to date</th></tr>
+   <tr><td>Files audited</td><td class="r">${N('i_f',s.files)}</td><td class="r">${N('i_fy',sy.files)}</td></tr>
+   <tr><td>— full audit / quick audit</td><td class="r">${N('i_fq',s.full+' / '+s.quick)}</td><td class="r">${N('i_fqy',sy.full+' / '+sy.quick)}</td></tr>
+   <tr><td>Documentation items checked (full audits)</td><td class="r">${N('i_b',b.scored.toLocaleString('en'))}</td><td class="r">${N('i_by',by.scored.toLocaleString('en'))}</td></tr>
+   <tr><td>Deficient items found</td><td class="r">${N('i_z',b.zero)}</td><td class="r">${N('i_zy',by.zero)}</td></tr>
+   <tr><td>Files found incomplete</td><td class="r">${F('i_e',s.everInc,s.files)}</td><td class="r">${F('i_ey',sy.everInc,sy.files)}</td></tr>
+   <tr><td>Reminder emails sent to physicians</td><td class="r">${N('i_m',em(m,m))}</td><td class="r">${N('i_my',em(y+'-01',m))}</td></tr>
+   <tr><td><b>Files fixed after follow-up</b> (by discharge month)</td><td class="r"><b>${N('i_x',s.fixed)}</b></td><td class="r"><b>${N('i_xy',sy.fixed)}</b></td></tr>
+   <tr><td>Completions recorded in the app in the month (by completion date)</td><td class="r">${N('i_d',dM.length)}</td><td class="r">${N('i_dy',dY.length)}</td></tr>
+   <tr><td>Recovery rate (fixed ÷ found incomplete, by discharge)</td><td class="r">${F('i_r',s.fixed,s.everInc)}</td><td class="r">${F('i_ry',sy.fixed,sy.everInc)}</td></tr>
+   <tr><td>Median days from 1st email to completion</td><td class="r">${N('i_md',days(dM)??'—')}</td><td class="r">${N('i_mdy',days(dY)??'—')}</td></tr>
+   <tr><td>Files still open (incomplete / delinquent)</td><td class="r">${N('i_o',s.incomplete+' / '+s.late)}</td><td class="r">${N('i_oy',sy.incomplete+' / '+sy.late)}</td></tr></table>
+  <h2>Documentation quality over six months</h2>${trendSvg(T6.map(r=>({m:r.m,...r.x})))}<table><tr><th>Month</th><th class="r">Files</th><th class="r">Complete at audit</th><th class="r">Final completion</th><th class="r">Fixed after follow-up</th></tr>${T6.map(r=>`<tr><td>${mL(r.m)}</td><td class="r">${N('q_f'+r.m,r.x.files)}</td><td class="r">${F('q_a'+r.m,r.x.first,r.x.files)}</td><td class="r">${F('q_c'+r.m,r.x.complete,r.x.files)}</td><td class="r">${N('q_x'+r.m,r.x.fixed)}</td></tr>`).join('')}</table>
+  <p class="rpNote">The gap between “complete at audit” and “final completion” is the improvement made by follow-up.</p>
+  ${top.length?`<h2>Standards under watch: deficiency by month</h2><table><tr><th>Standard</th>${T6.map(r=>`<th class="r">${MON[+r.m.slice(5,7)-1]}</th>`).join('')}</tr>${top.map(t=>`<tr><td>${esc(t.c)}</td>${T6.map(r=>{const x=r.sr.rows.find(z=>z.i===t.i);return `<td class="r">${F('w_'+t.i+'_'+r.m,x?x.files:0,r.sr.n)}</td>`}).join('')}</tr>`).join('')}</table><p class="rpNote">Files with the standard missing ÷ full audits that month. A falling line shows where reminders and awareness are working.</p>`:''}
+  ${OPT('Achievements and notes','ach','Add what you did this month: training given, issues escalated, process changes…')}`;
+  return page(body+foot('Figures by discharge month unless stated. Recovered files are counted in the month the physician completed them.'))}
+
+function rHeat(m){const P=pool(),from=mShift(m,-2),A=inRange(P,from,m).filter(a=>!isQuick(a)&&a.sc);
+  const top=stdRows(A).rows.slice(0,12);const D=depts(A);const rows=Object.entries(D).sort((a,b)=>b[1].length-a[1].length);
+  if(!top.length)return page(head('Standards Heatmap',`${mL(from)} – ${mL(m)}`)+'<p>No deficient standards in full audits for these three months.</p>');
+  const col=(n,d)=>{if(!n)return '';const v=n/d;return v>=.3?'#f4b8b1':v>=.15?'#f9d6a8':v>=.05?'#fbe9c9':'#fdf5e6'};
+  const body=head('Standards Heatmap',`Departments × most missing standards · ${mL(from)} – ${mL(m)} · full audits`)+
+  `<table class="rpHeat"><tr><th>Department</th><th class="r">Files</th>${top.map(t=>`<th class="v" title="${esc(t.c)}">${esc(t.c.length>38?t.c.slice(0,36)+'…':t.c)}</th>`).join('')}</tr>
+  ${rows.map(([d,L])=>{const sr=stdRows(L);return `<tr><td>${esc(d)}</td><td class="r">${N('h_n_'+d,L.length)}</td>${top.map(t=>{const x=sr.rows.find(z=>z.i===t.i);const n=x?x.files:0;return `<td class="c" style="background:${L.length<minN()?(n?'#eef1f2':''):col(n,L.length)}">${n?F('h_'+d+'_'+t.i,n,L.length):''}</td>`}).join('')}</tr>`}).join('')}
+  <tr><td><b>All</b></td><td class="r"><b>${A.length}</b></td>${top.map(t=>`<td class="c"><b>${F('h_all_'+t.i,t.files,A.length)}</b></td>`).join('')}</tr></table>
+  <p class="rpNote">Each cell: files in that department with the standard missing. Colour by share of the department's files: <span style="background:#fdf5e6;padding:0 6px">under 5%</span> <span style="background:#fbe9c9;padding:0 6px">5–15%</span> <span style="background:#f9d6a8;padding:0 6px">15–30%</span> <span style="background:#f4b8b1;padding:0 6px">30%+</span>. Departments with fewer than ${minN()} files are <span style="background:#eef1f2;padding:0 6px">grey</span> and, with Numbers on Auto, show counts.</p>
+  <h2>Reading</h2>${TX('heat_read',`- Most missing overall: "${top[0].c}" (${top[0].files} of ${A.length} full audits).\n- Target training where a department's cells are darkest.`)}`;
+  return page(body+foot('Three months ending in the selected month, by discharge date.'))}
+
+const page=h=>`<article class="rpPage">${h}</article>`;
+const D_=()=>S.settings.delinqDays||7;
+
+/* ---------- render + controls ---------- */
+function months(){const s=new Set(dashAudits().map(a=>mk(a.dis)).filter(Boolean));return [...s].sort().reverse()}
+function fillCtl(){const ms=months(),sel=$r('#rpMonth'),cur=sel.value;sel.innerHTML=ms.map(k=>`<option value="${k}">${mL(k)}</option>`).join('')||'<option value="">No data</option>';
+  const now=mk(isoDay(new Date()));if(cur&&ms.includes(cur))sel.value=cur;else sel.value=ms.find(k=>k<now)||ms[0]||'';
+  const ds=[...new Set(inM(pool(),sel.value).map(a=>a.dept||'—'))].sort();const dv=$r('#rpDept').value;$r('#rpDept').innerHTML='<option value="">All departments (one page each)</option>'+ds.map(d=>`<option>${esc(d)}</option>`).join('');if(ds.includes(dv))$r('#rpDept').value=dv;
+  $r('#rpDeptL').hidden=$r('#rpType').value!=='dept'}
+function renderReports(){if(!$r('#rpType'))return;const st=S.settings.rp||{};
+  if(!renderReports.init){renderReports.init=1;for(const k of ['rpType','rpTy','rpFmt','rpMin'])if(st[k]!=null)$r('#'+k).value=st[k]}
+  fillCtl();const t=$r('#rpType').value,m=$r('#rpMonth').value;document.querySelectorAll('#rpCards button').forEach(b=>b.setAttribute('aria-selected',b.dataset.rp===t));KEY=[t,m,$r('#rpTy').value,t==='dept'?$r('#rpDept').value:''].join('|');S.repEdits=S.repEdits||{};ED=S.repEdits[KEY]||{};
+  const n=Object.keys(ED).length;$r('#rpEdN').textContent=n?`${n} edit${n>1?'s':''} in this report`:'';$r('#rpReset').hidden=!n;
+  if(!m){$r('#rpDoc').innerHTML='<div class="panel"><p class="muted">No audits yet.</p></div>';return}
+  const html=t==='exec'?rExec(m):t==='dept'?rDept(m):t==='impact'?rImpact(m):rHeat(m);
+  $r('#rpDoc').innerHTML=html;$r('#rpDoc').classList.toggle('rpEditing',EDIT)}
+window.renderReports=renderReports;
+function saveEd(){S.repEdits[KEY]=ED;if(!Object.keys(ED).length)delete S.repEdits[KEY];save()}
+function persist(){S.settings.rp={rpType:$r('#rpType').value,rpTy:$r('#rpTy').value,rpFmt:$r('#rpFmt').value,rpMin:$r('#rpMin').value};save()}
+$r('#rpCards').addEventListener('click',e=>{const b=e.target.closest('button[data-rp]');if(!b)return;$r('#rpType').value=b.dataset.rp;closePop();persist();renderReports()});
+['rpType','rpMonth','rpTy','rpDept','rpFmt','rpMin'].forEach(id=>$r('#'+id).addEventListener('change',()=>{closePop();persist();renderReports()}));
+$r('#rpEdit').addEventListener('click',()=>{EDIT=!EDIT;$r('#rpEdit').textContent=EDIT?'Done editing':'Edit numbers & text';$r('#rpEdit').classList.toggle('primary',EDIT);$r('#rpCtl').classList.toggle('rpEditOn',EDIT);closePop();renderReports()});
+$r('#rpReset').addEventListener('click',()=>{const old=ED;ED={};saveEd();renderReports();toast('Edits removed from this report',()=>{ED=old;saveEd();renderReports()})});
+$r('#rpPrint').addEventListener('click',()=>{closePop();const was=EDIT;if(EDIT){EDIT=false;renderReports()}document.documentElement.classList.add('rpPrint');setTimeout(()=>{window.print()},60);
+  const done=()=>{document.documentElement.classList.remove('rpPrint');if(was){EDIT=true;renderReports()}removeEventListener('afterprint',done)};addEventListener('afterprint',done);setTimeout(done,4000)});
+$r('#rpCopy').addEventListener('click',async()=>{const el=$r('#rpDoc');try{const html=`<html><body>${el.innerHTML}</body></html>`;await navigator.clipboard.write([new ClipboardItem({'text/html':new Blob([html],{type:'text/html'}),'text/plain':new Blob([el.innerText],{type:'text/plain'})})]);toast('Copied. Paste into Word or Outlook.')}catch(e){const r=document.createRange();r.selectNodeContents(el);const s=getSelection();s.removeAllRanges();s.addRange(r);try{document.execCommand('copy');toast('Copied. Paste into Word or Outlook.')}catch(_){toast('Select the report and copy it.')}s.removeAllRanges()}});
+// text blocks
+$r('#rpDoc').addEventListener('focusout',e=>{const t=e.target.closest('.rpText');if(!t||!EDIT)return;const id=t.dataset.tid;const v=htmlTxt(t);(ED[id]=ED[id]||{}).x=v;saveEd();const n=Object.keys(ED).length;$r('#rpEdN').textContent=`${n} edit${n>1?'s':''} in this report`;$r('#rpReset').hidden=false});
+// figure popover
+function closePop(){if(POP){POP.remove();POP=null}}
+$r('#rpDoc').addEventListener('click',e=>{const f=e.target.closest('.fig');if(!f||!EDIT)return;e.stopPropagation();closePop();const id=f.dataset.fid,isR=f.dataset.k==='r',cur=ED[id]||{};
+  const n=+f.dataset.n,d=+f.dataset.d;const p=document.createElement('div');p.className='rpPop';
+  const opt=[['auto','Auto'],['pct','%'],['count','Count'],['both','Both']];
+  p.innerHTML=`<div class="small muted">${isR?`${n} of ${d}`:'Value'}</div>${isR?`<div class="seg">${opt.map(([k,l])=>`<button type="button" data-f="${k}" class="${(cur.f||'')===k||(!cur.f&&k===$r('#rpFmt').value)?'on':''}">${l}</button>`).join('')}</div>`:''}
+   <label class="small muted">Show as (type to replace)</label><input id="rpPopT" value="${esc(cur.t!=null?cur.t:f.textContent)}"><div class="rowb"><button type="button" class="btn sm" data-a="reset">Reset</button><button type="button" class="btn sm primary" data-a="ok">Save</button></div>`;
+  document.body.appendChild(p);const r=f.getBoundingClientRect();p.style.top=(scrollY+r.bottom+6)+'px';p.style.left=Math.max(8,Math.min(scrollX+r.left,scrollX+innerWidth-290))+'px';POP=p;
+  const inp=p.querySelector('#rpPopT');inp.focus();inp.select();
+  const apply=()=>{const v=inp.value.trim();const auto=f.textContent;const o={...(ED[id]||{})};if(v&&v!==auto)o.t=v;else if(v===auto&&!o.t)delete o.t;if(!v)delete o.t;if(Object.keys(o).length)ED[id]=o;else delete ED[id];saveEd();closePop();renderReports()};
+  p.addEventListener('click',ev=>{ev.stopPropagation();const b=ev.target.closest('button');if(!b)return;
+    if(b.dataset.f){const o={...(ED[id]||{})};delete o.t;if(b.dataset.f===$r('#rpFmt').value)delete o.f;else o.f=b.dataset.f;if(Object.keys(o).length)ED[id]=o;else delete ED[id];saveEd();closePop();renderReports();return}
+    if(b.dataset.a==='reset'){delete ED[id];saveEd();closePop();renderReports();return}if(b.dataset.a==='ok')apply()});
+  inp.addEventListener('keydown',ev=>{if(ev.key==='Enter'){ev.preventDefault();apply()}if(ev.key==='Escape')closePop()})});
+document.addEventListener('click',e=>{if(POP&&!POP.contains(e.target))closePop()});
 })();
 </script>
 
