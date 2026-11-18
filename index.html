@@ -1215,7 +1215,9 @@ let DLNS;
 function dlNs(){if(DLNS!==undefined)return Promise.resolve(DLNS);if(!(window.claude&&typeof window.claude.use==='function'))return Promise.resolve(DLNS=null);
   return Promise.resolve(window.claude.use('downloads')).then(n=>(DLNS=n||null),()=>(DLNS=null))}
 const DL_OFF=['unavailable','not_granted','capability_disabled','capability_removed'];
-async function saveFile(name,data,mime){const ns=inFrame?await dlNs():null;
+let SAVEQ=Promise.resolve();
+function saveFile(name,data,mime){const p=SAVEQ.then(()=>saveFile1(name,data,mime));SAVEQ=p.catch(()=>{});return p}
+async function saveFile1(name,data,mime){const ns=inFrame?await dlNs():null;
   if(ns){try{await ns.save({filename:name,data});return true}catch(e){const c=e&&e.code;if(c==='declined')return false;if(c==='rate_limited'){toast('Another save is already open. Try again in a moment.');return false}if(!DL_OFF.includes(c)){toast('Could not save: '+((e&&e.message)||c||e));return false}}}
   try{const blob=data instanceof Blob?data:new Blob([data],{type:mime||'application/octet-stream'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),4000);
     if(inFrame&&!ns)toast('If nothing downloaded, open the app from its GitHub page.');return true}catch(e){toast('Download failed: '+e.message);return false}}
@@ -1599,7 +1601,7 @@ const FULL_FIXED=['NU','Registration_No','Patient / Guradian Name','Admission Da
 const QUICK_HEAD=['NU','Registration_No','Patient / Guradian Name','Admission Date','Discharge Date','LOS','Department_Name','Ward Name','DoctorInCharge','Discharge To','staff name','First Email','Status','Second Email','Status','incompelet','compelet','delinquent'];
 const fno=v=>v===''||v==null?'':(isNaN(+v)?v:+v);
 const ageV=v=>v===''||v==null?'':(isNaN(+v)?v:+v);
-function recFromAudit(a){const f=S.fu.find(x=>x.auditId===a.id),st=auditStatus(a);
+function recFromAudit(a){const f=S.fu.find(x=>x.auditId===a.id)||fuIdx.get(a.id),st=auditStatus(a);
   return {fileNo:a.fileNo,name:a.name,adm:a.adm,admT:a.admT,dis:a.dis,disT:a.disT,los:a.los,dept:a.dept,ward:a.ward,doc:a.doc,to:a.dischargeTo,age:a.age,auditor:a.auditor,e1:f?.e1||'',e2:f?.e2||'',
     inc:a.ov&&OVST[a.ov]?['fixed','incomplete','delinquent'].includes(a.ov):(f&&f.src==='excel'&&a.incX!==undefined)?a.incX:(!!f||(isQuick(a)&&a.result==='incomplete')),com:st==='Complete',del:!!(f&&fuEverLate(f)),sc:isQuick(a)?null:a.sc,note:a.note||''}}
 const recFromQueue=q=>({fileNo:q.fileNo,name:q.name,adm:q.adm,admT:q.admT,dis:q.dis,disT:q.disT,los:q.los,dept:q.dept,ward:q.ward,doc:q.doc,to:q.dischargeTo,age:q.age,auditor:'',sc:null});
@@ -2365,7 +2367,7 @@ function renderFlow(){$('#flow').innerHTML=`<span class="st">Audit with ✗</spa
    They are kept in S.arch inside the app (can be restored) and exported to an Excel archive. */
 const arCut=()=>S.settings.archiveFrom||'';
 const isOld=d=>{const c=arCut();return !!(c&&d&&String(d).slice(0,10)<c)};
-function arStore(){S.arch=S.arch||{audits:[],fu:[],queue:[],log:[]};return S.arch}
+function arStore(){S.arch=S.arch||{audits:[],fu:[],queue:[],log:[]};S.arch.team=S.arch.team||{audits:[],fu:[]};return S.arch}
 function arSnap(a){const f=fuIdx.get(a.id)||S.fu.find(x=>x.auditId===a.id);return {st:statusLabel(a),e1:f?f.e1||'':'',e2:f?f.e2||'':'',done:f&&f.status==='done'?f.done||'':'',email:f?f.email||'':'',defs:f&&f.defs&&f.defs.length?f.defs:(!isQuick(a)&&a.sc?defsOf(a):[])}}
 /* move everything older than the cut-off into the archive; returns counts */
 function sweepArchive(){if(!arCut()||S.sample)return null;const A=arStore();indexFu();
@@ -2391,30 +2393,44 @@ function recFromArch(a){const f=(arStore().fu||[]).find(x=>x.auditId===a.id),st=
     inc:a.ov&&OVST[a.ov]?['fixed','incomplete','delinquent'].includes(a.ov):(f&&f.src==='excel'&&a.incX!==undefined)?a.incX:(!!f||(isQuick(a)&&a.result==='incomplete')),com:st.startsWith('Complete'),del:!!(f&&fuEverLate(f)),sc:isQuick(a)?null:a.sc,note:a.note||''}}
 function exportArchive(L,base){const srt=L.slice().sort((a,b)=>(a.dis||'')<(b.dis||'')?-1:(a.dis||'')>(b.dis||'')?1:String(a.fileNo).localeCompare(String(b.fileNo)));const rec=a=>a.arch?recFromArch(a):recFromAudit(a);
   return exportFQ(srt.filter(a=>!isQuick(a)).map(rec),srt.filter(isQuick).map(rec),base)}
+/* colleague's files (team report) older than the cut-off: exported in the same layout, kept in the archive, removed from the team data */
+function teamOld(cut){if(!TEAM)return [];const mine=new Set(S.audits.concat(arStore().audits).map(a=>a.fileNo+'|'+a.dis));return TEAM.audits.filter(a=>a.dis&&a.dis.slice(0,10)<cut&&!mine.has(a.fileNo+'|'+a.dis))}
+const teamLbl=a=>a._team||'Colleague';
+function exportTeamArchive(L,cut){const by={};for(const a of L)(by[teamLbl(a)]=by[teamLbl(a)]||[]).push(a);let n=0;
+  for(const [lbl,X] of Object.entries(by))n+=exportArchive(X,`MR-archive_before_${cut}_${slug(lbl)}`).length;return n}
+function archiveTeam(cut){const A=arStore(),L=teamOld(cut);if(!L.length)return 0;indexFu();
+  for(const a of L)a.arch=arSnap(a);const ids=new Set(L.map(a=>a.id)),F=TEAM.fu.filter(f=>ids.has(f.auditId));
+  A.team.audits.push(...L);A.team.fu.push(...F);TEAM.audits=TEAM.audits.filter(a=>!ids.has(a.id));TEAM.fu=TEAM.fu.filter(f=>!ids.has(f.auditId));
+  saveTeam();indexFu();save();return L.length}
+function restoreTeam(all){const A=arStore(),back=a=>all||!isOld(a.dis),R=A.team.audits.filter(back);if(!R.length)return 0;const ids=new Set(R.map(a=>a.id)),F=A.team.fu.filter(f=>ids.has(f.auditId));
+  TEAM=TEAM||{audits:[],fu:[],files:[],started:isoDay(new Date())};for(const a of R)delete a.arch;TEAM.audits.push(...R);TEAM.fu.push(...F);
+  A.team.audits=A.team.audits.filter(a=>!ids.has(a.id));A.team.fu=A.team.fu.filter(f=>!ids.has(f.auditId));saveTeam();indexFu();save();return R.length}
 function archivePreview(cut){indexFu();const A=S.audits.filter(a=>a.dis&&a.dis.slice(0,10)<cut);const st=A.map(statusLabel);
-  return {audits:A.length,open:st.filter(s=>s==='Incomplete'||s==='Delinquent').length,late:st.filter(s=>s==='Delinquent').length,queue:S.queue.filter(q=>q.dis&&q.dis.slice(0,10)<cut).length,manual:S.fu.filter(f=>!f.auditId&&f.dis&&f.dis.slice(0,10)<cut).length}}
+  const T=teamOld(cut),tst=T.map(statusLabel);return {team:T.length,teamOpen:tst.filter(s=>s==='Incomplete'||s==='Delinquent').length,teamNames:[...new Set(T.map(teamLbl))].join(', '),audits:A.length,open:st.filter(s=>s==='Incomplete'||s==='Delinquent').length,late:st.filter(s=>s==='Delinquent').length,queue:S.queue.filter(q=>q.dis&&q.dis.slice(0,10)<cut).length,manual:S.fu.filter(f=>!f.auditId&&f.dis&&f.dis.slice(0,10)<cut).length}}
 function renderArch(){const el=$('#arPanel');if(!el)return;const A=arStore(),cut=arCut();
   const ms=[...new Set([...S.audits,...A.audits,...S.queue].map(a=>(a.dis||'').slice(0,7)).filter(Boolean))].sort();
   const nowK=isoDay(new Date()).slice(0,7);if(!ms.includes(nowK))ms.push(nowK);
   const sel=$('#arFrom'),cv=sel.value||(cut?cut.slice(0,7):'');sel.innerHTML='<option value="">— choose —</option>'+ms.map(k=>`<option value="${k}">${MON_[+k.slice(5,7)-1]} ${k.slice(0,4)}</option>`).join('');if(cv)sel.value=cv;
-  $('#arState').innerHTML=cut?`<b>Live data starts ${fmtD(cut)}.</b> Archived: ${A.audits.length} audited files${A.queue.length?`, ${A.queue.length} worklist files`:''}. They are not counted in Stalled files, Search, Dashboard or Reports.`:'No months closed yet: every file is live.';
-  $('#arAgain').hidden=$('#arRestore').hidden=!A.audits.length;
+  $('#arState').innerHTML=cut?`<b>Live data starts ${fmtD(cut)}.</b> Archived: ${A.audits.length} of your audited files${A.team.audits.length?` and ${A.team.audits.length} of your colleague's`:''}${A.queue.length?`, ${A.queue.length} worklist files`:''}. They are not counted in Stalled files, Search, Dashboard or Reports.`:'No months closed yet: every file is live.';
+  $('#arAgain').hidden=$('#arRestore').hidden=!(A.audits.length||A.team.audits.length);
   const k=sel.value;const p=$('#arPrev');if(!k){p.textContent='';return}const c=k+'-01';
   if(cut&&c<cut){p.innerHTML=`Moving the start back to ${MON_[+k.slice(5,7)-1]} ${k.slice(0,4)} brings back ${A.audits.filter(a=>a.dis&&a.dis.slice(0,10)>=c).length} archived files.`;return}
-  const v=archivePreview(c);p.innerHTML=v.audits||v.queue||v.manual?`Will archive <b>${v.audits}</b> audited files discharged before ${MON_[+k.slice(5,7)-1]} ${k.slice(0,4)}: <b>${v.open}</b> still open (${v.late} delinquent)${v.queue?`, plus ${v.queue} worklist files`:''}${v.manual?`, plus ${v.manual} files added by hand`:''}.`:`Nothing to archive before ${MON_[+k.slice(5,7)-1]} ${k.slice(0,4)}.`}
+  const v=archivePreview(c);p.innerHTML=v.audits||v.queue||v.manual||v.team?`Will archive files discharged before ${MON_[+k.slice(5,7)-1]} ${k.slice(0,4)}: <b>${v.audits}</b> of yours (${v.open} still open, ${v.late} delinquent)${v.team?` and <b>${v.team}</b> of your colleague's (${esc(v.teamNames)}; ${v.teamOpen} still open)`:''}${v.queue?`, plus ${v.queue} worklist files`:''}${v.manual?`, plus ${v.manual} files added by hand`:''}.`:`Nothing to archive before ${MON_[+k.slice(5,7)-1]} ${k.slice(0,4)}.${TEAM?'':' To archive your colleague\'s files too, add them first (Reports → Add colleague\'s files).'}`}
 const MON_=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 function arAsk(html,yes,fn){const b=$('#arAsk');b.hidden=false;b.innerHTML=`<div class="small">${html}</div><div class="row" style="gap:6px;margin-top:6px"><button class="btn sm primary" type="button" id="arYes">${yes}</button><button class="btn sm" type="button" id="arNo">Cancel</button></div>`;
   $('#arNo').onclick=()=>{b.hidden=true};$('#arYes').onclick=async()=>{b.hidden=true;await fn()}}
 function initArch(){if(!$('#arPanel')||initArch.done)return;initArch.done=1;
   $('#arFrom').onchange=()=>{$('#arAsk').hidden=true;renderArch()};
   $('#arGo').onclick=()=>{const k=$('#arFrom').value;if(!k){toast('Choose the month the live data starts from');return}if(S.sample){toast('Import your own data first');return}const c=k+'-01',old=arCut();
-    if(old&&c<old){S.settings.archiveFrom=c;const n=restoreArchive(false);save();renderAll();renderArch();toast(`${n} files brought back. Live data now starts ${fmtD(c)}.`);return}
-    const v=archivePreview(c);if(!v.audits&&!v.queue&&!v.manual){S.settings.archiveFrom=c;save();renderAll();renderArch();toast('Nothing to archive. Start date saved.');return}
-    arAsk(`Archive <b>${v.audits}</b> files discharged before <b>${fmtD(c)}</b> (${v.open} still open, ${v.late} delinquent)? The Full audit and Quick audit Excel files are saved first. The files then leave Stalled files, Search, Dashboard and Reports. You can restore them later.`,'Yes, save Excel and archive',async()=>{
+    if(old&&c<old){S.settings.archiveFrom=c;const n=restoreArchive(false)+restoreTeam(false);save();renderAll();renderArch();toast(`${n} files brought back. Live data now starts ${fmtD(c)}.`);return}
+    const v=archivePreview(c);if(!v.audits&&!v.queue&&!v.manual&&!v.team){S.settings.archiveFrom=c;save();renderAll();renderArch();toast('Nothing to archive. Start date saved.');return}
+    arAsk(`Archive files discharged before <b>${fmtD(c)}</b>: <b>${v.audits}</b> of yours (${v.open} still open, ${v.late} delinquent)${v.team?` and <b>${v.team}</b> of your colleague's (${v.teamOpen} still open)`:''}? The Full audit and Quick audit Excel files are saved first${v.team?', yours and your colleague\'s as separate files':''}. The files then leave Stalled files, Search, Dashboard and Reports. You can restore them later.`,'Yes, save Excel and archive',async()=>{
       indexFu();const L=S.audits.filter(a=>a.dis&&a.dis.slice(0,10)<c);if(L.length&&!exportArchive(L,`MR-archive_before_${c}`).length)return;
-      S.settings.archiveFrom=c;const r=sweepArchive();renderAll();renderArch();toast(r?`Archived ${r.audits} files (${r.open} were still open). Live data starts ${fmtD(c)}.`:'Start date saved.')})};
-  $('#arAgain').onclick=()=>{const A=arStore();if(!A.audits.length)return;exportArchive(A.audits,`MR-archive_before_${arCut()||'start'}`)};
-  $('#arRestore').onclick=()=>arAsk('Bring every archived file back into the live data and remove the start date?','Yes, restore all',async()=>{const n=restoreArchive(true);S.settings.archiveFrom='';save();renderAll();renderArch();toast(`${n} files restored. All months are live again.`)})}
+      const T=teamOld(c);if(T.length&&!exportTeamArchive(T,c))return;
+      S.settings.archiveFrom=c;const r=sweepArchive(),t=archiveTeam(c);renderAll();renderArch();
+      toast(r||t?`Archived ${r?r.audits:0} of your files${t?` and ${t} of your colleague's`:''}. Live data starts ${fmtD(c)}.`:'Start date saved.')})};
+  $('#arAgain').onclick=()=>{const A=arStore(),c=arCut()||'start';if(A.audits.length)exportArchive(A.audits,`MR-archive_before_${c}`);if(A.team.audits.length)exportTeamArchive(A.team.audits,c)};
+  $('#arRestore').onclick=()=>arAsk('Bring every archived file back into the live data and remove the start date?','Yes, restore all',async()=>{const n=restoreArchive(true)+restoreTeam(true);S.settings.archiveFrom='';save();renderAll();renderArch();toast(`${n} files restored. All months are live again.`)})}
 
 function renderAll(){try{sweepArchive()}catch(e){console.error(e)}indexFu();$('#sampleBanner').hidden=!S.sample;renderFiles();
   const nq=S.queue.length;$('#auBadge').hidden=!nq;$('#auBadge').textContent=nq;
