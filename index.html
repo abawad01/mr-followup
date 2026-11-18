@@ -205,7 +205,7 @@ input[type=range]{accent-color:var(--accent)}
     <button role="tab" data-tab="audit" id="tab-audit">Audit <span class="badge n" id="auBadge" title="Files waiting to audit" hidden></span></button>
     <button role="tab" data-tab="search" id="tab-search">Search</button>
     <button role="tab" data-tab="dashboard" id="tab-dashboard">Dashboard</button>
-    <button role="tab" data-tab="reports" id="tab-reports">Reports</button>
+    <button role="tab" data-tab="reports" id="tab-reports" hidden tabindex="-1">Reports</button>
     <button role="tab" data-tab="doctors" id="tab-doctors">Doctors</button>
     <button role="tab" data-tab="data" id="tab-data">Data</button>
     <button role="tab" data-tab="guide" id="tab-guide">Guide</button>
@@ -464,7 +464,7 @@ input[type=range]{accent-color:var(--accent)}
   <!-- ================= DOCTORS ================= -->
   <section id="view-reports" class="tabview" hidden>
     <div class="panel" id="rpCtl">
-      <h2>Reports</h2>
+      <div class="row" style="align-items:center"><h2 style="margin:0">Reports</h2><span class="small muted">private</span><span class="spacer"></span><button type="button" class="btn sm" id="rpBack">← Back to Data</button></div>
       <p class="small muted" style="margin-top:-4px">Monthly reports ready to print or save as PDF. Every number and text can be edited, and any figure can be shown as %, as a count, or both.</p>
       <div class="rpCards" id="rpCards" role="tablist" aria-label="Choose a report">
         <button type="button" role="tab" data-rp="exec"><b>1 · Monthly report</b><span>For management: headline figures, trend, departments, KPIs, risks and actions.</span></button>
@@ -540,6 +540,18 @@ input[type=range]{accent-color:var(--accent)}
 
   <!-- ================= DATA ================= -->
   <section id="view-data" class="tabview" hidden>
+    <details class="panel" id="privPanel">
+      <summary style="cursor:pointer;list-style:none;display:flex;align-items:center;gap:8px"><b style="font-size:15px">My reports</b><span class="small muted">· private · click to open</span></summary>
+      <div style="margin-top:10px;display:grid;gap:8px">
+        <div class="rpCards" id="privCards">
+          <button type="button" data-open-rp="exec"><b>1 · Monthly report</b><span>For management: headline figures, trend, departments, KPIs, risks and actions.</span></button>
+          <button type="button" data-open-rp="dept"><b>2 · Department scorecard</b><span>One page per department for its head.</span></button>
+          <button type="button" data-open-rp="impact"><b>3 · Audit impact</b><span>What your audit achieved: proof of your work.</span></button>
+          <button type="button" data-open-rp="heat"><b>4 · Standards heatmap</b><span>Departments × most missing standards: where to train.</span></button>
+        </div>
+        <div class="row"><button type="button" class="btn sm" id="privExcl">Excluded files log (still in hospital / repeated)</button></div>
+      </div>
+    </details>
     <div class="panel" id="recvPanel" style="border-color:var(--ok)">
       <div><h3>Receive files from a colleague</h3><p class="lede small" style="margin:0">Copy the link from your colleague's email and paste it here. The files go into the worklists of this app, with your own data.</p></div>
       <div class="row"><input id="recvIn" class="mono" placeholder="Paste the link here (Ctrl+V)" style="flex:1;min-width:220px"><button class="btn primary" type="button" id="recvGo">Read files</button></div>
@@ -2046,6 +2058,9 @@ $('#exclX').addEventListener('click',()=>{const L=Object.values(S.exclLog||{}).s
   XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet([['Month','Grid file','Logged','Rows read','Still in hospital','Repeated','Total excluded','Excluded %','Kept for audit'],...L.map(x=>{const e=(x.stillRemoved?x.still:0)+x.dup;return [x.m,x.file,x.at,x.read,x.still+(x.stillRemoved?'':' (kept)'),x.dup,e,x.read?Math.round(e/x.read*1000)/10:0,x.kept]})]),'Summary');
   const lst=k=>[['Month','File no','Admission','Discharge','Department'],...L.flatMap(x=>(x[k]||[]).map(r=>[x.m,r.f,r.a,r.d,r.dp]))];
   XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(lst('stillL')),'Still in hospital');XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(lst('dupL')),'Repeated');downloadWB(wb,'Excluded-files-log.xlsx')});
+document.addEventListener('click',e=>{const b=e.target.closest('[data-open-rp]');if(!b)return;$('#rpType').value=b.dataset.openRp;S.settings.rp=Object.assign(S.settings.rp||{},{rpType:b.dataset.openRp});go('reports')});
+$('#rpBack').addEventListener('click',()=>{go('data');$('#privPanel').open=true});
+$('#privExcl').addEventListener('click',()=>$('#exclPanel').scrollIntoView({behavior:'smooth',block:'start'}));
 function prepToQueue(r,type){return {id:uid(),type,fileNo:r._reg,adm:r._adm,dis:r._dis,los:typeof r._los==='number'?r._los:(r._los!=null&&r._los!==''&&!isNaN(+r._los)?+r._los:null),dept:r._dept,ward:r._ward,doc:r._doc,dischargeTo:r._to,name:r._name||'',age:r._age??'',admT:r._admT??null,disT:r._disT??null}}
 function prepSheet(L){const ci=prepRes.ci,dc=prepRes.docCol;const head=PREP_COLS.map(h=>h==='AdmittingDoctor'?dc:h);
   const rows=[head,...L.map(r=>head.map(h=>{const v=r._X[ci[h]];if((h==='Admission Date'||h==='Discharge Date')&&typeof v==='number')return {t:'n',v,z:'dd/mm/yyyy hh:mm'};if(h==='Department_Name')return r._dept;return v==null?'':v}))];
