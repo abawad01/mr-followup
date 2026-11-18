@@ -588,6 +588,7 @@ input[type=range]{accent-color:var(--accent)}
     </div>
     <div class="panel" id="exclPanel">
       <div class="row"><div><h3>Excluded files log <span class="small muted" style="font-weight:400">· private</span></h3><p class="lede small" style="margin:0">Every Grid you prepare is logged here by month: how many <b>still-in-hospital</b> rows (month-end discharge and re-admission of patients still admitted) and how many <b>repeated</b> rows were left out. Only you see this; it is not in the Dashboard or Reports.</p></div><span class="spacer"></span><button class="btn sm" id="exclX" type="button">Export to Excel</button></div>
+      <div class="drop" style="margin-top:8px"><b class="small">Add Grid files to count (past months too)</b><input type="file" id="exIn" accept=".xls,.xlsx,.csv" multiple><span class="small muted">Choose one or several Grid files. They are only counted here: nothing goes to the worklists. Still in hospital and repeated rows are counted as removed. Loading the same file again replaces it.</span></div>
       <div class="row" style="align-items:flex-end;gap:10px;flex-wrap:wrap;margin-top:6px">
         <label class="f"><span class="small muted">Discharged from</span><input type="date" id="exFrom"></label>
         <label class="f"><span class="small muted">to</span><input type="date" id="exTo"></label>
@@ -2071,6 +2072,17 @@ function renderExcl(){const el=$('#exclTable');if(!el)return;const L=Object.valu
    ${SL.length||DL.length?`<details style="margin-top:4px"><summary class="small" style="cursor:pointer">Show file numbers</summary><div class="row" style="align-items:flex-start;gap:28px;margin-top:6px"><div><b class="small">Still in hospital (${SL.length})</b><div class="small" style="margin-top:4px">${list(SL)||'—'}</div></div><div><b class="small">Repeated (${DL.length})</b><div class="small" style="margin-top:4px">${list(DL)||'—'}</div></div></div></details>`:''}`;
   el.innerHTML=`<table><thead><tr><th>Grid file</th><th>Discharges</th><th class="r">Rows read</th><th class="r">Still in hospital</th><th class="r">Repeated</th><th class="r">Kept for audit</th><th></th></tr></thead><tbody>${L.map(x=>`<tr><td class="small">${esc(x.file)}<div class="muted">loaded ${fmtD(x.at)}</div></td><td class="small">${x.from?fmtD(x.from)+' – '+fmtD(x.to):exMon(x.m)}</td><td class="r mono">${x.read}</td><td class="r mono">${x.still}${x.stillRemoved?'':' <span class="small" style="color:var(--warn)">kept</span>'}</td><td class="r mono">${x.dup}</td><td class="r mono">${x.kept}</td><td><button class="btn sm" data-exdel="${esc(x.file)}" title="Remove this Grid from the log">✕</button></td></tr>`).join('')}</tbody></table>`}
 $('#exclTable').addEventListener('click',e=>{const b=e.target.closest('[data-exdel]');if(!b)return;const k=Object.keys(S.exclLog).find(k=>S.exclLog[k].file===b.dataset.exdel);if(!k)return;const old=S.exclLog[k];delete S.exclLog[k];save();renderExcl();toast('Grid removed from the log',()=>{S.exclLog[k]=old;save();renderExcl()})});
+$('#exIn').addEventListener('change',async e=>{const files=[...e.target.files];e.target.value='';let ok=0,bad=[];
+  for(const f of files){try{const wb=await readWB(f);let done=false;for(const sn of wb.SheetNames){const A=XLSX.utils.sheet_to_json(wb.Sheets[sn],{header:1,raw:true,defval:null});const hi=A.findIndex(r=>r&&r.some(v=>normC(v??'')==='registration_no'));if(hi<0)continue;
+      const H=A[hi].map(v=>v==null?'':String(v)),col=n=>H.findIndex(h=>normC(h)===normC(n));const cR=col('Registration_No'),cD=col('Discharge Date'),cA=col('Admission Date'),cT=col('Discharge To'),cP=col('Department_Name');if(cD<0)continue;
+      let read=0;const seen=new Set(),stillL=[],dupL=[],kept=[];
+      for(const X of A.slice(hi+1)){if(!X)continue;const reg=cleanTxt(X[cR]);if(!reg)continue;read++;const d=toIso(X[cD]),a=cA>=0?toIso(X[cA]):'',dp=cP>=0?cleanTxt(X[cP]):'',to=cT>=0?cleanTxt(X[cT]):'';const r={f:reg,a,d,dp};
+        if(/still in hospital/i.test(to)){stillL.push(r);continue}const k=reg+'|'+d;if(seen.has(k)){dupL.push(r);continue}seen.add(k);kept.push(d)}
+      const ds=[...kept,...stillL.map(x=>x.d)].filter(Boolean).sort();if(!ds.length)continue;const ms={};for(const d of ds){const k=d.slice(0,7);ms[k]=(ms[k]||0)+1}
+      S.exclLog=S.exclLog||{};for(const k of Object.keys(S.exclLog))if(S.exclLog[k].file===f.name)delete S.exclLog[k];
+      S.exclLog[f.name]={m:Object.keys(ms).sort((x,y)=>ms[y]-ms[x])[0],from:ds[0],to:ds[ds.length-1],file:f.name,at:isoDay(new Date()),read,still:stillL.length,stillRemoved:true,dup:dupL.length,kept:kept.length,stillL,dupL,countOnly:true};done=true;ok++;break}
+      if(!done)bad.push(f.name)}catch(err){bad.push(f.name)}}
+  save();renderExcl();toast(`${ok} Grid file${ok===1?'':'s'} counted${bad.length?` · not read: ${bad.join(', ')} (no Registration_No / Discharge Date columns)`:''}`)});
 const exSave=()=>{S.settings.exRange={f:$('#exFrom').value,t:$('#exTo').value};save();renderExcl()};
 $('#exFrom').addEventListener('change',exSave);$('#exTo').addEventListener('change',exSave);
 document.addEventListener('click',e=>{const b=e.target.closest('[data-exq]');if(!b)return;const td=isoDay(new Date()),m=td.slice(0,7);const last=(()=>{let y=+m.slice(0,4),mo=+m.slice(5,7)-1;if(!mo){y--;mo=12}return y+'-'+String(mo).padStart(2,'0')})();
@@ -3011,7 +3023,7 @@ function rHeat(m){const P=pool(),from=mShift(m,-2),A=inRange(P,from,m).filter(a=
   ${rows.map(([d,L])=>{const sr=stdRows(L);return `<tr><td>${esc(d)}</td><td class="r">${N('h_n_'+d,L.length)}</td>${top.map(t=>{const x=sr.rows.find(z=>z.i===t.i);const n=x?x.files:0;return `<td class="c" style="background:${L.length<minN()?(n?'#eef1f2':''):col(n,L.length)}">${n?F('h_'+d+'_'+t.i,n,L.length):''}</td>`}).join('')}</tr>`}).join('')}
   <tr><td><b>All</b></td><td class="r"><b>${A.length}</b></td>${top.map(t=>`<td class="c"><b>${F('h_all_'+t.i,t.files,A.length)}</b></td>`).join('')}</tr></table>
   <p class="rpNote">Each cell: files in that department with the standard missing. Colour by share of the department's files: <span style="background:#fdf5e6;padding:0 6px">under 5%</span> <span style="background:#fbe9c9;padding:0 6px">5–15%</span> <span style="background:#f9d6a8;padding:0 6px">15–30%</span> <span style="background:#f4b8b1;padding:0 6px">30%+</span>. Departments with fewer than ${minN()} files are <span style="background:#eef1f2;padding:0 6px">grey</span> and, with Numbers on Auto, show counts.</p>
-  <h2>Reading</h2>${TX('heat_read',`- Most missing overall: "${top[0].c}" (${top[0].files} of ${A.length} files reviewed).\n- Target training where a department's cells are darkest.`)}`;
+`;
   return page(body+foot('Three months ending in the selected month, by discharge date.'))}
 
 const page=h=>`<article class="rpPage">${h}</article>`;
