@@ -465,7 +465,7 @@ input[type=range]{accent-color:var(--accent)}
   <section id="view-reports" class="tabview" hidden>
     <div class="panel" id="rpCtl">
       <div class="row" style="align-items:center"><h2 style="margin:0">Reports</h2><span class="small muted">private</span><span class="spacer"></span><button type="button" class="btn sm" id="rpBack">← Back to Data</button></div>
-      <p class="small muted" style="margin-top:-4px">Monthly reports ready to print or save as PDF. Every number and text can be edited, and any figure can be shown as %, as a count, or both.</p>
+      <p class="small muted" style="margin-top:-4px">Reports for a whole month, one week or any dates you choose, ready to print or save as PDF. Every number and text can be edited, and any figure can be shown as %, as a count, or both.</p>
       <div class="rpTeam" id="rpTeam"></div>
       <div class="rpCards" id="rpCards" role="tablist" aria-label="Choose a report">
         <button type="button" role="tab" data-rp="exec"><b>1 · Monthly report</b><span>For management: headline figures, trend, departments, KPIs, risks and actions.</span></button>
@@ -475,11 +475,20 @@ input[type=range]{accent-color:var(--accent)}
       </div>
       <div class="rpCtlRow">
         <label hidden>Report<select id="rpType"><option value="exec">Monthly report (management)</option><option value="dept">Department scorecard</option><option value="impact">Audit impact report</option><option value="heat">Standards heatmap</option></select></label>
+        <label id="rpPerL">Period<select id="rpPer"><option value="month">Whole month</option><option value="week">One week</option><option value="custom">From date – to date</option></select></label>
         <label id="rpMonthL">Month<select id="rpMonth"></select></label>
+        <label id="rpWeekL" hidden>Week (Sun–Sat)<select id="rpWeek"></select></label>
+        <label id="rpD1L" hidden>From<input type="date" id="rpD1"></label>
+        <label id="rpD2L" hidden>To<input type="date" id="rpD2"></label>
         <label>Audits<select id="rpTy"><option value="">Full + quick</option><option value="full">Full only</option><option value="quick">Quick only</option></select></label>
         <label id="rpSpanL" hidden>Period<select id="rpSpan"><option value="1">Selected month only</option><option value="3" selected>3 months ending in the month</option><option value="6">6 months ending in the month</option><option value="ytd">Year to date</option><option value="custom">From – to…</option></select></label>
         <label id="rpFromL" hidden>From<input type="month" id="rpFrom"></label>
         <label id="rpDeptL" hidden>Department<select id="rpDept"></select></label>
+        <span class="rpTrBox" id="rpTrBox"><span class="small muted rpTrT">Trend chart: choose the dates (empty = automatic)</span>
+          <label>From<input type="date" id="rpTrFrom"></label>
+          <label>To<input type="date" id="rpTrTo"></label>
+          <label>Group by<select id="rpTrBy"><option value="auto">Auto</option><option value="month">Month</option><option value="week">Week</option></select></label>
+          <button type="button" class="btn sm" id="rpTrClr">Automatic range</button></span>
         <label>Numbers<select id="rpFmt"><option value="auto">Auto: % for big groups, counts for small</option><option value="pct">Percent</option><option value="count">Count (4 / 43)</option><option value="both">Both (4 / 43 · 9.3%)</option></select></label>
         <label>Small group = fewer than<span><input type="number" id="rpMin" value="10" min="1" max="200"> files</span></label>
       </div>
@@ -938,10 +947,12 @@ function importAudit(wb,fileName){
     const key=String(X[c.reg]).trim()+'|'+dis;let a=byKey.get(key);
     const data={fileNo:String(X[c.reg]).trim(),adm,dis,admT,disT,los:losV,dept:String(X[c.dept]??'').trim(),ward:String(X[c.ward]??'').trim(),doc:String(X[c.doc]??'').replace(/\s+/g,' ').trim(),dischargeTo:String(X[c.to]??'').trim(),auditor:String(X[c.staff]??'').trim(),name:c.name>=0?String(X[c.name]??'').replace(/\s+/g,' ').trim():'',age:c.age>=0?(X[c.age]??''):'',auditDate:'',sc:sc.join(''),pending:!inc&&!com&&!del&&!e1,src:'excel',type:'full',incX:inc};
     if(a){if(a.src==='site')continue;Object.assign(a,data);updated++}else{a={id:uid(),...data};S.audits.push(a);byKey.set(key,a);added++}
+    const comD=com?realDay(X[c.com]):'';
+    {const f0=S.fu.find(f=>f.auditId===a.id);if(f0&&f0.src==='excel'&&comD&&(!f0.done||f0.done==='?')){f0.status='done';f0.done=comD}}
     if((inc||e1)&&!S.fu.some(f=>f.auditId===a.id)){
       const dv=v=>typeof v==='number'||v instanceof Date?toIso(v):(toIso(v)||'?');const e2v=e2?dv(X[c.e2]):'';
       S.fu.push({id:uid(),auditId:a.id,fileNo:a.fileNo,dept:a.dept,dis:a.dis,doctor:a.doc,doctorKey:docKey(a.doc),email:'',emailVerified:false,defs:defsOf(a),note:'',
-        status:com?'done':e2?'e2':e1?'e1':'open',e1:e1?dv(X[c.e1]):'',e2:e2v,done:com?'?':'',delinqFlag:del,created:isoDay(new Date()),src:'excel'});fuAdded++}}
+        status:com?'done':e2?'e2':e1?'e1':'open',e1:e1?dv(X[c.e1]):'',e2:e2v,done:com?(comD||'?'):'',delinqFlag:del,created:isoDay(new Date()),src:'excel'});fuAdded++}}
   dropFromQueue('full',new Set(byKey.keys()));S.imports.push({file:fileName,date:isoDay(new Date()),added,updated});
   return {added,updated,fuAdded}}
 function parseContacts(wb){
@@ -1192,7 +1203,17 @@ $('#auRows').addEventListener('click',e=>{const b=e.target.closest('button[data-
   if(b.dataset.act==='delno'){tr.querySelector('.confirm').hidden=true;tr.querySelector('[data-act="del"]').hidden=false}
   if(b.dataset.act==='delyes'){const fu=S.fu.filter(f=>f.auditId===a.id);S.audits=S.audits.filter(x=>x!==a);S.fu=S.fu.filter(f=>f.auditId!==a.id);save();renderAll();
     toast(`Audit ${a.fileNo} deleted`,()=>{S.audits.push(a);S.fu.push(...fu);save();renderAll()})}});
-function downloadWB(wb,name){try{XLSX.writeFile(wb,name);if(inFrame)toast('If nothing downloaded, use the local copy MR-Followup.html. Downloads are blocked inside Claude.')}catch(e){toast('Download failed: '+e.message)}}
+/* ---------- saving files: inside Claude through the downloads capability, elsewhere (GitHub Pages, local copy) a normal download ---------- */
+let DLNS;
+function dlNs(){if(DLNS!==undefined)return Promise.resolve(DLNS);if(!(window.claude&&typeof window.claude.use==='function'))return Promise.resolve(DLNS=null);
+  return Promise.resolve(window.claude.use('downloads')).then(n=>(DLNS=n||null),()=>(DLNS=null))}
+const DL_OFF=['unavailable','not_granted','capability_disabled','capability_removed'];
+async function saveFile(name,data,mime){const ns=inFrame?await dlNs():null;
+  if(ns){try{await ns.save({filename:name,data});return true}catch(e){const c=e&&e.code;if(c==='declined')return false;if(c==='rate_limited'){toast('Another save is already open. Try again in a moment.');return false}if(!DL_OFF.includes(c)){toast('Could not save: '+((e&&e.message)||c||e));return false}}}
+  try{const blob=data instanceof Blob?data:new Blob([data],{type:mime||'application/octet-stream'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),4000);
+    if(inFrame&&!ns)toast('If nothing downloaded, open the app from its GitHub page.');return true}catch(e){toast('Download failed: '+e.message);return false}}
+const XLSXM='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+function downloadWB(wb,name){try{const buf=XLSX.write(wb,{bookType:'xlsx',type:'array'});return saveFile(name,new Blob([buf],{type:XLSXM}),XLSXM)}catch(e){toast('Download failed: '+e.message)}}
 /* exports only ONE type: the type chosen above the list, or the audit type you are working in (Full or Quick) */
 const auExpType=()=>$('#auType').value||auMode;
 function auExpLabel(){const t=auExpType();$('#exportAudits').textContent=`Export ${t==='quick'?'quick':'full'} audits to Excel`;const q=$('#qExport');if(q)q.textContent=`Export ${auMode==='quick'?'quick':'full'} worklist to Excel`}
@@ -1624,16 +1645,14 @@ function tplBytes(kind,recs){
   else out=out.replace(/<autoFilter ref="[^"]*"/,`<autoFilter ref="F1:R${Math.max(last,2)}"`);
   ent.content=new TextEncoder().encode(out);ent.size=ent.content.length;
   return XLSX.CFB.write(cfb,{fileType:'zip',type:'array',compression:true})}
-function dlBytes(bytes,name){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([bytes],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}));
-  a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),4000)}
+function dlBytes(bytes,name){return saveFile(name,new Blob([bytes],{type:XLSXM}),XLSXM)}
 /* Exports the full list as an MR.xlsx-style file and the quick list as an AUG2222.xlsx-style file. Returns the file names. */
 function exportFQ(full,quick,base){const files=[];
   try{if(full.length)files.push({name:`${base}_Full-audit.xlsx`,bytes:tplBytes('full',full),n:full.length,kind:'Full audit'});
     if(quick.length)files.push({name:`${base}_Quick-audit.xlsx`,bytes:tplBytes('quick',quick),n:quick.length,kind:'Quick audit'})}
   catch(e){toast('Export failed: '+e.message);return []}
   if(!files.length){toast('Nothing to export');return []}
-  files.forEach((f,i)=>setTimeout(()=>dlBytes(f.bytes,f.name),i*900));showDlBar(files);
-  if(inFrame)toast('Downloads are blocked inside Claude. Use the installed app.');
+  showDlBar(files);(async()=>{for(const f of files){await dlBytes(f.bytes,f.name);await new Promise(r=>setTimeout(r,inFrame?300:900))}})();
   return files.map(f=>f.name)}
 let dlFiles=[];
 function showDlBar(files){dlFiles=files;let bar=$('#dlBar');if(!bar){bar=document.createElement('div');bar.id='dlBar';bar.className='dlbar';document.body.appendChild(bar)}
@@ -1790,8 +1809,8 @@ $('#sSender').onchange=e=>{S.settings.sender=e.target.value.trim()||S.settings.s
 $('#sAuditor').onchange=e=>{S.settings.auditor=e.target.value.trim();save()};
 const isMobile=/Android|iPhone|iPad|iPod/i.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
 $('#bkFile').onclick=async()=>{const name=`MR-followup-backup-${isoDay(new Date())}.json`;
-  if(isMobile&&navigator.canShare){try{const file=new File([JSON.stringify(S)],name,{type:'application/json'});if(navigator.canShare({files:[file]})){await navigator.share({files:[file],title:'MR Follow-up backup'});S.lastBackup=isoDay(new Date());save();renderData();toast('Backup shared. Save it to Files, or send it to your computer.');return}}catch(e){if(e&&e.name==='AbortError')return}}
-  try{const blob=new Blob([JSON.stringify(S)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`MR-followup-backup-${isoDay(new Date())}.json`;document.body.appendChild(a);a.click();a.remove();S.lastBackup=isoDay(new Date());save();renderData();if(inFrame)toast('If nothing downloaded, use "Copy backup as text" or the local copy.')}catch(e){toast('Download failed')}};
+  if(!inFrame&&isMobile&&navigator.canShare){try{const file=new File([JSON.stringify(S)],name,{type:'application/json'});if(navigator.canShare({files:[file]})){await navigator.share({files:[file],title:'MR Follow-up backup'});S.lastBackup=isoDay(new Date());save();renderData();toast('Backup shared. Save it to Files, or send it to your computer.');return}}catch(e){if(e&&e.name==='AbortError')return}}
+  if(await saveFile(name,JSON.stringify(S),'application/json')){S.lastBackup=isoDay(new Date());save();renderData()}};
 $('#bkShow').onclick=()=>{const t=$('#bkText');t.hidden=false;t.value=JSON.stringify(S);t.select();S.lastBackup=isoDay(new Date());save();renderData();
   try{navigator.clipboard.writeText(t.value).then(()=>toast('Backup copied. Paste it into a text file to keep it.'),()=>toast('Press Ctrl+C to copy the selected backup'))}catch(e){toast('Press Ctrl+C to copy the selected backup')}};
 function restore(txt){try{const o=JSON.parse(txt);if(o.v!==2||!Array.isArray(o.audits))throw 0;S=o;S.tomb=S.tomb||{};S.tombN=S.tombN||{};primeCache();indexFu();save();renderAll();toast('Backup restored')}catch(e){toast('That is not a valid backup')}}
@@ -1873,8 +1892,8 @@ $('#syncPick').onclick=async()=>{try{dirHandle=await window.showDirectoryPicker(
 $('#syncNow').onclick=()=>syncNow(false);
 $('#syncDl').onclick=async()=>{if(!(S.settings.auditor||'').trim()){$('#syncMsg').innerHTML='<span style="color:var(--late)">Type your name in "Default auditor" below first.</span>';$('#sAuditor').focus();return}
   const name=myFileName(),txt=JSON.stringify(syncPayload());save();
-  if(isMobile&&navigator.canShare){try{const file=new File([txt],name,{type:'application/json'});if(navigator.canShare({files:[file]})){await navigator.share({files:[file],title:'MR Follow-up sync file'});toast('Sync file shared. Put it in the shared folder.');return}}catch(e){if(e&&e.name==='AbortError')return}}
-  try{const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([txt],{type:'application/json'}));a.download=name;document.body.appendChild(a);a.click();a.remove();toast('Sync file saved. Copy it into the shared folder.')}catch(e){toast('Could not save the file')}};
+  if(!inFrame&&isMobile&&navigator.canShare){try{const file=new File([txt],name,{type:'application/json'});if(navigator.canShare({files:[file]})){await navigator.share({files:[file],title:'MR Follow-up sync file'});toast('Sync file shared. Put it in the shared folder.');return}}catch(e){if(e&&e.name==='AbortError')return}}
+  if(await saveFile(name,txt,'application/json'))toast('Sync file saved. Copy it into the shared folder.')};
 $('#syncIn').onchange=async e=>{const files=[...e.target.files];if(!files.length)return;const results=[];let bad=0,self=0;
   for(const f of files){try{const d=JSON.parse(await f.text());const r=mergeSync(d);if(r.self){self++;continue}r.dev=d.device;r.file=f.name;results.push(r)}catch(err){bad++}}
   const t=afterMerge(results,'manual');toast(`Merged ${results.length} file${results.length===1?'':'s'}: ${t.add} new, ${t.upd} updated, ${t.del} removed${bad?`. ${bad} file(s) were not sync files`:''}${self?`. ${self} was your own file`:''}`);e.target.value=''};
@@ -2219,6 +2238,7 @@ $('#tReset').onclick=()=>{const old=S.settings.tpl?{...S.settings.tpl}:null;if(S
 
 /* ---------- WORKLIST (files to audit) ---------- */
 const QAL={reg:['registration_no','registration no','registration number','file no','file no.','file number','file_no','mrn','medical record no','medical record number','reg no','patient file no'],adm:['admission date','admission','admit date','admission_date'],dis:['discharge date','discharge','discharged','discharge_date'],los:['los','length of stay'],dept:['department_name','department','dept','department name'],ward:['ward name','ward','ward_name'],doc:['admittingdoctor','admitting doctor','doctorincharge','doctor in charge','doctor','physician','consultant','doctor name','attending'],to:['discharge to','discharge_to','discharge type','discharge status'],staff:['staff name','auditor','audited by'],name:['patient / guradian name','patient / guardian name','patient name','patient','name'],age:['age','patient age']};
+function realDay(v){const d=toIso(v);return d&&d>='2015'&&d<='2100'?d:''}
 function toIso(v){if(v==null||v==='')return '';if(v instanceof Date)return isoDay(v);
   if(typeof v==='number'){const p=XLSX.SSF.parse_date_code(v);return p?isoDay(new Date(p.y,p.m-1,p.d)):''}
   const s=String(v).trim();let m=s.match(/^(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{4})/);if(m)return isoDay(new Date(+m[3],+m[2]-1,+m[1]));
@@ -2279,9 +2299,11 @@ function importQuick(wb,fileName){
     if(/^\d{1,3}(\.\d+)?$/.test(data.auditor)){if(data.age===''||data.age==null)data.age=+data.auditor;data.auditor=''}/* some quick sheets keep the age in the staff name column */
     const key=data.fileNo+'|'+dis;let a=byKey.get(key);
     if(a){if(a.src==='site')continue;Object.assign(a,data);updated++}else{a={id:uid(),...data};S.audits.push(a);byKey.set(key,a);added++}
+    const comD=com?realDay(g(X,'com')):'';
+    {const f0=S.fu.find(f=>f.auditId===a.id);if(f0&&f0.src==='excel'&&comD&&(!f0.done||f0.done==='?')){f0.status='done';f0.done=comD}}
     if((inc||e1)&&!S.fu.some(f=>f.auditId===a.id)){const dv=v=>typeof v==='number'||v instanceof Date?toIso(v):(toIso(v)||'?');
       S.fu.push({id:uid(),auditId:a.id,kind:'quick',fileNo:a.fileNo,dept:a.dept,dis:a.dis,doctor:a.doc,doctorKey:docKey(a.doc),email:'',emailVerified:false,defs:[],note:'',
-        status:com?'done':e2?'e2':e1?'e1':'open',e1:e1?dv(g(X,'e1')):'',e2:e2?dv(g(X,'e2')):'',done:com?'?':'',delinqFlag:del,created:isoDay(new Date()),src:'excel'});fuAdded++}}
+        status:com?'done':e2?'e2':e1?'e1':'open',e1:e1?dv(g(X,'e1')):'',e2:e2?dv(g(X,'e2')):'',done:com?(comD||'?'):'',delinqFlag:del,created:isoDay(new Date()),src:'excel'});fuAdded++}}
   dropFromQueue('quick',new Set(byKey.keys()));S.quickImport={file:fileName,date:isoDay(new Date()),rows,added,updated,fuAdded};return {rows,added,updated,fuAdded}}
 $('#inQuick').onchange=async e=>{const f=e.target.files[0];if(!f)return;try{const wb=await readWB(f);leaveSample();const r=importQuick(wb,f.name);indexFu();rebuildDoctors();S.fu.forEach(x=>{if(!x.email&&!x.emailManual){const em=doctorEmail(x.doctorKey);if(em){x.email=em.email;x.emailVerified=em.verified}}});
   save();renderAll();toast(`Quick audit imported: ${r.added} new, ${r.updated} updated${r.rows>r.added+r.updated?`, ${r.rows-r.added-r.updated} repeated rows merged`:''}, ${r.fuAdded} stalled files`)}catch(err){toast(err.message||'Could not read this file')}e.target.value=''};
@@ -2833,6 +2855,10 @@ setMode();
 .rpCtlRow label{display:flex;flex-direction:column;gap:3px;font-size:12px;color:var(--muted)}
 .rpCtlRow select,.rpCtlRow input{min-width:120px}
 .rpCtlRow input[type=number]{width:70px;min-width:0}
+.rpTrBox{display:flex;flex-wrap:wrap;gap:8px 10px;align-items:flex-end;padding:6px 10px;border:1px dashed #b8c7cc;border-radius:8px}
+.rpTrBox .rpTrT{width:100%;font-weight:600}
+.rpCtlRow input[type=date]{min-width:130px}
+.rpPage tr.rpWorst td{background:#fdecea}
 .rpBar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:12px}
 .rpEditOn .rpHint{display:block}
 .rpHint{display:none;margin-top:8px;font-size:12.5px;color:var(--accent)}
@@ -2920,8 +2946,40 @@ function depts(A){const M={};for(const a of A)(M[a.dept||'—']=M[a.dept||'—']
 function fuOf(a){return fuIdx.get(a.id)||null}
 const rpFu=()=>TEAM?S.fu.filter(f=>fuMine(f)).concat(TEAM.fu):S.fu.filter(f=>fuMine(f));
 const teamNames=()=>{if(!TEAM)return '';const n=[...new Set(dashAudits().map(audBy))];return n.join(' + ')};
-function fuAct(m){const F=rpFu();const e1=F.filter(f=>known(f.e1)&&mk(f.e1)===m).length,e2=F.filter(f=>known(f.e2)&&mk(f.e2)===m).length;
-  const done=F.filter(f=>f.status==='done'&&known(f.done)&&mk(f.done)===m);const days=done.filter(f=>known(f.e1)).map(f=>dDays(f.e1,f.done)).filter(d=>d>=0);
+/* ---------- periods: month, week (Sun–Sat) or any dates ---------- */
+const dAdd=(iso,n)=>{const d=new Date(iso+'T00:00:00Z');d.setUTCDate(d.getUTCDate()+n);return d.toISOString().slice(0,10)};
+const dGap=(a,b)=>Math.round((Date.parse(b+'T00:00:00Z')-Date.parse(a+'T00:00:00Z'))/864e5);
+const wkStart=iso=>dAdd(iso,-new Date(iso+'T00:00:00Z').getUTCDay());
+const mEnd=k=>dAdd(mShift(k,1)+'-01',-1);
+const dL=iso=>+iso.slice(8,10)+' '+MON[+iso.slice(5,7)-1];
+const rngL=(f,t)=>{if(f===t)return dL(f)+' '+f.slice(0,4);if(f.slice(0,7)===t.slice(0,7))return `${+f.slice(8,10)}–${dL(t)} ${t.slice(0,4)}`;return `${dL(f)}${f.slice(0,4)!==t.slice(0,4)?' '+f.slice(0,4):''} – ${dL(t)} ${t.slice(0,4)}`};
+const dk=a=>(a.dis||'').slice(0,10);
+const inP=(A,p)=>A.filter(a=>{const k=dk(a);return k&&k>=p.from&&k<=p.to});
+const inD=(iso,p)=>known(iso)&&iso.slice(0,10)>=p.from&&iso.slice(0,10)<=p.to;
+function period(){const k=$r('#rpPer').value,m=$r('#rpMonth').value;
+  if(k==='week'){const w=$r('#rpWeek').value||wkStart(m+'-01'),to=dAdd(w,6);return {kind:'week',from:w,to,label:'Week '+rngL(w,to),key:'w'+w,m:to.slice(0,7),prev:{from:dAdd(w,-7),to:dAdd(w,-1)},prevL:'previous week',unit:'this week'}}
+  if(k==='custom'){let f=$r('#rpD1').value||m+'-01',t=$r('#rpD2').value||mEnd(m);if(f>t)[f,t]=[t,f];const n=dGap(f,t)+1;
+    return {kind:'custom',from:f,to:t,label:rngL(f,t),key:'c'+f+'_'+t,m:t.slice(0,7),prev:{from:dAdd(f,-n),to:dAdd(f,-1)},prevL:`previous ${n} days`,unit:'in this period'}}
+  return {kind:'month',from:m+'-01',to:mEnd(m),label:mL(m),key:m,m,prev:{from:mShift(m,-1)+'-01',to:mEnd(mShift(m,-1))},prevL:mL(mShift(m,-1)),unit:'this month'}}
+/* trend buckets: the dates you choose, grouped by month or week */
+function trendSpec(p){let f=$r('#rpTrFrom').value,t=$r('#rpTrTo').value,by=$r('#rpTrBy').value;
+  if(!t)t=p.to;if(!f)f=p.kind==='week'?dAdd(wkStart(t),-49):mShift(t.slice(0,7),-5)+'-01';if(f>t)[f,t]=[t,f];
+  if(by==='auto')by=dGap(f,t)<=62?'week':'month';const B=[];
+  if(by==='month'){let k=f.slice(0,7);while(k<=t.slice(0,7)&&B.length<36){const a=f>k+'-01'?f:k+'-01',b=t<mEnd(k)?t:mEnd(k),part=a!==k+'-01'||b!==mEnd(k);
+      B.push({from:a,to:b,lab:MON[+k.slice(5,7)-1]+(part?'*':''),long:mL(k)+(part?` (${rngL(a,b)})`:''),part});k=mShift(k,1)}}
+  else{let w=wkStart(f);while(w<=t&&B.length<60){const a=w<f?f:w,e=dAdd(w,6),b=e>t?t:e;B.push({from:a,to:b,lab:dL(a),long:rngL(a,b),part:a!==w||b!==e});w=dAdd(w,7)}}
+  return {from:f,to:t,by,B,auto:!$r('#rpTrFrom').value&&!$r('#rpTrTo').value,title:`${by==='week'?'Week by week':'Month by month'} · ${rngL(f,t)}`,
+    note:B.some(x=>x.part)?(by==='week'?'Weeks run Sunday to Saturday; a week cut by the chosen dates counts only its days inside the range.':'* Part of the month only (cut by the chosen dates).'):''}}
+/* weeks inside the period, to find the week with most problems */
+function weekRows(P,p){if(dGap(p.from,p.to)<7)return null;const R=[];let w=wkStart(p.from);
+  while(w<=p.to&&R.length<60){const a=w<p.from?p.from:w,e=dAdd(w,6),b=e>p.to?p.to:e;const L=inP(P,{from:a,to:b});const x=stats(L),bx=boxes(L);R.push({a,b,x,z:bx.zero});w=dAdd(w,7)}
+  const ok=R.filter(r=>r.x.files);if(ok.length<2)return null;
+  const min=minN(),cand=ok.filter(r=>r.x.files>=min),pool_=cand.length?cand:ok;
+  const worst=pool_.slice().sort((u,v)=>(v.x.everInc/v.x.files)-(u.x.everInc/u.x.files)||v.z-u.z)[0];
+  return {R:ok,worst}}
+function weekTable(W,idp){if(!W)return '';return `<h2>Week by week: where the problems were</h2><table><tr><th>Week (Sun–Sat)</th><th class="r">Files</th><th class="r">Found incomplete</th><th class="r">Deficient items</th><th class="r">Fixed after follow-up</th><th class="r">Still open</th></tr>${W.R.map(r=>`<tr class="${r===W.worst&&r.x.everInc?'rpWorst':''}"><td>${rngL(r.a,r.b)}${r===W.worst&&r.x.everInc?' <span class="flag review">Most problems</span>':''}</td><td class="r">${N(idp+'f'+r.a,r.x.files)}</td><td class="r">${F(idp+'e'+r.a,r.x.everInc,r.x.files)}</td><td class="r">${N(idp+'z'+r.a,r.z)}</td><td class="r">${N(idp+'x'+r.a,r.x.fixed)}</td><td class="r">${N(idp+'o'+r.a,r.x.incomplete)}</td></tr>`).join('')}</table><p class="rpNote">“Most problems” = highest share of files found incomplete${W.R.some(r=>r.x.files<minN())?` (weeks with fewer than ${minN()} files are only compared if no week reaches that)`:''}. By discharge date.</p>`}
+function fuAct(p){const F=rpFu();const e1=F.filter(f=>inD(f.e1,p)).length,e2=F.filter(f=>inD(f.e2,p)).length;
+  const done=F.filter(f=>f.status==='done'&&inD(f.done,p));const days=done.filter(f=>known(f.e1)).map(f=>dDays(f.e1,f.done)).filter(d=>d>=0);
   const openLate=F.filter(f=>fuStage(f)==='late').length;return {e1,e2,done:done.length,medDays:med(days),openLate}}
 function flagOf(s,hosp,prev){const min=minN();if(s.files<min)return ['small','Small group'];const rate=s.incomplete/s.files,h=hosp.files?hosp.incomplete/hosp.files:0;
   if(s.late>=2||(s.incomplete>=2&&rate>=Math.max(2*h,h+.05)))return ['review','Needs review'];
@@ -2943,83 +3001,88 @@ const tile=(t,fig,s,c='')=>`<div class="rpTile ${c}"><div class="n">${fig}</div>
 function head(title,sub){const au=S.settings.auditor||'';const tm=teamNames();return `<div class="rpTop"><div><h1>${title}</h1><div class="rpSub">${sub}</div></div><div class="rpMeta">${tm?'Audit team: '+esc(tm)+'<br>':au?'Prepared by '+esc(au)+'<br>':''}Medical Records · Documentation audit<br>Generated ${fmtD(isoDay(new Date()))}</div></div>`}
 const foot=(t)=>`<div class="rpFoot"><span>${t} Pending audits are not included.</span><span>MR Follow-up</span></div>`;
 function scopeTxt(){const t=$r('#rpTy').value;return t==='full'?'Full audits':t==='quick'?'Quick audits':'Full + quick audits'}
-function trendSvg(rows){if(rows.length<2)return '';const W=640,H=86,pl=6,pt=16,pb=16,cw=(W-pl*2)/rows.length,bw=Math.min(54,cw*.5);
-  return `<svg class="rpSpark" viewBox="0 0 ${W} ${H}" style="height:auto" role="img" aria-label="Completion by month">${rows.map((r,i)=>{const v=r.files?r.complete/r.files:0,h=(H-pt-pb)*v,x=pl+i*cw+(cw-bw)/2;return `<rect x="${x}" y="${H-pb-h}" width="${bw}" height="${h}" rx="2" fill="${i===rows.length-1?'#0f5f6a':'#9cc6cb'}"/><text x="${x+bw/2}" y="${H-pb-h-4}" font-size="10" font-weight="600" text-anchor="middle" fill="#13232a">${r1(v*100)}%</text><text x="${x+bw/2}" y="${H-3}" font-size="9.5" text-anchor="middle" fill="#5a6b72">${MON[+r.m.slice(5,7)-1]}</text>`}).join('')}</svg>`}
+function trendSvg(rows){if(rows.length<2)return '';const W=640,H=86,pl=6,pt=16,pb=16,cw=(W-pl*2)/rows.length,bw=Math.min(54,cw*.6),fs=rows.length>14?7.5:rows.length>9?8.5:10;
+  return `<svg class="rpSpark" viewBox="0 0 ${W} ${H}" style="height:auto" role="img" aria-label="Completion by month">${rows.map((r,i)=>{const v=r.files?r.complete/r.files:0,h=(H-pt-pb)*v,x=pl+i*cw+(cw-bw)/2;return `<rect x="${x}" y="${H-pb-h}" width="${bw}" height="${h}" rx="2" fill="${i===rows.length-1?'#0f5f6a':'#9cc6cb'}"/><text x="${x+bw/2}" y="${H-pb-h-4}" font-size="${fs}" font-weight="600" text-anchor="middle" fill="#13232a">${r1(v*100)}%</text><text x="${x+bw/2}" y="${H-3}" font-size="${fs-.5}" text-anchor="middle" fill="#5a6b72">${esc(r.lab||MON[+r.m.slice(5,7)-1])}</text>`}).join('')}</svg>`}
 
 /* ---------- reports ---------- */
-function rExec(m){const P=pool(),A=inM(P,m),s=stats(A),pm=mShift(m,-1),ps=stats(inM(P,pm));
-  if(!A.length)return page(head('Monthly Documentation Report',`${mL(m)}`)+'<p>No audited files discharged in this month.</p>');
+const rpTitle=p=>p.kind==='month'?'Monthly Documentation Report':p.kind==='week'?'Weekly Documentation Report':'Documentation Report';
+function rExec(p){const P=pool(),A=inP(P,p),s=stats(A),ps=stats(inP(P,p.prev));
+  if(!A.length)return page(head(rpTitle(p),p.label)+`<p>No audited files discharged in ${esc(p.label)}.</p>`);
   const comp=s.files?s.complete/s.files:0,pcomp=ps.files?ps.complete/ps.files:null;
-  const delta=pcomp==null?'':`${comp>=pcomp?'▲':'▼'} ${r1(Math.abs(comp-pcomp)*100)} pts vs ${mL(pm)}`;
-  const T6=[];for(let i=5;i>=0;i--){const k=mShift(m,-i);const x=stats(inM(P,k));if(x.files)T6.push({m:k,...x})}
-  const D=depts(A),pD=depts(inM(P,pm));const drows=Object.entries(D).map(([d,L])=>{const x=stats(L);return {d,x,fl:flagOf(x,s,pD[d]?stats(pD[d]):null)}}).sort((a,b)=>b.x.files-a.x.files);
-  const SR=stdRows(A);const fa=fuAct(m);
-  const K=[];try{for(const k of kpiList()){const row=kpiCalc(k,m.slice(0,4)).find(r=>r.key===m);if(row&&row.d)K.push({k,row})}}catch(e){}
+  const delta=pcomp==null?'':`${comp>=pcomp?'▲':'▼'} ${r1(Math.abs(comp-pcomp)*100)} pts vs ${p.prevL}`;
+  const TS=trendSpec(p),T6=TS.B.map(b=>({m:b.from,lab:b.lab,long:b.long,...stats(inP(P,b))})).filter(r=>r.files);
+  const D=depts(A),pD=depts(inP(P,p.prev));const drows=Object.entries(D).map(([d,L])=>{const x=stats(L);return {d,x,fl:flagOf(x,s,pD[d]?stats(pD[d]):null)}}).sort((a,b)=>b.x.files-a.x.files);
+  const SR=stdRows(A);const fa=fuAct(p);
+  const K=[];if(p.kind==='month'){const m=p.m;try{for(const k of kpiList()){const row=kpiCalc(k,m.slice(0,4)).find(r=>r.key===m);if(row&&row.d)K.push({k,row})}}catch(e){}}
   const rev=drows.filter(r=>r.fl[0]==='review'),watch=drows.filter(r=>r.fl[0]==='watch');
   const risks=[];if(s.late)risks.push(`- ${s.late} file${s.late>1?'s are':' is'} delinquent (more than ${D_()} days after the first email).`);
   if(rev.length)risks.push(`- ${rev.map(r=>r.d).slice(0,3).join(', ')} need${rev.length===1?'s':''} review: incomplete or delinquent files above the hospital level.`);
   if(SR.rows[0])risks.push(`- "${SR.rows[0].c}" is the most frequently missing standard (${SR.rows[0].files} of ${SR.n} files reviewed).`);
   if(watch.length)risks.push(`- Completion fell by more than 5 points in ${watch.map(r=>r.d).slice(0,3).join(', ')}.`);
   const acts=[];if(s.late)acts.push('- Escalate delinquent files to the department heads concerned.');if(SR.rows[0])acts.push(`- Short awareness note to physicians on "${SR.rows[0].c}".`);if(rev.length)acts.push(`- Share the department scorecard with ${rev[0].d}.`);acts.push('- Continue weekly follow-up of open files until closed.');
-  const body=head('Monthly Documentation Report',`${mL(m)} (by discharge date)`)+
-  `<div class="rpTiles">${tile('Files audited',N('files',s.files),'discharged this month')}${tile('Completion rate',F('comp',s.complete,s.files),esc(delta),'ok')}${tile('Complete at audit',F('first',s.first,s.files),'complete on first review')}
+  const body=head(rpTitle(p),`${p.label} (by discharge date)`)+
+  `<div class="rpTiles">${tile('Files audited',N('files',s.files),'discharged '+p.unit)}${tile('Completion rate',F('comp',s.complete,s.files),esc(delta),'ok')}${tile('Complete at audit',F('first',s.first,s.files),'complete on first review')}
    ${tile('Fixed after follow-up',F('fixed',s.fixed,s.everInc),'of files found incomplete','ok')}${tile('Still incomplete',F('inc',s.incomplete,s.files),'not yet completed','warn')}${tile('Delinquent',F('late',s.late,s.files),`over ${D_()} days after 1st email`,'late')}</div>
-  <h2>Six-month trend</h2>${trendSvg(T6)}<table><tr><th>Month</th><th class="r">Files</th><th class="r">Completion</th><th class="r">Complete at audit</th><th class="r">Delinquent</th></tr>${T6.map(r=>`<tr><td>${mL(r.m)}</td><td class="r">${N('t_f_'+r.m,r.files)}</td><td class="r">${F('t_c_'+r.m,r.complete,r.files)}</td><td class="r">${F('t_a_'+r.m,r.first,r.files)}</td><td class="r">${N('t_l_'+r.m,r.late)}</td></tr>`).join('')}</table>
+  <h2>Trend: ${TS.title}</h2>${trendSvg(T6)}<table><tr><th>${TS.by==='week'?'Week':'Month'}</th><th class="r">Files</th><th class="r">Completion</th><th class="r">Complete at audit</th><th class="r">Delinquent</th></tr>${T6.map(r=>`<tr><td>${r.long}</td><td class="r">${N('t_f_'+r.m,r.files)}</td><td class="r">${F('t_c_'+r.m,r.complete,r.files)}</td><td class="r">${F('t_a_'+r.m,r.first,r.files)}</td><td class="r">${N('t_l_'+r.m,r.late)}</td></tr>`).join('')}</table>${TS.note?`<p class="rpNote">${TS.note}</p>`:''}
+  ${weekTable(weekRows(P,p),'wk_')}
   <h2>Departments</h2><table><tr><th>Department</th><th class="r">Files</th><th class="r">Complete</th><th class="r">Incomplete</th><th class="r">Delinquent</th><th>Status</th></tr>${drows.map(({d,x,fl})=>`<tr><td>${esc(d)}</td><td class="r">${N('d_f_'+d,x.files)}</td><td class="r">${F('d_c_'+d,x.complete,x.files)}</td><td class="r">${F('d_i_'+d,x.incomplete,x.files)}</td><td class="r">${N('d_l_'+d,x.late)}</td><td><span class="flag ${fl[0]}">${fl[1]}</span></td></tr>`).join('')}</table>
   <p class="rpNote">Small group = fewer than ${minN()} files: shown as counts, not a fair basis for a percentage.</p>
   <div class="rpCols"><div><h2>Most missing standards</h2>${SR.rows.length?`<table><tr><th>Standard</th><th class="r">Files</th></tr>${SR.rows.slice(0,6).map(x=>`<tr><td>${esc(x.c)}</td><td class="r">${F('s_'+x.i,x.files,SR.n)}</td></tr>`).join('')}</table><p class="rpNote">Out of ${SR.n} files reviewed against the standards.</p>`:'<p>No missing standards this month.</p>'}</div>
-   <div><h2>Follow-up activity in ${MON[+m.slice(5,7)-1]}</h2><table><tr><td>1st emails sent</td><td class="r">${N('fa_e1',fa.e1)}</td></tr><tr><td>2nd reminders sent</td><td class="r">${N('fa_e2',fa.e2)}</td></tr><tr><td>Files completed after follow-up</td><td class="r">${N('fa_d',fa.done)}</td></tr><tr><td>Median days, 1st email → completed</td><td class="r">${N('fa_md',fa.medDays==null?'—':fa.medDays)}</td></tr><tr><td>Delinquent files open today</td><td class="r">${N('fa_ol',fa.openLate)}</td></tr></table></div></div>
+   <div><h2>Follow-up activity · ${esc(p.label)}</h2><table><tr><td>1st emails sent</td><td class="r">${N('fa_e1',fa.e1)}</td></tr><tr><td>2nd reminders sent</td><td class="r">${N('fa_e2',fa.e2)}</td></tr><tr><td>Files completed after follow-up</td><td class="r">${N('fa_d',fa.done)}</td></tr><tr><td>Median days, 1st email → completed</td><td class="r">${N('fa_md',fa.medDays==null?'—':fa.medDays)}</td></tr><tr><td>Delinquent files open today</td><td class="r">${N('fa_ol',fa.openLate)}</td></tr></table></div></div>
   ${K.length?`<h2>Key performance indicators</h2><table><tr><th>KPI</th><th class="r">Numerator</th><th class="r">Denominator</th><th class="r">Result</th><th class="r">Target</th><th>Status</th></tr>${K.map(({k,row},i)=>{const lower=k.kind==='event';const v=row.r;const ok=v==null?null:lower?v<=k.target:v>=k.target;return `<tr><td>${esc(k.name)}</td><td class="r">${N('k_n'+i,row.n)}</td><td class="r">${N('k_d'+i,row.d)}</td><td class="r">${N('k_r'+i,v==null?'—':(Math.round(v*100)/100)+(lower?'':'%'))}</td><td class="r">${esc(String(k.target))}${lower?'':'%'}</td><td>${ok==null?'—':`<span class="flag ${ok?'good':'review'}">${ok?'On target':'Below target'}</span>`}</td></tr>`}).join('')}</table>`:''}
   <div class="rpCols"><div><h2>Risks</h2>${TX('risks',risks.join('\n'),'Write the main risks…')}</div><div><h2>Actions</h2>${TX('acts',acts.join('\n'),'Write the actions…')}</div></div>
   ${OPT('Comments','comm','Add comments for management (left out of the print when empty)…')}`;
   return page(body+foot(`Completion = complete ÷ files audited. Fixed after follow-up = completed after a reminder email.`))}
 
-function rDept(m){const P=pool(),A=inM(P,m),hs=stats(A),sel=$r('#rpDept').value;const D=depts(A);
-  let list=sel?[sel]:Object.keys(D).sort((a,b)=>D[b].length-D[a].length);if(!list.length)return page(head('Department Scorecard',mL(m))+'<p>No audited files discharged in this month.</p>');
+function rDept(p){const P=pool(),A=inP(P,p),hs=stats(A),sel=$r('#rpDept').value;const D=depts(A);const TS=trendSpec(p);
+  let list=sel?[sel]:Object.keys(D).sort((a,b)=>D[b].length-D[a].length);if(!list.length)return page(head('Department Scorecard',p.label)+`<p>No audited files discharged in ${esc(p.label)}.</p>`);
   const ranked=Object.entries(D).filter(([d,L])=>L.length>=minN()).map(([d,L])=>[d,L.filter(a=>auditStatus(a)==='Complete').length/L.length]).sort((a,b)=>b[1]-a[1]).map(x=>x[0]);
-  return list.map(d=>{const L=D[d]||[],x=stats(L),pv=inM(P,mShift(m,-1)).filter(a=>a.dept===d);const fl=flagOf(x,hs,pv.length?stats(pv):null);const id=k=>'p_'+d+'_'+k;
-    const T6=[];for(let i=5;i>=0;i--){const k=mShift(m,-i);const all=inM(P,k),dd=all.filter(a=>a.dept===d);if(all.length)T6.push({m:k,d:stats(dd),h:stats(all)})}
+  return list.map(d=>{const L=D[d]||[],x=stats(L),pv=inP(P,p.prev).filter(a=>a.dept===d);const fl=flagOf(x,hs,pv.length?stats(pv):null);const id=k=>'p_'+d+'_'+k;
+    const T6=[];for(const b of TS.B){const all=inP(P,b),dd=all.filter(a=>a.dept===d);if(all.length)T6.push({m:b.from,long:b.long,d:stats(dd),h:stats(all)})}
     const SR=stdRows(L);const DOC={};for(const a of L){const k=docKey(a.doc);(DOC[k]=DOC[k]||{k,raw:a.doc,L:[]}).L.push(a)}
     const docs=Object.values(DOC).map(o=>{const s=stats(o.L);const F_=o.L.map(fuOf).filter(Boolean);const em=F_.filter(f=>f.e1);const done=em.filter(f=>f.status==='done');const days=done.filter(f=>known(f.e1)&&known(f.done)).map(f=>dDays(f.e1,f.done)).filter(v=>v>=0);return {...o,s,em:em.length,done:done.length,md:med(days)}}).sort((a,b)=>b.s.incomplete-a.s.incomplete||b.s.files-a.s.files);
     const rank=ranked.indexOf(d);const comp=x.files?x.complete/x.files:0,hc=hs.files?hs.complete/hs.files:0;
     const find=[];if(x.files<minN())find.push(`- Small group this month (${x.files} file${x.files>1?'s':''}): read the counts, not the percentages.`);
     find.push(`- Completion ${x.files?r1(comp*100):0}% against ${r1(hc*100)}% for the hospital.`);if(x.late)find.push(`- ${x.late} delinquent file${x.late>1?'s':''} to escalate.`);if(SR.rows[0])find.push(`- Most missing: "${SR.rows[0].c}" (${SR.rows[0].files} file${SR.rows[0].files>1?'s':''}).`);
-    const body=head('Department Scorecard',`${esc(d)} · ${mL(m)} (by discharge date)`)+
-    `<div class="rpTiles">${tile('Files audited',N(id('f'),x.files),'discharged this month')}${tile('Completion rate',F(id('c'),x.complete,x.files),`hospital ${fmtRatio(hs.complete,hs.files,'pct')}`,'ok')}${tile('Status',`<span class="flag ${fl[0]}" style="font-size:10pt">${fl[1]}</span>`,rank>=0?`rank ${rank+1} of ${ranked.length} departments`:`fewer than ${minN()} files: not ranked`)}
+    const body=head('Department Scorecard',`${esc(d)} · ${esc(p.label)} (by discharge date)`)+
+    `<div class="rpTiles">${tile('Files audited',N(id('f'),x.files),'discharged '+p.unit)}${tile('Completion rate',F(id('c'),x.complete,x.files),`hospital ${fmtRatio(hs.complete,hs.files,'pct')}`,'ok')}${tile('Status',`<span class="flag ${fl[0]}" style="font-size:10pt">${fl[1]}</span>`,rank>=0?`rank ${rank+1} of ${ranked.length} departments`:`fewer than ${minN()} files: not ranked`)}
      ${tile('Fixed after follow-up',F(id('x'),x.fixed,x.everInc),'of files found incomplete','ok')}${tile('Still incomplete',F(id('i'),x.incomplete,x.files),'','warn')}${tile('Delinquent',N(id('l'),x.late),'','late')}</div>
-    <h2>Six months: department vs hospital</h2><table><tr><th>Month</th><th class="r">Files</th><th class="r">Department completion</th><th class="r">Hospital completion</th><th class="r">Delinquent</th></tr>${T6.map(r=>`<tr><td>${mL(r.m)}</td><td class="r">${N(id('tf'+r.m),r.d.files)}</td><td class="r">${F(id('tc'+r.m),r.d.complete,r.d.files)}</td><td class="r">${F(id('th'+r.m),r.h.complete,r.h.files)}</td><td class="r">${N(id('tl'+r.m),r.d.late)}</td></tr>`).join('')}</table>
+    <h2>Department vs hospital · ${TS.title}</h2><table><tr><th>${TS.by==='week'?'Week':'Month'}</th><th class="r">Files</th><th class="r">Department completion</th><th class="r">Hospital completion</th><th class="r">Delinquent</th></tr>${T6.map(r=>`<tr><td>${r.long}</td><td class="r">${N(id('tf'+r.m),r.d.files)}</td><td class="r">${F(id('tc'+r.m),r.d.complete,r.d.files)}</td><td class="r">${F(id('th'+r.m),r.h.complete,r.h.files)}</td><td class="r">${N(id('tl'+r.m),r.d.late)}</td></tr>`).join('')}</table>
     <div class="rpCols"><div><h2>Missing standards</h2>${SR.rows.length?`<table><tr><th>Standard</th><th class="r">Files</th><th class="r">T</th><th class="r">A</th><th class="r">C</th></tr>${SR.rows.slice(0,6).map(s=>`<tr><td>${esc(s.c)}</td><td class="r">${F(id('s'+s.i),s.files,SR.n)}</td><td class="r">${s.T}</td><td class="r">${s.A}</td><td class="r">${s.C}</td></tr>`).join('')}</table>`:'<p>None this month.</p>'}</div>
      <div><h2>Findings</h2>${TX(id('find'),find.join('\n'))}<h2>Recommendation</h2>${TX(id('rec'),fl[0]==='review'?'- Review open files with the department head and agree a completion date.':fl[0]==='watch'?'- Monitor next month; brief physicians on the missing standards.':'- Keep current practice.')}</div></div>
     <h2>Physicians</h2><table><tr><th>Physician</th><th class="r">Files</th><th class="r">Incomplete</th><th class="r">Delinquent</th><th class="r">Emailed</th><th class="r">Completed after email</th><th class="r">Median days to complete</th></tr>${docs.map(o=>`<tr><td>${esc(docName(o.k,o.raw))}</td><td class="r">${N(id('df'+o.k),o.s.files)}</td><td class="r">${F(id('di'+o.k),o.s.incomplete,o.s.files)}</td><td class="r">${N(id('dl'+o.k),o.s.late)}</td><td class="r">${N(id('de'+o.k),o.em)}</td><td class="r">${o.em?F(id('dd'+o.k),o.done,o.em):'—'}</td><td class="r">${N(id('dm'+o.k),o.md==null?'—':o.md)}</td></tr>`).join('')}</table>
     <p class="rpNote">Confidential: for the department head. Physician figures are for follow-up, not for public ranking.</p>`;
     return page(body+foot(`Status: Needs review = incomplete rate at least twice the hospital rate or 2+ delinquent files · Watch = completion down 5+ points from last month · Small group = fewer than ${minN()} files.`))}).join('')}
 
-function rImpact(m){const P=pool(),A=inM(P,m),y=m.slice(0,4),Y=inRange(P,y+'-01',m);const s=stats(A),sy=stats(Y),b=boxes(A),by=boxes(Y);
-  const F_=rpFu();const doneIn=(from,to)=>F_.filter(f=>f.status==='done'&&known(f.done)&&mk(f.done)>=from&&mk(f.done)<=to);
-  const em=(from,to)=>F_.filter(f=>known(f.e1)&&mk(f.e1)>=from&&mk(f.e1)<=to).length+F_.filter(f=>known(f.e2)&&mk(f.e2)>=from&&mk(f.e2)<=to).length;
-  const dM=doneIn(m,m),dY=doneIn(y+'-01',m);const days=L=>med(L.filter(f=>known(f.e1)).map(f=>dDays(f.e1,f.done)).filter(v=>v>=0));
-  const T6=[];for(let i=5;i>=0;i--){const k=mShift(m,-i);const L=inM(P,k);if(L.length){const x=stats(L),sr=stdRows(L);T6.push({m:k,x,sr})}}
-  const top=stdRows(inRange(P,mShift(m,-5),m)).rows.slice(0,4);
+function rImpact(p){const P=pool(),A=inP(P,p),y=p.to.slice(0,4),YP={from:y+'-01-01',to:p.to},Y=inP(P,YP);const s=stats(A),sy=stats(Y),b=boxes(A),by=boxes(Y);
+  const F_=rpFu();const doneIn=q=>F_.filter(f=>f.status==='done'&&inD(f.done,q));
+  const em=q=>F_.filter(f=>inD(f.e1,q)).length+F_.filter(f=>inD(f.e2,q)).length;
+  const dM=doneIn(p),dY=doneIn(YP);const days=L=>med(L.filter(f=>known(f.e1)).map(f=>dDays(f.e1,f.done)).filter(v=>v>=0));
+  const noDate=L=>L.filter(a=>{const f=fuOf(a);return f&&f.status==='done'&&!known(f.done)}).length,ndM=noDate(A),ndY=noDate(Y);
+  const TS=trendSpec(p),T6=[];for(const bk of TS.B){const L=inP(P,bk);if(L.length){const x=stats(L),sr=stdRows(L);T6.push({m:bk.from,lab:bk.lab,long:bk.long,x,sr})}}
+  const top=stdRows(inP(P,TS)).rows.slice(0,4);
   const au=TEAM?'the audit team ('+teamNames()+')':(S.settings.auditor||'I');
-  const line=`In ${mL(m)}, ${au==='I'?'I':esc(au)} audited ${s.files} discharged files${b.scored?`, checking ${b.scored.toLocaleString('en')} documentation items`:''}. ${s.everInc} file${s.everInc===1?' was':'s were'} found incomplete; follow-up has already brought ${s.fixed} of them to complete${s.everInc?` (${r1(s.fixed/s.everInc*100)}%)`:''}. In ${y} to date, ${sy.fixed} incomplete files were completed after follow-up.`;
-  const body=head('Audit Impact Report',`${mL(m)} and ${y} to date`)+
+  const line=`In ${p.label}, ${au==='I'?'I':esc(au)} audited ${s.files} discharged files${b.scored?`, checking ${b.scored.toLocaleString('en')} documentation items`:''}. ${s.everInc} file${s.everInc===1?' was':'s were'} found incomplete; follow-up has already brought ${s.fixed} of them to complete${s.everInc?` (${r1(s.fixed/s.everInc*100)}%)`:''}. In ${y} to date, ${sy.fixed} incomplete files were completed after follow-up.`;
+  const body=head('Audit Impact Report',`${esc(p.label)} and ${y} to date`)+
   TX('impact_line',line)+
-  `<h2>What the audit did</h2><table><tr><th>Measure</th><th class="r">${mL(m)}</th><th class="r">${y} to date</th></tr>
+  `<h2>What the audit did</h2><table><tr><th>Measure</th><th class="r">${esc(p.label)}</th><th class="r">${y} to date</th></tr>
    <tr><td>Files audited</td><td class="r">${N('i_f',s.files)}</td><td class="r">${N('i_fy',sy.files)}</td></tr>
    <tr><td>Documentation items checked</td><td class="r">${N('i_b',b.scored.toLocaleString('en'))}</td><td class="r">${N('i_by',by.scored.toLocaleString('en'))}</td></tr>
    <tr><td>Deficient items found</td><td class="r">${N('i_z',b.zero)}</td><td class="r">${N('i_zy',by.zero)}</td></tr>
    <tr><td>Files found incomplete</td><td class="r">${F('i_e',s.everInc,s.files)}</td><td class="r">${F('i_ey',sy.everInc,sy.files)}</td></tr>
-   <tr><td>Reminder emails sent to physicians</td><td class="r">${N('i_m',em(m,m))}</td><td class="r">${N('i_my',em(y+'-01',m))}</td></tr>
+   <tr><td>Reminder emails sent to physicians</td><td class="r">${N('i_m',em(p))}</td><td class="r">${N('i_my',em(YP))}</td></tr>
    <tr><td><b>Files fixed after follow-up</b> (by discharge month)</td><td class="r"><b>${N('i_x',s.fixed)}</b></td><td class="r"><b>${N('i_xy',sy.fixed)}</b></td></tr>
-   <tr><td>Completions recorded in the app in the month (by completion date)</td><td class="r">${N('i_d',dM.length)}</td><td class="r">${N('i_dy',dY.length)}</td></tr>
+   <tr><td>Completions recorded in the period (by completion date)</td><td class="r">${N('i_d',dM.length)}</td><td class="r">${N('i_dy',dY.length)}</td></tr>
+   ${ndM||ndY?`<tr><td>Completed, but the completion date was not recorded (old Excel imports)</td><td class="r">${N('i_nd',ndM)}</td><td class="r">${N('i_ndy',ndY)}</td></tr>`:''}
    <tr><td>Recovery rate (fixed ÷ found incomplete, by discharge)</td><td class="r">${F('i_r',s.fixed,s.everInc)}</td><td class="r">${F('i_ry',sy.fixed,sy.everInc)}</td></tr>
-   <tr><td>Median days from 1st email to completion</td><td class="r">${N('i_md',days(dM)??'—')}</td><td class="r">${N('i_mdy',days(dY)??'—')}</td></tr>
+   <tr><td>Median days from 1st email to completion</td><td class="r">${N('i_md',days(dM)??(ndM?'— (no dates)':'—'))}</td><td class="r">${N('i_mdy',days(dY)??(ndY?'— (no dates)':'—'))}</td></tr>
    <tr><td>Files still open (incomplete / delinquent)</td><td class="r">${N('i_o',s.incomplete+' / '+s.late)}</td><td class="r">${N('i_oy',sy.incomplete+' / '+sy.late)}</td></tr></table>
-  <h2>Documentation quality over six months</h2>${trendSvg(T6.map(r=>({m:r.m,...r.x})))}<table><tr><th>Month</th><th class="r">Files</th><th class="r">Complete at audit</th><th class="r">Final completion</th><th class="r">Fixed after follow-up</th></tr>${T6.map(r=>`<tr><td>${mL(r.m)}</td><td class="r">${N('q_f'+r.m,r.x.files)}</td><td class="r">${F('q_a'+r.m,r.x.first,r.x.files)}</td><td class="r">${F('q_c'+r.m,r.x.complete,r.x.files)}</td><td class="r">${N('q_x'+r.m,r.x.fixed)}</td></tr>`).join('')}</table>
-  <p class="rpNote">The gap between “complete at audit” and “final completion” is the improvement made by follow-up.</p>
-  ${top.length?`<h2>Standards under watch: deficiency by month</h2><table><tr><th>Standard</th>${T6.map(r=>`<th class="r">${MON[+r.m.slice(5,7)-1]}</th>`).join('')}</tr>${top.map(t=>`<tr><td>${esc(t.c)}</td>${T6.map(r=>{const x=r.sr.rows.find(z=>z.i===t.i);return `<td class="r">${F('w_'+t.i+'_'+r.m,x?x.files:0,r.sr.n)}</td>`}).join('')}</tr>`).join('')}</table><p class="rpNote">Files with the standard missing ÷ files reviewed against the standards that month. A falling line shows where reminders and awareness are working.</p>`:''}
+  <h2>Documentation quality · ${TS.title}</h2>${trendSvg(T6.map(r=>({m:r.m,lab:r.lab,...r.x})))}<table><tr><th>${TS.by==='week'?'Week':'Month'}</th><th class="r">Files</th><th class="r">Complete at audit</th><th class="r">Final completion</th><th class="r">Fixed after follow-up</th></tr>${T6.map(r=>`<tr><td>${r.long}</td><td class="r">${N('q_f'+r.m,r.x.files)}</td><td class="r">${F('q_a'+r.m,r.x.first,r.x.files)}</td><td class="r">${F('q_c'+r.m,r.x.complete,r.x.files)}</td><td class="r">${N('q_x'+r.m,r.x.fixed)}</td></tr>`).join('')}</table>
+  <p class="rpNote">The gap between “complete at audit” and “final completion” is the improvement made by follow-up.${TS.note?' '+TS.note:''}</p>
+  ${weekTable(weekRows(P,p),'iw_')}
+  ${top.length?`<h2>Standards under watch: deficiency by ${TS.by==='week'?'week':'month'}</h2><table><tr><th>Standard</th>${T6.map(r=>`<th class="r">${esc(r.lab)}</th>`).join('')}</tr>${top.map(t=>`<tr><td>${esc(t.c)}</td>${T6.map(r=>{const x=r.sr.rows.find(z=>z.i===t.i);return `<td class="r">${F('w_'+t.i+'_'+r.m,x?x.files:0,r.sr.n)}</td>`}).join('')}</tr>`).join('')}</table><p class="rpNote">Files with the standard missing ÷ files reviewed against the standards in that ${TS.by==='week'?'week':'month'}. A falling line shows where reminders and awareness are working.</p>`:''}
   ${OPT('Achievements and notes','ach','Add what you did this month: training given, issues escalated, process changes…')}`;
-  return page(body+foot('Figures by discharge month unless stated. Recovered files are counted in the month the physician completed them.'))}
+  return page(body+foot('Figures by discharge date unless stated. “Files fixed after follow-up” and the recovery rate follow the discharge date; “Completions recorded” follow the date the physician completed the file.'))}
 
 function rHeat(m){const P=pool(),sp=$r('#rpSpan').value;let from=sp==='ytd'?m.slice(0,4)+'-01':sp==='custom'?($r('#rpFrom').value||m):mShift(m,-((+sp||3)-1));if(from>m)from=m;const per=from===m?mL(m):mL(from)+' – '+mL(m);const A=inRange(P,from,m).filter(a=>!isQuick(a)&&a.sc);
   const top=stdRows(A).rows.slice(0,12);const D=depts(A);const rows=Object.entries(D).sort((a,b)=>b[1].length-a[1].length);
@@ -3038,28 +3101,33 @@ const D_=()=>S.settings.delinqDays||7;
 
 /* ---------- render + controls ---------- */
 function months(){const s=new Set(dashAudits().map(a=>mk(a.dis)).filter(Boolean));return [...s].sort().reverse()}
-function fillCtl(){const ms=months(),sel=$r('#rpMonth'),cur=sel.value;sel.innerHTML=ms.map(k=>`<option value="${k}">${mL(k)}</option>`).join('')||'<option value="">No data</option>';
+function fillCtl(){const ms=months(),sel=$r('#rpMonth'),cur=sel.value;const st0=S.settings.rp||{};if(!fillCtl.init){fillCtl.init=1;for(const k of ['rpPer','rpTrBy','rpTrFrom','rpTrTo','rpD1','rpD2'])if(st0[k]!=null)$r('#'+k).value=st0[k]}sel.innerHTML=ms.map(k=>`<option value="${k}">${mL(k)}</option>`).join('')||'<option value="">No data</option>';
   const now=mk(isoDay(new Date()));if(cur&&ms.includes(cur))sel.value=cur;else sel.value=ms.find(k=>k<now)||ms[0]||'';
   const ds=[...new Set(inM(pool(),sel.value).map(a=>a.dept||'—'))].sort();const dv=$r('#rpDept').value;$r('#rpDept').innerHTML='<option value="">All departments (one page each)</option>'+ds.map(d=>`<option>${esc(d)}</option>`).join('');if(ds.includes(dv))$r('#rpDept').value=dv;
-  $r('#rpDeptL').hidden=$r('#rpType').value!=='dept';const ht=$r('#rpType').value==='heat';$r('#rpSpanL').hidden=!ht;$r('#rpFromL').hidden=!ht||$r('#rpSpan').value!=='custom';if(!$r('#rpFrom').value&&sel.value)$r('#rpFrom').value=mShift(sel.value,-2);$r('#rpMonthL').firstChild.textContent=ht?'To month':'Month'}
+  $r('#rpDeptL').hidden=$r('#rpType').value!=='dept';const ht=$r('#rpType').value==='heat';$r('#rpSpanL').hidden=!ht;$r('#rpFromL').hidden=!ht||$r('#rpSpan').value!=='custom';if(!$r('#rpFrom').value&&sel.value)$r('#rpFrom').value=mShift(sel.value,-2);$r('#rpMonthL').firstChild.textContent=ht?'To month':'Month';
+  const per=$r('#rpPer').value;$r('#rpPerL').hidden=ht;$r('#rpTrBox').hidden=ht;$r('#rpMonthL').hidden=!ht&&per==='custom';$r('#rpWeekL').hidden=ht||per!=='week';$r('#rpD1L').hidden=$r('#rpD2L').hidden=ht||per!=='custom';
+  if(per==='week'&&sel.value){const m=sel.value,wv=$r('#rpWeek').value;const W=[];let w=wkStart(m+'-01'),i=1;while(w<=mEnd(m)){W.push([w,`Week ${i} · ${rngL(w,dAdd(w,6))}`]);w=dAdd(w,7);i++}
+    $r('#rpWeek').innerHTML=W.map(([v,l])=>`<option value="${v}">${l}</option>`).join('');if(W.some(x=>x[0]===wv))$r('#rpWeek').value=wv}
+  if(per==='custom'&&sel.value){if(!$r('#rpD1').value)$r('#rpD1').value=sel.value+'-01';if(!$r('#rpD2').value)$r('#rpD2').value=mEnd(sel.value)}}
 function renderReports(){if(!$r('#rpType'))return;const st=S.settings.rp||{};
   if(!renderReports.init){renderReports.init=1;for(const k of ['rpType','rpTy','rpFmt','rpMin','rpSpan'])if(st[k]!=null)$r('#'+k).value=st[k]}
   {const el=$r('#rpTeam');if(TEAM){const per={};for(const a of dashAudits()){const n=audBy(a);per[n]=(per[n]||0)+1}
     el.className='rpTeam on';el.innerHTML=`<div style="flex:1;min-width:240px"><b style="color:var(--accent)">Combined reports ON</b> <span class="small">${Object.entries(per).map(([n,c])=>`${esc(n)} <b>${c}</b>`).join(' · ')} files</span><div class="small muted">All reports now include your colleague's files. Your own data is not changed.</div></div><label class="btn sm" for="tmIn">Add more colleague files</label><button type="button" class="btn sm danger" id="rpTeamOff">Remove colleague's data</button>`}
    else{el.className='rpTeam';el.innerHTML=`<div style="flex:1;min-width:240px"><b>Only your files</b><div class="small muted">To report for the whole team, add your colleague's exported Excel files (full and quick). They are used for the reports and Dashboard only, and you can remove them at any time.</div></div><label class="f" style="min-width:150px"><span class="small muted">Colleague name</span><input id="rpTmName" value="${esc($('#tmName').value||S.settings.prep?.mate||'')}" placeholder="e.g. Sara"></label><label class="btn sm primary" for="tmIn">Add colleague's files</label>`}}
-  fillCtl();const t=$r('#rpType').value,m=$r('#rpMonth').value;document.querySelectorAll('#rpCards button').forEach(b=>b.setAttribute('aria-selected',b.dataset.rp===t));KEY=[t,m,$r('#rpTy').value,t==='dept'?$r('#rpDept').value:t==='heat'?$r('#rpSpan').value+($r('#rpSpan').value==='custom'?$r('#rpFrom').value:''):''].join('|');S.repEdits=S.repEdits||{};ED=S.repEdits[KEY]||{};
+  fillCtl();const t=$r('#rpType').value,m=$r('#rpMonth').value;document.querySelectorAll('#rpCards button').forEach(b=>b.setAttribute('aria-selected',b.dataset.rp===t));const p=m?period():null;KEY=[t,t==='heat'?m:p&&p.key,$r('#rpTy').value,t==='dept'?$r('#rpDept').value:t==='heat'?$r('#rpSpan').value+($r('#rpSpan').value==='custom'?$r('#rpFrom').value:''):''].join('|');S.repEdits=S.repEdits||{};ED=S.repEdits[KEY]||{};
   const n=Object.keys(ED).length;$r('#rpEdN').textContent=n?`${n} edit${n>1?'s':''} in this report`:'';$r('#rpReset').hidden=!n;
   if(!m){$r('#rpDoc').innerHTML='<div class="panel"><p class="muted">No audits yet.</p></div>';return}
-  const html=t==='exec'?rExec(m):t==='dept'?rDept(m):t==='impact'?rImpact(m):rHeat(m);
+  const html=t==='exec'?rExec(p):t==='dept'?rDept(p):t==='impact'?rImpact(p):rHeat(m);
   $r('#rpDoc').innerHTML=html;$r('#rpDoc').classList.toggle('rpEditing',EDIT)}
 window.renderReports=renderReports;
 function saveEd(){S.repEdits[KEY]=ED;if(!Object.keys(ED).length)delete S.repEdits[KEY];save()}
-function persist(){S.settings.rp={rpType:$r('#rpType').value,rpTy:$r('#rpTy').value,rpFmt:$r('#rpFmt').value,rpMin:$r('#rpMin').value};save()}
+function persist(){S.settings.rp=Object.assign(S.settings.rp||{},{rpType:$r('#rpType').value,rpTy:$r('#rpTy').value,rpFmt:$r('#rpFmt').value,rpMin:$r('#rpMin').value,rpPer:$r('#rpPer').value,rpTrBy:$r('#rpTrBy').value,rpTrFrom:$r('#rpTrFrom').value,rpTrTo:$r('#rpTrTo').value,rpD1:$r('#rpD1').value,rpD2:$r('#rpD2').value});save()}
 $r('#rpTeam').addEventListener('input',e=>{if(e.target.id==='rpTmName')$('#tmName').value=e.target.value});
 $r('#rpTeam').addEventListener('click',e=>{if(e.target.id==='rpTeamOff')$('#tmClose').click()});
 $r('#rpCards').addEventListener('click',e=>{const b=e.target.closest('button[data-rp]');if(!b)return;$r('#rpType').value=b.dataset.rp;closePop();persist();renderReports()});
 ['rpSpan','rpFrom'].forEach(id=>$r('#'+id).addEventListener('change',()=>{closePop();S.settings.rp=Object.assign(S.settings.rp||{},{rpSpan:$r('#rpSpan').value});save();renderReports()}));
-['rpType','rpMonth','rpTy','rpDept','rpFmt','rpMin'].forEach(id=>$r('#'+id).addEventListener('change',()=>{closePop();persist();renderReports()}));
+['rpType','rpMonth','rpTy','rpDept','rpFmt','rpMin','rpPer','rpWeek','rpD1','rpD2','rpTrFrom','rpTrTo','rpTrBy'].forEach(id=>$r('#'+id).addEventListener('change',()=>{closePop();persist();renderReports()}));
+$r('#rpTrClr').addEventListener('click',()=>{$r('#rpTrFrom').value='';$r('#rpTrTo').value='';$r('#rpTrBy').value='auto';closePop();persist();renderReports()});
 $r('#rpEdit').addEventListener('click',()=>{EDIT=!EDIT;$r('#rpEdit').textContent=EDIT?'Done editing':'Edit numbers & text';$r('#rpEdit').classList.toggle('primary',EDIT);$r('#rpCtl').classList.toggle('rpEditOn',EDIT);closePop();renderReports()});
 $r('#rpReset').addEventListener('click',()=>{const old=ED;ED={};saveEd();renderReports();toast('Edits removed from this report',()=>{ED=old;saveEd();renderReports()})});
 $r('#rpPrint').addEventListener('click',()=>{closePop();const was=EDIT;if(EDIT){EDIT=false;renderReports()}document.documentElement.classList.add('rpPrint');setTimeout(()=>{window.print()},60);
