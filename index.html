@@ -474,8 +474,10 @@ input[type=range]{accent-color:var(--accent)}
       </div>
       <div class="rpCtlRow">
         <label hidden>Report<select id="rpType"><option value="exec">Monthly report (management)</option><option value="dept">Department scorecard</option><option value="impact">Audit impact report</option><option value="heat">Standards heatmap</option></select></label>
-        <label>Month<select id="rpMonth"></select></label>
+        <label id="rpMonthL">Month<select id="rpMonth"></select></label>
         <label>Audits<select id="rpTy"><option value="">Full + quick</option><option value="full">Full only</option><option value="quick">Quick only</option></select></label>
+        <label id="rpSpanL" hidden>Period<select id="rpSpan"><option value="1">Selected month only</option><option value="3" selected>3 months ending in the month</option><option value="6">6 months ending in the month</option><option value="ytd">Year to date</option><option value="custom">From – to…</option></select></label>
+        <label id="rpFromL" hidden>From<input type="month" id="rpFrom"></label>
         <label id="rpDeptL" hidden>Department<select id="rpDept"></select></label>
         <label>Numbers<select id="rpFmt"><option value="auto">Auto: % for big groups, counts for small</option><option value="pct">Percent</option><option value="count">Count (4 / 43)</option><option value="both">Both (4 / 43 · 9.3%)</option></select></label>
         <label>Small group = fewer than<span><input type="number" id="rpMin" value="10" min="1" max="200"> files</span></label>
@@ -3014,17 +3016,17 @@ function rImpact(m){const P=pool(),A=inM(P,m),y=m.slice(0,4),Y=inRange(P,y+'-01'
   ${OPT('Achievements and notes','ach','Add what you did this month: training given, issues escalated, process changes…')}`;
   return page(body+foot('Figures by discharge month unless stated. Recovered files are counted in the month the physician completed them.'))}
 
-function rHeat(m){const P=pool(),from=mShift(m,-2),A=inRange(P,from,m).filter(a=>!isQuick(a)&&a.sc);
+function rHeat(m){const P=pool(),sp=$r('#rpSpan').value;let from=sp==='ytd'?m.slice(0,4)+'-01':sp==='custom'?($r('#rpFrom').value||m):mShift(m,-((+sp||3)-1));if(from>m)from=m;const per=from===m?mL(m):mL(from)+' – '+mL(m);const A=inRange(P,from,m).filter(a=>!isQuick(a)&&a.sc);
   const top=stdRows(A).rows.slice(0,12);const D=depts(A);const rows=Object.entries(D).sort((a,b)=>b[1].length-a[1].length);
-  if(!top.length)return page(head('Standards Heatmap',`${mL(from)} – ${mL(m)}`)+'<p>No missing standards in these three months.</p>');
+  if(!top.length)return page(head('Standards Heatmap',per)+'<p>No missing standards in these three months.</p>');
   const col=(n,d)=>{if(!n)return '';const v=n/d;return v>=.3?'#f4b8b1':v>=.15?'#f9d6a8':v>=.05?'#fbe9c9':'#fdf5e6'};
-  const body=head('Standards Heatmap',`Departments × most missing standards · ${mL(from)} – ${mL(m)}`)+
+  const body=head('Standards Heatmap',`Departments × most missing standards · ${per}`)+
   `<table class="rpHeat"><tr><th>Department</th><th class="r">Files</th>${top.map(t=>`<th class="v" title="${esc(t.c)}">${esc(t.c.length>38?t.c.slice(0,36)+'…':t.c)}</th>`).join('')}</tr>
   ${rows.map(([d,L])=>{const sr=stdRows(L);return `<tr><td>${esc(d)}</td><td class="r">${N('h_n_'+d,L.length)}</td>${top.map(t=>{const x=sr.rows.find(z=>z.i===t.i);const n=x?x.files:0;return `<td class="c" style="background:${L.length<minN()?(n?'#eef1f2':''):col(n,L.length)}">${n?F('h_'+d+'_'+t.i,n,L.length):''}</td>`}).join('')}</tr>`}).join('')}
   <tr><td><b>All</b></td><td class="r"><b>${A.length}</b></td>${top.map(t=>`<td class="c"><b>${F('h_all_'+t.i,t.files,A.length)}</b></td>`).join('')}</tr></table>
   <p class="rpNote">Each cell: files in that department with the standard missing. Colour by share of the department's files: <span style="background:#fdf5e6;padding:0 6px">under 5%</span> <span style="background:#fbe9c9;padding:0 6px">5–15%</span> <span style="background:#f9d6a8;padding:0 6px">15–30%</span> <span style="background:#f4b8b1;padding:0 6px">30%+</span>. Departments with fewer than ${minN()} files are <span style="background:#eef1f2;padding:0 6px">grey</span> and, with Numbers on Auto, show counts.</p>
 `;
-  return page(body+foot('Three months ending in the selected month, by discharge date.'))}
+  return page(body+foot(`${per}, by discharge date.`))}
 
 const page=h=>`<article class="rpPage">${h}</article>`;
 const D_=()=>S.settings.delinqDays||7;
@@ -3034,10 +3036,10 @@ function months(){const s=new Set(dashAudits().map(a=>mk(a.dis)).filter(Boolean)
 function fillCtl(){const ms=months(),sel=$r('#rpMonth'),cur=sel.value;sel.innerHTML=ms.map(k=>`<option value="${k}">${mL(k)}</option>`).join('')||'<option value="">No data</option>';
   const now=mk(isoDay(new Date()));if(cur&&ms.includes(cur))sel.value=cur;else sel.value=ms.find(k=>k<now)||ms[0]||'';
   const ds=[...new Set(inM(pool(),sel.value).map(a=>a.dept||'—'))].sort();const dv=$r('#rpDept').value;$r('#rpDept').innerHTML='<option value="">All departments (one page each)</option>'+ds.map(d=>`<option>${esc(d)}</option>`).join('');if(ds.includes(dv))$r('#rpDept').value=dv;
-  $r('#rpDeptL').hidden=$r('#rpType').value!=='dept'}
+  $r('#rpDeptL').hidden=$r('#rpType').value!=='dept';const ht=$r('#rpType').value==='heat';$r('#rpSpanL').hidden=!ht;$r('#rpFromL').hidden=!ht||$r('#rpSpan').value!=='custom';if(!$r('#rpFrom').value&&sel.value)$r('#rpFrom').value=mShift(sel.value,-2);$r('#rpMonthL').firstChild.textContent=ht?'To month':'Month'}
 function renderReports(){if(!$r('#rpType'))return;const st=S.settings.rp||{};
-  if(!renderReports.init){renderReports.init=1;for(const k of ['rpType','rpTy','rpFmt','rpMin'])if(st[k]!=null)$r('#'+k).value=st[k]}
-  fillCtl();const t=$r('#rpType').value,m=$r('#rpMonth').value;document.querySelectorAll('#rpCards button').forEach(b=>b.setAttribute('aria-selected',b.dataset.rp===t));KEY=[t,m,$r('#rpTy').value,t==='dept'?$r('#rpDept').value:''].join('|');S.repEdits=S.repEdits||{};ED=S.repEdits[KEY]||{};
+  if(!renderReports.init){renderReports.init=1;for(const k of ['rpType','rpTy','rpFmt','rpMin','rpSpan'])if(st[k]!=null)$r('#'+k).value=st[k]}
+  fillCtl();const t=$r('#rpType').value,m=$r('#rpMonth').value;document.querySelectorAll('#rpCards button').forEach(b=>b.setAttribute('aria-selected',b.dataset.rp===t));KEY=[t,m,$r('#rpTy').value,t==='dept'?$r('#rpDept').value:t==='heat'?$r('#rpSpan').value+($r('#rpSpan').value==='custom'?$r('#rpFrom').value:''):''].join('|');S.repEdits=S.repEdits||{};ED=S.repEdits[KEY]||{};
   const n=Object.keys(ED).length;$r('#rpEdN').textContent=n?`${n} edit${n>1?'s':''} in this report`:'';$r('#rpReset').hidden=!n;
   if(!m){$r('#rpDoc').innerHTML='<div class="panel"><p class="muted">No audits yet.</p></div>';return}
   const html=t==='exec'?rExec(m):t==='dept'?rDept(m):t==='impact'?rImpact(m):rHeat(m);
@@ -3046,6 +3048,7 @@ window.renderReports=renderReports;
 function saveEd(){S.repEdits[KEY]=ED;if(!Object.keys(ED).length)delete S.repEdits[KEY];save()}
 function persist(){S.settings.rp={rpType:$r('#rpType').value,rpTy:$r('#rpTy').value,rpFmt:$r('#rpFmt').value,rpMin:$r('#rpMin').value};save()}
 $r('#rpCards').addEventListener('click',e=>{const b=e.target.closest('button[data-rp]');if(!b)return;$r('#rpType').value=b.dataset.rp;closePop();persist();renderReports()});
+['rpSpan','rpFrom'].forEach(id=>$r('#'+id).addEventListener('change',()=>{closePop();S.settings.rp=Object.assign(S.settings.rp||{},{rpSpan:$r('#rpSpan').value});save();renderReports()}));
 ['rpType','rpMonth','rpTy','rpDept','rpFmt','rpMin'].forEach(id=>$r('#'+id).addEventListener('change',()=>{closePop();persist();renderReports()}));
 $r('#rpEdit').addEventListener('click',()=>{EDIT=!EDIT;$r('#rpEdit').textContent=EDIT?'Done editing':'Edit numbers & text';$r('#rpEdit').classList.toggle('primary',EDIT);$r('#rpCtl').classList.toggle('rpEditOn',EDIT);closePop();renderReports()});
 $r('#rpReset').addEventListener('click',()=>{const old=ED;ED={};saveEd();renderReports();toast('Edits removed from this report',()=>{ED=old;saveEd();renderReports()})});
