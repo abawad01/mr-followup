@@ -564,6 +564,13 @@ input[type=range]{accent-color:var(--accent)}
         <div class="row"><button type="button" class="btn sm" id="privExcl">Excluded files log (still in hospital / repeated)</button></div>
       </div>
     </details>
+    <div class="panel" id="arPanel" style="border-color:var(--accent)">
+      <div><h3>Close old months (archive)</h3><p class="lede small" style="margin:0">Choose the month your live data starts from. Every file discharged before it is saved to an Excel archive (summary by month, files still open, all files), then removed from Stalled files, Search, Dashboard and Reports, so old months stop counting. The files stay in the app's archive and can be restored. Old files imported later from Excel go to the archive automatically.</p></div>
+      <div class="small" id="arState"></div>
+      <div class="row" style="align-items:end"><label class="f" style="min-width:200px">Live data starts from<select id="arFrom"></select></label><button class="btn primary" type="button" id="arGo">Archive older months</button><button class="btn sm" type="button" id="arAgain" hidden>Download the archive Excel again</button><button class="btn sm" type="button" id="arRestore" hidden>Restore all archived files</button></div>
+      <div class="small muted" id="arPrev"></div>
+      <div id="arAsk" hidden style="border:1px solid var(--warn,#c98a00);border-radius:8px;padding:8px 10px"></div>
+    </div>
     <div class="panel" id="recvPanel" style="border-color:var(--ok)">
       <div><h3>Receive files from a colleague</h3><p class="lede small" style="margin:0">Copy the link from your colleague's email and paste it here. The files go into the worklists of this app, with your own data.</p></div>
       <div class="row"><input id="recvIn" class="mono" placeholder="Paste the link here (Ctrl+V)" style="flex:1;min-width:220px"><button class="btn primary" type="button" id="recvGo">Read files</button></div>
@@ -1444,7 +1451,7 @@ function buildAudMap(list){const cnt=new Map();for(const a of list){const r=rawA
   const me=myName().toLowerCase().replace(/[^a-z\u0600-\u06ff]/g,'');if(me)cl.push({k:me,label:tc(myName())});
   for(const n of names){const k=n.toLowerCase().replace(/[^a-z\u0600-\u06ff]/g,'');let c=cl.find(c=>c.k===k||(k.length>3&&c.k.length>3&&lev(c.k,k)>=0.75));if(!c){c={k,label:tc(n)};cl.push(c)}m.set(n,c.label)}AUDMAP=m}
 const audBy=a=>{const r=rawAud(a);return AUDMAP.get(r)||r};
-function dashAudits(){if(!TEAM)return S.audits;const mine=new Set(S.audits.map(a=>a.fileNo+'|'+a.dis));const L=S.audits.concat(TEAM.audits.filter(a=>!mine.has(a.fileNo+'|'+a.dis)));buildAudMap(L);return L}
+function dashAudits(){if(!TEAM)return S.audits;const mine=new Set(S.audits.map(a=>a.fileNo+'|'+a.dis));const L=S.audits.concat(TEAM.audits.filter(a=>!mine.has(a.fileNo+'|'+a.dis)&&!isOld(a.dis)));buildAudMap(L);return L}
 const dashFu=()=>TEAM?S.fu.concat(TEAM.fu):S.fu;
 function sandboxImport(wb,fileName){const real=S,kind=sheetKind(wb)||'full';S={...real,audits:[],fu:[],queue:[],tomb:{},tombN:{}};
   try{if(kind==='quick')importQuick(wb,fileName);else importAudit(wb,fileName);return {kind,audits:S.audits,fu:S.fu}}finally{S=real}}
@@ -1789,7 +1796,7 @@ $('#docRows').addEventListener('click',e=>{const b=e.target.closest('button[data
 $('#confirmStrong').onclick=()=>{let n=0;for(const o of Object.values(S.doctors))if(!o.verified&&o.sugg&&o.sugg.score>=0.9){o.verified={name:o.sugg.name,email:o.sugg.email};applyEmailToFu(o.key);n++}save();renderAll();toast(`${n} doctors confirmed`)};
 
 /* ---------- DATA ---------- */
-function renderData(){try{renderGap()}catch(e){}try{renderExcl()}catch(e){}
+function renderData(){try{initArch();renderArch()}catch(e){console.error(e)}try{renderGap()}catch(e){}try{renderExcl()}catch(e){}
   const ex=S.audits.filter(a=>a.src==='excel').length,si=S.audits.filter(a=>a.src==='site').length;const ds=S.audits.map(a=>a.dis).filter(Boolean).sort();
   $('#auditInfo').innerHTML=S.audits.length&&!S.sample?`<dt>Audits stored</dt><dd class="mono">${S.audits.length} (${S.audits.filter(a=>!isQuick(a)).length} full, ${S.audits.filter(isQuick).length} quick; ${ex} from Excel, ${si} entered here)</dd><dt>Discharges</dt><dd class="mono">${fmtD(ds[0])} – ${fmtD(ds[ds.length-1])}</dd><dt>Stalled files</dt><dd class="mono">${S.fu.length}</dd>${S.imports.length?`<dt>Last import</dt><dd>${esc(S.imports[S.imports.length-1].file)}, ${fmtD(S.imports[S.imports.length-1].date)}</dd>`:''}`:'<dt>Status</dt><dd>No real data yet</dd>';
   $('#contactInfo').innerHTML=S.contactsReal?`<dt>Emails</dt><dd class="mono">${new Set(S.contacts.map(c=>c.email)).size}</dd><dt>Last added</dt><dd>${esc((S.contactsLog&&S.contactsLog[0]?.src)||S.contactsFile||'')}</dd>`:'<dt>Status</dt><dd>Not imported yet</dd>';
@@ -2353,7 +2360,74 @@ addEventListener('hashchange',async()=>{if(await checkImportLink())return;const 
 let tt,undoFn=null;function toast(m,undo){const t=$('#toast');$('#toastMsg').textContent=m;undoFn=undo||null;$('#toastUndo').hidden=!undo;t.hidden=false;clearTimeout(tt);tt=setTimeout(()=>{t.hidden=true;undoFn=null},undo?7000:3200)}
 $('#toastUndo').onclick=()=>{if(undoFn){undoFn();undoFn=null;$('#toast').hidden=true}};
 function renderFlow(){$('#flow').innerHTML=`<span class="st">Audit with ✗</span><span class="ar">→</span><span class="st">Stalled: send 1st email</span><span class="ar">→ ${R()} days →</span><span class="st" style="border-color:var(--warn)">2nd reminder due</span><span class="ar">→ ${D()} days after 1st email →</span><span class="st" style="border-color:var(--late);color:var(--late)">Delinquent</span><span class="ar">· any time →</span><span class="st" style="border-color:var(--ok);color:var(--ok)">Completed (leaves the list)</span>`}
-function renderAll(){indexFu();$('#sampleBanner').hidden=!S.sample;renderFiles();
+/* ---------- ARCHIVE: close old months and start fresh ----------
+   Files discharged before S.settings.archiveFrom leave the live data (Stalled files, Search, Dashboard, Reports, worklists).
+   They are kept in S.arch inside the app (can be restored) and exported to an Excel archive. */
+const arCut=()=>S.settings.archiveFrom||'';
+const isOld=d=>{const c=arCut();return !!(c&&d&&String(d).slice(0,10)<c)};
+function arStore(){S.arch=S.arch||{audits:[],fu:[],queue:[],log:[]};return S.arch}
+function arSnap(a){const f=fuIdx.get(a.id)||S.fu.find(x=>x.auditId===a.id);return {st:statusLabel(a),e1:f?f.e1||'':'',e2:f?f.e2||'':'',done:f&&f.status==='done'?f.done||'':'',email:f?f.email||'':'',defs:f&&f.defs&&f.defs.length?f.defs:(!isQuick(a)&&a.sc?defsOf(a):[])}}
+/* move everything older than the cut-off into the archive; returns counts */
+function sweepArchive(){if(!arCut()||S.sample)return null;const A=arStore();indexFu();
+  const oldA=S.audits.filter(a=>isOld(a.dis));const ids=new Set(oldA.map(a=>a.id));
+  const oldF=S.fu.filter(f=>ids.has(f.auditId)||(!f.auditId&&isOld(f.dis)));const oldQ=S.queue.filter(q=>isOld(q.dis));
+  if(!oldA.length&&!oldF.length&&!oldQ.length)return null;
+  for(const a of oldA)a.arch=arSnap(a);
+  const late=oldA.filter(a=>a.arch.st==='Delinquent').length,open=oldA.filter(a=>['Incomplete','Delinquent'].includes(a.arch.st)).length;
+  A.audits.push(...oldA);A.fu.push(...oldF);A.queue.push(...oldQ);
+  const fIds=new Set(oldF.map(f=>f.id));S.audits=S.audits.filter(a=>!ids.has(a.id));S.fu=S.fu.filter(f=>!fIds.has(f.id));S.queue=S.queue.filter(q=>!isOld(q.dis));
+  A.log.push({d:isoDay(new Date()),cut:arCut(),audits:oldA.length,open,late,queue:oldQ.length});
+  try{primeCache()}catch(e){} /* archived records are not deletions: no tombstones for team sync */
+  indexFu();save();return {audits:oldA.length,open,late,queue:oldQ.length}}
+/* bring back what is on or after the cut-off (used when the cut-off moves earlier, or to undo) */
+function restoreArchive(all){const A=arStore();const back=a=>all||!isOld(a.dis);
+  const rA=A.audits.filter(back),ids=new Set(rA.map(a=>a.id));const rF=A.fu.filter(f=>ids.has(f.auditId)||(!f.auditId&&back(f)));const rQ=A.queue.filter(back);
+  for(const a of rA)delete a.arch;S.audits.push(...rA);S.fu.push(...rF);S.queue.push(...rQ);
+  const fIds=new Set(rF.map(f=>f.id));A.audits=A.audits.filter(a=>!ids.has(a.id));A.fu=A.fu.filter(f=>!fIds.has(f.id));A.queue=A.queue.filter(q=>!rQ.includes(q));
+  try{primeCache()}catch(e){}indexFu();save();return rA.length}
+/* Excel archive: summary by month, open files at closing, all audited files */
+function archiveWB(L){const MONS=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const st=a=>a.arch?a.arch.st:statusLabel(a),sn=a=>a.arch||arSnap(a);
+  const byM={};for(const a of L){const k=(a.dis||'').slice(0,7)||'—';(byM[k]=byM[k]||[]).push(a)}
+  const sum=[['Month','Files audited','Complete at audit','Fixed after follow-up','Final complete','Final completion %','Found incomplete','Recovery %','Still incomplete at closing','Delinquent at closing']];
+  for(const k of Object.keys(byM).sort()){const X=byM[k],S_=X.map(st),c=v=>S_.filter(s=>s===v).length;const fixed=c('Complete (fixed after follow-up)'),first=c('Complete'),inc=c('Incomplete'),late=c('Delinquent'),found=fixed+inc+late;
+    sum.push([k==='—'?k:MONS[+k.slice(5,7)-1]+' '+k.slice(0,4),X.length,first,fixed,first+fixed,X.length?Math.round((first+fixed)/X.length*1000)/10:'',found,found?Math.round(fixed/found*1000)/10:'',inc,late])}
+  const defTxt=a=>(sn(a).defs||[]).map(x=>x.c+(x.d&&x.d.length?` (${Array.isArray(x.d)?x.d.join(''):x.d})`:'')).join('; ')||(a.note||'');
+  const row=a=>{const s=sn(a);return [a.fileNo,a.name||'',a.dis||'',a.dept||'',a.doc||'',isQuick(a)?'Quick':'Full',st(a),defTxt(a),s.e1==='?'?'sent (no date)':s.e1,s.e2==='?'?'sent (no date)':s.e2,s.done==='?'?'done (no date)':s.done,s.email]};
+  const H=['File No','Patient','Discharge date','Department','Doctor','Audit','Status at closing','Deficiencies','1st email','2nd email','Completed on','Doctor email'];
+  const open=L.filter(a=>['Incomplete','Delinquent'].includes(st(a))).sort((a,b)=>(a.dis||'')<(b.dis||'')?-1:1);
+  const wb=XLSX.utils.book_new();
+  const add=(name,aoa,w)=>{const ws=XLSX.utils.aoa_to_sheet(aoa);ws['!cols']=w.map(x=>({wch:x}));XLSX.utils.book_append_sheet(wb,ws,name)};
+  add('Summary by month',sum,[12,13,16,20,14,18,16,11,24,20]);
+  add('Open at closing',[H,...open.map(row)],[12,24,14,22,26,7,22,48,14,14,14,30]);
+  add('All archived files',[H,...L.slice().sort((a,b)=>(a.dis||'')<(b.dis||'')?-1:1).map(row)],[12,24,14,22,26,7,22,48,14,14,14,30]);
+  return wb}
+function archivePreview(cut){indexFu();const A=S.audits.filter(a=>a.dis&&a.dis.slice(0,10)<cut);const st=A.map(statusLabel);
+  return {audits:A.length,open:st.filter(s=>s==='Incomplete'||s==='Delinquent').length,late:st.filter(s=>s==='Delinquent').length,queue:S.queue.filter(q=>q.dis&&q.dis.slice(0,10)<cut).length,manual:S.fu.filter(f=>!f.auditId&&f.dis&&f.dis.slice(0,10)<cut).length}}
+function renderArch(){const el=$('#arPanel');if(!el)return;const A=arStore(),cut=arCut();
+  const ms=[...new Set([...S.audits,...A.audits,...S.queue].map(a=>(a.dis||'').slice(0,7)).filter(Boolean))].sort();
+  const nowK=isoDay(new Date()).slice(0,7);if(!ms.includes(nowK))ms.push(nowK);
+  const sel=$('#arFrom'),cv=sel.value||(cut?cut.slice(0,7):'');sel.innerHTML='<option value="">— choose —</option>'+ms.map(k=>`<option value="${k}">${MON_[+k.slice(5,7)-1]} ${k.slice(0,4)}</option>`).join('');if(cv)sel.value=cv;
+  $('#arState').innerHTML=cut?`<b>Live data starts ${fmtD(cut)}.</b> Archived: ${A.audits.length} audited files${A.queue.length?`, ${A.queue.length} worklist files`:''}. They are not counted in Stalled files, Search, Dashboard or Reports.`:'No months closed yet: every file is live.';
+  $('#arAgain').hidden=$('#arRestore').hidden=!A.audits.length;
+  const k=sel.value;const p=$('#arPrev');if(!k){p.textContent='';return}const c=k+'-01';
+  if(cut&&c<cut){p.innerHTML=`Moving the start back to ${MON_[+k.slice(5,7)-1]} ${k.slice(0,4)} brings back ${A.audits.filter(a=>a.dis&&a.dis.slice(0,10)>=c).length} archived files.`;return}
+  const v=archivePreview(c);p.innerHTML=v.audits||v.queue||v.manual?`Will archive <b>${v.audits}</b> audited files discharged before ${MON_[+k.slice(5,7)-1]} ${k.slice(0,4)}: <b>${v.open}</b> still open (${v.late} delinquent)${v.queue?`, plus ${v.queue} worklist files`:''}${v.manual?`, plus ${v.manual} files added by hand`:''}.`:`Nothing to archive before ${MON_[+k.slice(5,7)-1]} ${k.slice(0,4)}.`}
+const MON_=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+function arAsk(html,yes,fn){const b=$('#arAsk');b.hidden=false;b.innerHTML=`<div class="small">${html}</div><div class="row" style="gap:6px;margin-top:6px"><button class="btn sm primary" type="button" id="arYes">${yes}</button><button class="btn sm" type="button" id="arNo">Cancel</button></div>`;
+  $('#arNo').onclick=()=>{b.hidden=true};$('#arYes').onclick=async()=>{b.hidden=true;await fn()}}
+function initArch(){if(!$('#arPanel')||initArch.done)return;initArch.done=1;
+  $('#arFrom').onchange=()=>{$('#arAsk').hidden=true;renderArch()};
+  $('#arGo').onclick=()=>{const k=$('#arFrom').value;if(!k){toast('Choose the month the live data starts from');return}if(S.sample){toast('Import your own data first');return}const c=k+'-01',old=arCut();
+    if(old&&c<old){S.settings.archiveFrom=c;const n=restoreArchive(false);save();renderAll();renderArch();toast(`${n} files brought back. Live data now starts ${fmtD(c)}.`);return}
+    const v=archivePreview(c);if(!v.audits&&!v.queue&&!v.manual){S.settings.archiveFrom=c;save();renderAll();renderArch();toast('Nothing to archive. Start date saved.');return}
+    arAsk(`Archive <b>${v.audits}</b> files discharged before <b>${fmtD(c)}</b> (${v.open} still open, ${v.late} delinquent)? The Excel archive is saved first. The files then leave Stalled files, Search, Dashboard and Reports. You can restore them later.`,'Yes, save Excel and archive',async()=>{
+      indexFu();const L=S.audits.filter(a=>a.dis&&a.dis.slice(0,10)<c);if(L.length)await downloadWB(archiveWB(L),`MR-archive_before_${c}.xlsx`);
+      S.settings.archiveFrom=c;const r=sweepArchive();renderAll();renderArch();toast(r?`Archived ${r.audits} files (${r.open} were still open). Live data starts ${fmtD(c)}.`:'Start date saved.')})};
+  $('#arAgain').onclick=()=>{const A=arStore();if(!A.audits.length)return;downloadWB(archiveWB(A.audits),`MR-archive_before_${arCut()||'start'}.xlsx`)};
+  $('#arRestore').onclick=()=>arAsk('Bring every archived file back into the live data and remove the start date?','Yes, restore all',async()=>{const n=restoreArchive(true);S.settings.archiveFrom='';save();renderAll();renderArch();toast(`${n} files restored. All months are live again.`)})}
+
+function renderAll(){try{sweepArchive()}catch(e){console.error(e)}indexFu();$('#sampleBanner').hidden=!S.sample;renderFiles();
   const nq=S.queue.length;$('#auBadge').hidden=!nq;$('#auBadge').textContent=nq;
   if(cur==='audit'){renderQueue();renderAudits()}if(cur==='search'){const keep=sSel;renderSearch();if(keep&&keep.kind==='audit'){const r=sPool.find(x=>x.kind==='audit'&&x.a===keep.a);if(r)showFile(r,true)}}if(cur==='dashboard')renderDash();if(cur==='reports'&&window.renderReports)renderReports();if(cur==='doctors')renderDoctors();if(cur==='data')renderData();if(cur==='guide')renderFlow()}
 $('#dPct').value=S.settings.samplePct||100;
@@ -2944,7 +3018,7 @@ function stdRows(A){const C=S.criteria.map((c,i)=>({i,c,files:0,T:0,A:0,C:0}));l
 function boxes(A){let s=0,z=0;for(const a of A){if(isQuick(a)||!a.sc)continue;for(const ch of a.sc){if(ch==='1'||ch==='0')s++;if(ch==='0')z++}}return {scored:s,zero:z}}
 function depts(A){const M={};for(const a of A)(M[a.dept||'—']=M[a.dept||'—']||[]).push(a);return M}
 function fuOf(a){return fuIdx.get(a.id)||null}
-const rpFu=()=>TEAM?S.fu.filter(f=>fuMine(f)).concat(TEAM.fu):S.fu.filter(f=>fuMine(f));
+const rpFu=()=>TEAM?S.fu.filter(f=>fuMine(f)).concat(TEAM.fu.filter(f=>!isOld(f.dis))):S.fu.filter(f=>fuMine(f));
 const teamNames=()=>{if(!TEAM)return '';const n=[...new Set(dashAudits().map(audBy))];return n.join(' + ')};
 /* ---------- periods: month, week (Sun–Sat) or any dates ---------- */
 const dAdd=(iso,n)=>{const d=new Date(iso+'T00:00:00Z');d.setUTCDate(d.getUTCDate()+n);return d.toISOString().slice(0,10)};
@@ -2980,7 +3054,7 @@ function weekRows(P,p){if(dGap(p.from,p.to)<7)return null;const R=[];let w=wkSta
 function weekTable(W,idp){if(!W)return '';return `<h2>Week by week: where the problems were</h2><table><tr><th>Week (Sun–Sat)</th><th class="r">Files</th><th class="r">Found incomplete</th><th class="r">Deficient items</th><th class="r">Fixed after follow-up</th><th class="r">Still open</th></tr>${W.R.map(r=>`<tr class="${r===W.worst&&r.x.everInc?'rpWorst':''}"><td>${rngL(r.a,r.b)}${r===W.worst&&r.x.everInc?' <span class="flag review">Most problems</span>':''}</td><td class="r">${N(idp+'f'+r.a,r.x.files)}</td><td class="r">${F(idp+'e'+r.a,r.x.everInc,r.x.files)}</td><td class="r">${N(idp+'z'+r.a,r.z)}</td><td class="r">${N(idp+'x'+r.a,r.x.fixed)}</td><td class="r">${N(idp+'o'+r.a,r.x.incomplete)}</td></tr>`).join('')}</table><p class="rpNote">“Most problems” = highest share of files found incomplete${W.R.some(r=>r.x.files<minN())?` (weeks with fewer than ${minN()} files are only compared if no week reaches that)`:''}. By discharge date.</p>`}
 function fuAct(p){const F=rpFu();const e1=F.filter(f=>inD(f.e1,p)).length,e2=F.filter(f=>inD(f.e2,p)).length;
   const done=F.filter(f=>f.status==='done'&&inD(f.done,p));const days=done.filter(f=>known(f.e1)).map(f=>dDays(f.e1,f.done)).filter(d=>d>=0);
-  const openLate=F.filter(f=>fuStage(f)==='late').length;return {e1,e2,done:done.length,medDays:med(days),openLate}}
+  const openLate=F.filter(f=>fuStage(f)==='late'&&f.dis&&f.dis.slice(0,10)>=p.from&&f.dis.slice(0,10)<=p.to).length;return {e1,e2,done:done.length,medDays:med(days),openLate}}
 function flagOf(s,hosp,prev){const min=minN();if(s.files<min)return ['small','Small group'];const rate=s.incomplete/s.files,h=hosp.files?hosp.incomplete/hosp.files:0;
   if(s.late>=2||(s.incomplete>=2&&rate>=Math.max(2*h,h+.05)))return ['review','Needs review'];
   if(prev&&prev.files>=min&&(s.complete/s.files)<(prev.complete/prev.files)-.05)return ['watch','Watch'];return ['good','Good']}
@@ -3028,7 +3102,7 @@ function rExec(p){const P=pool(),A=inP(P,p),s=stats(A),ps=stats(inP(P,p.prev));
   <h2>Departments</h2><table><tr><th>Department</th><th class="r">Files</th><th class="r">Complete</th><th class="r">Incomplete</th><th class="r">Delinquent</th><th>Status</th></tr>${drows.map(({d,x,fl})=>`<tr><td>${esc(d)}</td><td class="r">${N('d_f_'+d,x.files)}</td><td class="r">${F('d_c_'+d,x.complete,x.files)}</td><td class="r">${F('d_i_'+d,x.incomplete,x.files)}</td><td class="r">${N('d_l_'+d,x.late)}</td><td><span class="flag ${fl[0]}">${fl[1]}</span></td></tr>`).join('')}</table>
   <p class="rpNote">Small group = fewer than ${minN()} files: shown as counts, not a fair basis for a percentage.</p>
   <div class="rpCols"><div><h2>Most missing standards</h2>${SR.rows.length?`<table><tr><th>Standard</th><th class="r">Files</th></tr>${SR.rows.slice(0,6).map(x=>`<tr><td>${esc(x.c)}</td><td class="r">${F('s_'+x.i,x.files,SR.n)}</td></tr>`).join('')}</table><p class="rpNote">Out of ${SR.n} files reviewed against the standards.</p>`:'<p>No missing standards this month.</p>'}</div>
-   <div><h2>Follow-up activity · ${esc(p.label)}</h2><table><tr><td>1st emails sent</td><td class="r">${N('fa_e1',fa.e1)}</td></tr><tr><td>2nd reminders sent</td><td class="r">${N('fa_e2',fa.e2)}</td></tr><tr><td>Files completed after follow-up</td><td class="r">${N('fa_d',fa.done)}</td></tr><tr><td>Median days, 1st email → completed</td><td class="r">${N('fa_md',fa.medDays==null?'—':fa.medDays)}</td></tr><tr><td>Delinquent files open today</td><td class="r">${N('fa_ol',fa.openLate)}</td></tr></table></div></div>
+   <div><h2>Follow-up activity · ${esc(p.label)}</h2><table><tr><td>1st emails sent</td><td class="r">${N('fa_e1',fa.e1)}</td></tr><tr><td>2nd reminders sent</td><td class="r">${N('fa_e2',fa.e2)}</td></tr><tr><td>Files completed after follow-up</td><td class="r">${N('fa_d',fa.done)}</td></tr><tr><td>Median days, 1st email → completed</td><td class="r">${N('fa_md',fa.medDays==null?'—':fa.medDays)}</td></tr><tr><td>Delinquent files from this period, still open</td><td class="r">${N('fa_ol',fa.openLate)}</td></tr></table></div></div>
   ${K.length?`<h2>Key performance indicators</h2><table><tr><th>KPI</th><th class="r">Numerator</th><th class="r">Denominator</th><th class="r">Result</th><th class="r">Target</th><th>Status</th></tr>${K.map(({k,row},i)=>{const lower=k.kind==='event';const v=row.r;const ok=v==null?null:lower?v<=k.target:v>=k.target;return `<tr><td>${esc(k.name)}</td><td class="r">${N('k_n'+i,row.n)}</td><td class="r">${N('k_d'+i,row.d)}</td><td class="r">${N('k_r'+i,v==null?'—':(Math.round(v*100)/100)+(lower?'':'%'))}</td><td class="r">${esc(String(k.target))}${lower?'':'%'}</td><td>${ok==null?'—':`<span class="flag ${ok?'good':'review'}">${ok?'On target':'Below target'}</span>`}</td></tr>`}).join('')}</table>`:''}
   <div class="rpCols"><div><h2>Risks</h2>${TX('risks',risks.join('\n'),'Write the main risks…')}</div><div><h2>Actions</h2>${TX('acts',acts.join('\n'),'Write the actions…')}</div></div>
   ${OPT('Comments','comm','Add comments for management (left out of the print when empty)…')}`;
