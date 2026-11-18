@@ -466,6 +466,7 @@ input[type=range]{accent-color:var(--accent)}
     <div class="panel" id="rpCtl">
       <div class="row" style="align-items:center"><h2 style="margin:0">Reports</h2><span class="small muted">private</span><span class="spacer"></span><button type="button" class="btn sm" id="rpBack">← Back to Data</button></div>
       <p class="small muted" style="margin-top:-4px">Monthly reports ready to print or save as PDF. Every number and text can be edited, and any figure can be shown as %, as a count, or both.</p>
+      <div class="rpTeam" id="rpTeam"></div>
       <div class="rpCards" id="rpCards" role="tablist" aria-label="Choose a report">
         <button type="button" role="tab" data-rp="exec"><b>1 · Monthly report</b><span>For management: headline figures, trend, departments, KPIs, risks and actions.</span></button>
         <button type="button" role="tab" data-rp="dept"><b>2 · Department scorecard</b><span>One page per department for its head: vs hospital, standards, physicians.</span></button>
@@ -2818,6 +2819,8 @@ setMode();
 </script>
 
 <style>
+.rpTeam{border:1px dashed var(--line);border-radius:10px;padding:10px 12px;margin:6px 0 12px;display:flex;flex-wrap:wrap;gap:8px 12px;align-items:center}
+.rpTeam.on{border-style:solid;border-color:var(--accent);background:var(--accent-soft)}
 .rpCards{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin:4px 0 14px}
 .rpCards button{display:flex;flex-direction:column;gap:4px;text-align:left;padding:12px 14px;border:1.5px solid var(--line);border-radius:10px;background:var(--bg);color:var(--ink);cursor:pointer;font:13px/1.4 var(--f-body)}
 .rpCards button b{font-size:14.5px;font-weight:600}
@@ -2915,7 +2918,9 @@ function stdRows(A){const C=S.criteria.map((c,i)=>({i,c,files:0,T:0,A:0,C:0}));l
 function boxes(A){let s=0,z=0;for(const a of A){if(isQuick(a)||!a.sc)continue;for(const ch of a.sc){if(ch==='1'||ch==='0')s++;if(ch==='0')z++}}return {scored:s,zero:z}}
 function depts(A){const M={};for(const a of A)(M[a.dept||'—']=M[a.dept||'—']||[]).push(a);return M}
 function fuOf(a){return fuIdx.get(a.id)||null}
-function fuAct(m){const F=S.fu.filter(f=>fuMine(f));const e1=F.filter(f=>known(f.e1)&&mk(f.e1)===m).length,e2=F.filter(f=>known(f.e2)&&mk(f.e2)===m).length;
+const rpFu=()=>TEAM?S.fu.filter(f=>fuMine(f)).concat(TEAM.fu):S.fu.filter(f=>fuMine(f));
+const teamNames=()=>{if(!TEAM)return '';const n=[...new Set(dashAudits().map(audBy))];return n.join(' + ')};
+function fuAct(m){const F=rpFu();const e1=F.filter(f=>known(f.e1)&&mk(f.e1)===m).length,e2=F.filter(f=>known(f.e2)&&mk(f.e2)===m).length;
   const done=F.filter(f=>f.status==='done'&&known(f.done)&&mk(f.done)===m);const days=done.filter(f=>known(f.e1)).map(f=>dDays(f.e1,f.done)).filter(d=>d>=0);
   const openLate=F.filter(f=>fuStage(f)==='late').length;return {e1,e2,done:done.length,medDays:med(days),openLate}}
 function flagOf(s,hosp,prev){const min=minN();if(s.files<min)return ['small','Small group'];const rate=s.incomplete/s.files,h=hosp.files?hosp.incomplete/hosp.files:0;
@@ -2935,7 +2940,7 @@ function htmlTxt(el){const out=[];el.childNodes.forEach(n=>{if(n.nodeName==='UL'
 
 /* ---------- page parts ---------- */
 const tile=(t,fig,s,c='')=>`<div class="rpTile ${c}"><div class="n">${fig}</div><div class="t">${t}</div>${s?`<div class="s">${s}</div>`:''}</div>`;
-function head(title,sub){const au=S.settings.auditor||'';return `<div class="rpTop"><div><h1>${title}</h1><div class="rpSub">${sub}</div></div><div class="rpMeta">${au?'Prepared by '+esc(au)+'<br>':''}Medical Records · Documentation audit<br>Generated ${fmtD(isoDay(new Date()))}</div></div>`}
+function head(title,sub){const au=S.settings.auditor||'';const tm=teamNames();return `<div class="rpTop"><div><h1>${title}</h1><div class="rpSub">${sub}</div></div><div class="rpMeta">${tm?'Audit team: '+esc(tm)+'<br>':au?'Prepared by '+esc(au)+'<br>':''}Medical Records · Documentation audit<br>Generated ${fmtD(isoDay(new Date()))}</div></div>`}
 const foot=(t)=>`<div class="rpFoot"><span>${t} Pending audits are not included.</span><span>MR Follow-up</span></div>`;
 function scopeTxt(){const t=$r('#rpTy').value;return t==='full'?'Full audits':t==='quick'?'Quick audits':'Full + quick audits'}
 function trendSvg(rows){if(rows.length<2)return '';const W=640,H=86,pl=6,pt=16,pb=16,cw=(W-pl*2)/rows.length,bw=Math.min(54,cw*.5);
@@ -2990,12 +2995,12 @@ function rDept(m){const P=pool(),A=inM(P,m),hs=stats(A),sel=$r('#rpDept').value;
     return page(body+foot(`Status: Needs review = incomplete rate at least twice the hospital rate or 2+ delinquent files · Watch = completion down 5+ points from last month · Small group = fewer than ${minN()} files.`))}).join('')}
 
 function rImpact(m){const P=pool(),A=inM(P,m),y=m.slice(0,4),Y=inRange(P,y+'-01',m);const s=stats(A),sy=stats(Y),b=boxes(A),by=boxes(Y);
-  const F_=S.fu.filter(f=>fuMine(f));const doneIn=(from,to)=>F_.filter(f=>f.status==='done'&&known(f.done)&&mk(f.done)>=from&&mk(f.done)<=to);
+  const F_=rpFu();const doneIn=(from,to)=>F_.filter(f=>f.status==='done'&&known(f.done)&&mk(f.done)>=from&&mk(f.done)<=to);
   const em=(from,to)=>F_.filter(f=>known(f.e1)&&mk(f.e1)>=from&&mk(f.e1)<=to).length+F_.filter(f=>known(f.e2)&&mk(f.e2)>=from&&mk(f.e2)<=to).length;
   const dM=doneIn(m,m),dY=doneIn(y+'-01',m);const days=L=>med(L.filter(f=>known(f.e1)).map(f=>dDays(f.e1,f.done)).filter(v=>v>=0));
   const T6=[];for(let i=5;i>=0;i--){const k=mShift(m,-i);const L=inM(P,k);if(L.length){const x=stats(L),sr=stdRows(L);T6.push({m:k,x,sr})}}
   const top=stdRows(inRange(P,mShift(m,-5),m)).rows.slice(0,4);
-  const au=S.settings.auditor||'I';
+  const au=TEAM?'the audit team ('+teamNames()+')':(S.settings.auditor||'I');
   const line=`In ${mL(m)}, ${au==='I'?'I':esc(au)} audited ${s.files} discharged files${b.scored?`, checking ${b.scored.toLocaleString('en')} documentation items`:''}. ${s.everInc} file${s.everInc===1?' was':'s were'} found incomplete; follow-up has already brought ${s.fixed} of them to complete${s.everInc?` (${r1(s.fixed/s.everInc*100)}%)`:''}. In ${y} to date, ${sy.fixed} incomplete files were completed after follow-up.`;
   const body=head('Audit Impact Report',`${mL(m)} and ${y} to date`)+
   TX('impact_line',line)+
@@ -3039,6 +3044,9 @@ function fillCtl(){const ms=months(),sel=$r('#rpMonth'),cur=sel.value;sel.innerH
   $r('#rpDeptL').hidden=$r('#rpType').value!=='dept';const ht=$r('#rpType').value==='heat';$r('#rpSpanL').hidden=!ht;$r('#rpFromL').hidden=!ht||$r('#rpSpan').value!=='custom';if(!$r('#rpFrom').value&&sel.value)$r('#rpFrom').value=mShift(sel.value,-2);$r('#rpMonthL').firstChild.textContent=ht?'To month':'Month'}
 function renderReports(){if(!$r('#rpType'))return;const st=S.settings.rp||{};
   if(!renderReports.init){renderReports.init=1;for(const k of ['rpType','rpTy','rpFmt','rpMin','rpSpan'])if(st[k]!=null)$r('#'+k).value=st[k]}
+  {const el=$r('#rpTeam');if(TEAM){const per={};for(const a of dashAudits()){const n=audBy(a);per[n]=(per[n]||0)+1}
+    el.className='rpTeam on';el.innerHTML=`<div style="flex:1;min-width:240px"><b style="color:var(--accent)">Combined reports ON</b> <span class="small">${Object.entries(per).map(([n,c])=>`${esc(n)} <b>${c}</b>`).join(' · ')} files</span><div class="small muted">All reports now include your colleague's files. Your own data is not changed.</div></div><label class="btn sm" for="tmIn">Add more colleague files</label><button type="button" class="btn sm danger" id="rpTeamOff">Remove colleague's data</button>`}
+   else{el.className='rpTeam';el.innerHTML=`<div style="flex:1;min-width:240px"><b>Only your files</b><div class="small muted">To report for the whole team, add your colleague's exported Excel files (full and quick). They are used for the reports and Dashboard only, and you can remove them at any time.</div></div><label class="f" style="min-width:150px"><span class="small muted">Colleague name</span><input id="rpTmName" value="${esc($('#tmName').value||S.settings.prep?.mate||'')}" placeholder="e.g. Sara"></label><label class="btn sm primary" for="tmIn">Add colleague's files</label>`}}
   fillCtl();const t=$r('#rpType').value,m=$r('#rpMonth').value;document.querySelectorAll('#rpCards button').forEach(b=>b.setAttribute('aria-selected',b.dataset.rp===t));KEY=[t,m,$r('#rpTy').value,t==='dept'?$r('#rpDept').value:t==='heat'?$r('#rpSpan').value+($r('#rpSpan').value==='custom'?$r('#rpFrom').value:''):''].join('|');S.repEdits=S.repEdits||{};ED=S.repEdits[KEY]||{};
   const n=Object.keys(ED).length;$r('#rpEdN').textContent=n?`${n} edit${n>1?'s':''} in this report`:'';$r('#rpReset').hidden=!n;
   if(!m){$r('#rpDoc').innerHTML='<div class="panel"><p class="muted">No audits yet.</p></div>';return}
@@ -3047,6 +3055,8 @@ function renderReports(){if(!$r('#rpType'))return;const st=S.settings.rp||{};
 window.renderReports=renderReports;
 function saveEd(){S.repEdits[KEY]=ED;if(!Object.keys(ED).length)delete S.repEdits[KEY];save()}
 function persist(){S.settings.rp={rpType:$r('#rpType').value,rpTy:$r('#rpTy').value,rpFmt:$r('#rpFmt').value,rpMin:$r('#rpMin').value};save()}
+$r('#rpTeam').addEventListener('input',e=>{if(e.target.id==='rpTmName')$('#tmName').value=e.target.value});
+$r('#rpTeam').addEventListener('click',e=>{if(e.target.id==='rpTeamOff')$('#tmClose').click()});
 $r('#rpCards').addEventListener('click',e=>{const b=e.target.closest('button[data-rp]');if(!b)return;$r('#rpType').value=b.dataset.rp;closePop();persist();renderReports()});
 ['rpSpan','rpFrom'].forEach(id=>$r('#'+id).addEventListener('change',()=>{closePop();S.settings.rp=Object.assign(S.settings.rp||{},{rpSpan:$r('#rpSpan').value});save();renderReports()}));
 ['rpType','rpMonth','rpTy','rpDept','rpFmt','rpMin'].forEach(id=>$r('#'+id).addEventListener('change',()=>{closePop();persist();renderReports()}));
