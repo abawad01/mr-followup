@@ -565,9 +565,9 @@ input[type=range]{accent-color:var(--accent)}
       </div>
     </details>
     <div class="panel" id="arPanel" style="border-color:var(--accent)">
-      <div><h3>Close old months (archive)</h3><p class="lede small" style="margin:0">Choose the month your live data starts from. Every file discharged before it is saved to an Excel archive (summary by month, files still open, all files), then removed from Stalled files, Search, Dashboard and Reports, so old months stop counting. The files stay in the app's archive and can be restored. Old files imported later from Excel go to the archive automatically.</p></div>
+      <div><h3>Close old months (archive)</h3><p class="lede small" style="margin:0">Choose the month your live data starts from. Every file discharged before it is saved to Excel in your usual layout (a Full audit file and a Quick audit file, exactly like your normal exports), then removed from Stalled files, Search, Dashboard and Reports, so old months stop counting. The files stay in the app's archive and can be restored. Old files imported later from Excel go to the archive automatically.</p></div>
       <div class="small" id="arState"></div>
-      <div class="row" style="align-items:end"><label class="f" style="min-width:200px">Live data starts from<select id="arFrom"></select></label><button class="btn primary" type="button" id="arGo">Archive older months</button><button class="btn sm" type="button" id="arAgain" hidden>Download the archive Excel again</button><button class="btn sm" type="button" id="arRestore" hidden>Restore all archived files</button></div>
+      <div class="row" style="align-items:end"><label class="f" style="min-width:200px">Live data starts from<select id="arFrom"></select></label><button class="btn primary" type="button" id="arGo">Archive older months</button><button class="btn sm" type="button" id="arAgain" hidden>Download the archive Excel again</button><button class="btn sm" type="button" id="arRestore" hidden>Restore all archived files</button><span class="small muted">To bring back only some months, choose an earlier month above and press the first button.</span></div>
       <div class="small muted" id="arPrev"></div>
       <div id="arAsk" hidden style="border:1px solid var(--warn,#c98a00);border-radius:8px;padding:8px 10px"></div>
     </div>
@@ -2385,23 +2385,12 @@ function restoreArchive(all){const A=arStore();const back=a=>all||!isOld(a.dis);
   for(const a of rA)delete a.arch;S.audits.push(...rA);S.fu.push(...rF);S.queue.push(...rQ);
   const fIds=new Set(rF.map(f=>f.id));A.audits=A.audits.filter(a=>!ids.has(a.id));A.fu=A.fu.filter(f=>!fIds.has(f.id));A.queue=A.queue.filter(q=>!rQ.includes(q));
   try{primeCache()}catch(e){}indexFu();save();return rA.length}
-/* Excel archive: summary by month, open files at closing, all audited files */
-function archiveWB(L){const MONS=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-  const st=a=>a.arch?a.arch.st:statusLabel(a),sn=a=>a.arch||arSnap(a);
-  const byM={};for(const a of L){const k=(a.dis||'').slice(0,7)||'—';(byM[k]=byM[k]||[]).push(a)}
-  const sum=[['Month','Files audited','Complete at audit','Fixed after follow-up','Final complete','Final completion %','Found incomplete','Recovery %','Still incomplete at closing','Delinquent at closing']];
-  for(const k of Object.keys(byM).sort()){const X=byM[k],S_=X.map(st),c=v=>S_.filter(s=>s===v).length;const fixed=c('Complete (fixed after follow-up)'),first=c('Complete'),inc=c('Incomplete'),late=c('Delinquent'),found=fixed+inc+late;
-    sum.push([k==='—'?k:MONS[+k.slice(5,7)-1]+' '+k.slice(0,4),X.length,first,fixed,first+fixed,X.length?Math.round((first+fixed)/X.length*1000)/10:'',found,found?Math.round(fixed/found*1000)/10:'',inc,late])}
-  const defTxt=a=>(sn(a).defs||[]).map(x=>x.c+(x.d&&x.d.length?` (${Array.isArray(x.d)?x.d.join(''):x.d})`:'')).join('; ')||(a.note||'');
-  const row=a=>{const s=sn(a);return [a.fileNo,a.name||'',a.dis||'',a.dept||'',a.doc||'',isQuick(a)?'Quick':'Full',st(a),defTxt(a),s.e1==='?'?'sent (no date)':s.e1,s.e2==='?'?'sent (no date)':s.e2,s.done==='?'?'done (no date)':s.done,s.email]};
-  const H=['File No','Patient','Discharge date','Department','Doctor','Audit','Status at closing','Deficiencies','1st email','2nd email','Completed on','Doctor email'];
-  const open=L.filter(a=>['Incomplete','Delinquent'].includes(st(a))).sort((a,b)=>(a.dis||'')<(b.dis||'')?-1:1);
-  const wb=XLSX.utils.book_new();
-  const add=(name,aoa,w)=>{const ws=XLSX.utils.aoa_to_sheet(aoa);ws['!cols']=w.map(x=>({wch:x}));XLSX.utils.book_append_sheet(wb,ws,name)};
-  add('Summary by month',sum,[12,13,16,20,14,18,16,11,24,20]);
-  add('Open at closing',[H,...open.map(row)],[12,24,14,22,26,7,22,48,14,14,14,30]);
-  add('All archived files',[H,...L.slice().sort((a,b)=>(a.dis||'')<(b.dis||'')?-1:1).map(row)],[12,24,14,22,26,7,22,48,14,14,14,30]);
-  return wb}
+/* Excel archive: the same Full audit (MR layout) and Quick audit files as every other export */
+function recFromArch(a){const f=(arStore().fu||[]).find(x=>x.auditId===a.id),st=(a.arch&&a.arch.st)||'Complete';
+  return {fileNo:a.fileNo,name:a.name,adm:a.adm,admT:a.admT,dis:a.dis,disT:a.disT,los:a.los,dept:a.dept,ward:a.ward,doc:a.doc,to:a.dischargeTo,age:a.age,auditor:a.auditor,e1:f?.e1||'',e2:f?.e2||'',
+    inc:a.ov&&OVST[a.ov]?['fixed','incomplete','delinquent'].includes(a.ov):(f&&f.src==='excel'&&a.incX!==undefined)?a.incX:(!!f||(isQuick(a)&&a.result==='incomplete')),com:st.startsWith('Complete'),del:!!(f&&fuEverLate(f)),sc:isQuick(a)?null:a.sc,note:a.note||''}}
+function exportArchive(L,base){const srt=L.slice().sort((a,b)=>(a.dis||'')<(b.dis||'')?-1:(a.dis||'')>(b.dis||'')?1:String(a.fileNo).localeCompare(String(b.fileNo)));const rec=a=>a.arch?recFromArch(a):recFromAudit(a);
+  return exportFQ(srt.filter(a=>!isQuick(a)).map(rec),srt.filter(isQuick).map(rec),base)}
 function archivePreview(cut){indexFu();const A=S.audits.filter(a=>a.dis&&a.dis.slice(0,10)<cut);const st=A.map(statusLabel);
   return {audits:A.length,open:st.filter(s=>s==='Incomplete'||s==='Delinquent').length,late:st.filter(s=>s==='Delinquent').length,queue:S.queue.filter(q=>q.dis&&q.dis.slice(0,10)<cut).length,manual:S.fu.filter(f=>!f.auditId&&f.dis&&f.dis.slice(0,10)<cut).length}}
 function renderArch(){const el=$('#arPanel');if(!el)return;const A=arStore(),cut=arCut();
@@ -2421,10 +2410,10 @@ function initArch(){if(!$('#arPanel')||initArch.done)return;initArch.done=1;
   $('#arGo').onclick=()=>{const k=$('#arFrom').value;if(!k){toast('Choose the month the live data starts from');return}if(S.sample){toast('Import your own data first');return}const c=k+'-01',old=arCut();
     if(old&&c<old){S.settings.archiveFrom=c;const n=restoreArchive(false);save();renderAll();renderArch();toast(`${n} files brought back. Live data now starts ${fmtD(c)}.`);return}
     const v=archivePreview(c);if(!v.audits&&!v.queue&&!v.manual){S.settings.archiveFrom=c;save();renderAll();renderArch();toast('Nothing to archive. Start date saved.');return}
-    arAsk(`Archive <b>${v.audits}</b> files discharged before <b>${fmtD(c)}</b> (${v.open} still open, ${v.late} delinquent)? The Excel archive is saved first. The files then leave Stalled files, Search, Dashboard and Reports. You can restore them later.`,'Yes, save Excel and archive',async()=>{
-      indexFu();const L=S.audits.filter(a=>a.dis&&a.dis.slice(0,10)<c);if(L.length)await downloadWB(archiveWB(L),`MR-archive_before_${c}.xlsx`);
+    arAsk(`Archive <b>${v.audits}</b> files discharged before <b>${fmtD(c)}</b> (${v.open} still open, ${v.late} delinquent)? The Full audit and Quick audit Excel files are saved first. The files then leave Stalled files, Search, Dashboard and Reports. You can restore them later.`,'Yes, save Excel and archive',async()=>{
+      indexFu();const L=S.audits.filter(a=>a.dis&&a.dis.slice(0,10)<c);if(L.length&&!exportArchive(L,`MR-archive_before_${c}`).length)return;
       S.settings.archiveFrom=c;const r=sweepArchive();renderAll();renderArch();toast(r?`Archived ${r.audits} files (${r.open} were still open). Live data starts ${fmtD(c)}.`:'Start date saved.')})};
-  $('#arAgain').onclick=()=>{const A=arStore();if(!A.audits.length)return;downloadWB(archiveWB(A.audits),`MR-archive_before_${arCut()||'start'}.xlsx`)};
+  $('#arAgain').onclick=()=>{const A=arStore();if(!A.audits.length)return;exportArchive(A.audits,`MR-archive_before_${arCut()||'start'}`)};
   $('#arRestore').onclick=()=>arAsk('Bring every archived file back into the live data and remove the start date?','Yes, restore all',async()=>{const n=restoreArchive(true);S.settings.archiveFrom='';save();renderAll();renderArch();toast(`${n} files restored. All months are live again.`)})}
 
 function renderAll(){try{sweepArchive()}catch(e){console.error(e)}indexFu();$('#sampleBanner').hidden=!S.sample;renderFiles();
