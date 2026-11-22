@@ -1546,6 +1546,13 @@ function kpiForm(k){const depts=[...new Set(dashAudits().map(a=>a.dept).filter(B
     <div><b class="small">Type a month yourself</b> <span class="small muted">(${y}: leave empty to use the automatic count; the grey number is the automatic one)</span>
       <div class="tablewrap"><table><thead><tr><th></th>${MON.map(m=>`<th class="r">${m}</th>`).join('')}</tr></thead><tbody>${['n','d'].map(f=>`<tr><td class="small">${f==='n'?'Numerator':'Denominator'}</td>${kpiCalcAuto(k,y).map(r=>`<td><input class="mono" style="width:52px;padding:2px 4px;text-align:center" data-ov="${r.key}" data-f="${f}" value="${k.ov&&k.ov[r.key]&&k.ov[r.key][f]!==''&&k.ov[r.key][f]!=null?k.ov[r.key][f]:''}" placeholder="${r.d?r[f]:''}"></td>`).join('')}</tr>`).join('')}</tbody></table></div></div>
     <div class="row"><button class="btn sm primary" type="button" data-kact="done">Done</button><span class="spacer"></span><button class="btn sm danger" type="button" data-kact="del">Delete this KPI</button></div></div>`}
+/* files that were counted but did not meet the KPI (the gap between numerator and denominator), by discharge month */
+function kpiStdMissed(k,y){const CI=kCis(k);if(!CI.length||CI.some(i=>i<0))return '';const D=kDims(k),DN=['Timely','Appropriate','Complete'],names=kCrits(k);
+  const L=dashAudits().filter(a=>!isQuick(a)&&!a.pending&&a.sc&&(a.dis||'').startsWith(y)&&opOk(a,k.pop==='all'?'':k.pop)&&(!k.depts||!k.depts.length||k.depts.includes(a.dept))&&kFileState(a,CI,D)==='miss');
+  if(!L.length)return '<div class="small muted">All counted files in '+y+' met this KPI.</div>';
+  const why=a=>CI.map((ci,x)=>{const bad=D.filter(j=>a.sc[ci*3+j]==='0').map(j=>DN[j]);return bad.length?`${esc(names[x])}: ${bad.join(' + ')} ✗`:''}).filter(Boolean).join(' · ');
+  const by={};L.sort((a,b)=>a.dis<b.dis?-1:1).forEach(a=>{const m=MON[+a.dis.slice(5,7)-1];(by[m]=by[m]||[]).push(a)});
+  return `<details class="small" open><summary><b style="color:var(--late)">${L.length} file${L.length===1?'':'s'} in ${y} did not meet this KPI</b> <span class="muted">(${Object.entries(by).map(([m,l])=>`${m} ${l.length}`).join(' · ')})</span></summary><div style="margin-top:4px;display:grid;gap:3px">${Object.entries(by).map(([m,l])=>`<div><b>${m}:</b> ${l.map(a=>`<span class="nowrap"><a href="#" data-kfile="${esc(a.id)}">${esc(a.fileNo)}</a> <span class="muted">(${fmtD(a.dis)}${a.dept?' · '+esc(a.dept):''} · ${why(a)})</span></span>`).join(' ; ')}</div>`).join('')}</div></details>`}
 function kpiStdExcluded(k,y){const CI=kCis(k);if(!CI.length||CI.some(i=>i<0))return '';const D=kDims(k);
   const L=dashAudits().filter(a=>!isQuick(a)&&a.sc&&(a.dis||'').startsWith(y)&&opOk(a,k.pop==='all'?'':k.pop)&&(!k.depts||!k.depts.length||k.depts.includes(a.dept)));const out=[];
   for(const a of L){const st=kFileState(a,CI,D);let why='';if(a.pending)why='pending (audit not final)';else if(st==='?')why='standard not audited yet (—)';else if(st==='na')why='standard marked NA';if(why)out.push({a,why})}
@@ -1569,7 +1576,7 @@ function renderKpi(){const show=!!S.settings.kpiShow;$('#kpiShow').textContent=s
         <tr><td><b>Result</b>${ev&&kMult(k)!==100?' <span class="small muted">per 1,000</span>':''}</td>${R.map(r=>`<td class="r mono ${kBad(k,r.r)?'low':''}"><b>${kFmt(k,r.r)}</b></td>`).join('')}<td class="r mono"><b>${kFmt(k,yr)}</b></td></tr>
       </tbody></table></div>
       <div class="small muted">Overall average (mean of months): <b>${kFmt(k,mean)}</b> · whole year, all files together: <b>${kFmt(k,yr)}</b>${unk?` · <span style="color:var(--warn)">${unk} file${unk===1?'':'s'} left out: ${ev?'no age or length of stay':'this standard not audited yet (?)'}</span>`:''}</div>
-      ${ev?kpiEventExtras(k,y):kpiStdExcluded(k,y)}
+      ${ev?kpiEventExtras(k,y):kpiStdMissed(k,y)+kpiStdExcluded(k,y)}
       ${done.length?kpiChart(k,R,y):'<div class="small muted">No files for this KPI in '+y+' yet.</div>'}
       ${kpiOpen===k.id?kpiForm(k):''}</div>`}).join('')||'<p class="muted small">No KPIs yet. Press + Add KPI.</p>'}
 $('#kpiYear').addEventListener('change',renderKpi);
