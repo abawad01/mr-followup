@@ -1481,7 +1481,12 @@ function renderTeam(){const on=!!TEAM;$('#teamOff').hidden=on;$('#teamOn').hidde
    std   = one audit standard (T, A, C or all three): met ÷ applies (not NA), for a group of patients.
    event = files you mark (e.g. hospital-associated VTE) ÷ adult discharges with a minimum length of stay, × 1000 or × 100. */
 const MON=['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];
-const KDIM={C:'Complete',T:'Timely',A:'Appropriate',ALL:'Timely + Appropriate + Complete'};
+const KDIM={C:'Complete',T:'Timely',A:'Appropriate',TC:'Timely + Complete',ALL:'Timely + Appropriate + Complete'};
+const kDims=k=>({ALL:[0,1,2],TC:[0,2]})[k.dim]||[{T:0,A:1,C:2}[k.dim]];
+const kCrits=k=>((k.crits&&k.crits.length)?k.crits:[k.crit]).filter(Boolean);
+const kCis=k=>kCrits(k).map(critFind);
+/* one file against several standards: '?' = not audited yet, 'na' = all NA, 'met', 'miss' */
+function kFileState(a,CI,D){let any=false,ok=true;for(const ci of CI){const ch=D.map(j=>a.sc[ci*3+j]||'?');if(ch.some(c=>c==='?'||c===''))return '?';const sc=ch.filter(c=>c==='1'||c==='0');if(!sc.length)continue;any=true;if(!sc.every(c=>c==='1'))ok=false}return !any?'na':ok?'met':'miss'}
 const KPOP={all:'All patients',yes:'Patients with an operation',no:'Patients without an operation'};
 const critFind=n=>{if(!n)return -1;let i=S.criteria.indexOf(n);if(i>=0)return i;const k=normC(n);i=S.criteria.findIndex(c=>normC(c)===k);if(i>=0)return i;const num=(String(n).match(/^\s*([\d.]+\d)/)||[])[1];return num?S.criteria.findIndex(c=>String(c).trim().startsWith(num)):-1};
 const opIdx=()=>S.criteria.findIndex(c=>/operative\s*note/i.test(c));
@@ -1490,7 +1495,8 @@ function hasOp(a){if(isQuick(a)||!a.sc)return null;const i=opIdx();if(i<0)return
 const opOk=(a,op)=>!op||(op==='yes'?hasOp(a)===true:hasOp(a)===false);
 const KPI_HAV={name:'Incident of Hospital-Associated VTE',code:'BH-MSA-KPI-127',kind:'event',flag:'hav',minAge:18,minLos:2,mult:1000,lower:true,depts:[],target:0,trigger:0.5};
 function kpiList(){if(!S.kpis){S.kpis=[{id:uid(),name:'VTE Prophylaxis for Surgical Patients',code:'FCH-HW-KPI',kind:'std',crit:S.criteria[critFind('4.3.24. VTE')]||S.criteria.find(c=>/vte/i.test(c))||'',dim:'C',pop:'yes',depts:[],target:100,trigger:95}]}
-  if(!S.kpiSeedHav){S.kpiSeedHav=1;S.kpis.push({id:uid(),...KPI_HAV})}return S.kpis}
+  if(!S.kpiSeedHav){S.kpiSeedHav=1;S.kpis.push({id:uid(),...KPI_HAV})}
+  if(!S.kpiSeedIA){S.kpiSeedIA=1;const cs=['4.3.3 DOCTOR Assessment','4.3.12. Nursing assessment'].map(n=>{const i=critFind(n);return i<0?'':S.criteria[i]}).filter(Boolean);S.kpis.push({id:uid(),name:'Complete & Timely Initial Assessments (S04 Inpatient beds, Section 2)',code:'S04-S2',kind:'std',crit:cs[0]||'',crits:cs,dim:'TC',pop:'all',depts:[],target:100,trigger:95})}return S.kpis}
 const losOf=a=>a.los!=null&&a.los!==''?+a.los:(a.adm&&a.dis?daysBetween(a.adm,a.dis):null);
 /* discharges followed by another admission of the same file within 90 days (to check for a VTE readmission) */
 function readmits(){const L=[...dashAudits(),...S.queue].filter(a=>a.fileNo&&a.dis),by=new Map();for(const a of L){const l=by.get(a.fileNo)||[];l.push(a);by.set(a.fileNo,l)}const out=new Map();
@@ -1500,11 +1506,11 @@ function kpiCalc(k,y){const kind=k.kind||'std';
     return MON.map((m,i)=>{const key=`${y}-${String(i+1).padStart(2,'0')}`,M=L.filter(a=>a.dis.startsWith(key));let n=0,d=0,unk=0;
       for(const a of M){const age=ageNum(a),los=losOf(a);if(age==null||los==null){unk++;continue}if(age>=k.minAge&&los>=k.minLos){d++;if(a[k.flag||'hav'])n++}}
       return kpiOv(k,key,m,n,d,unk)})}
-  const ci=critFind(k.crit),D=k.dim==='ALL'?[0,1,2]:[{T:0,A:1,C:2}[k.dim]];
-  const L=ci<0?[]:dashAudits().filter(a=>!isQuick(a)&&!a.pending&&a.sc&&(a.dis||'').startsWith(y)&&opOk(a,k.pop==='all'?'':k.pop)&&(!k.depts||!k.depts.length||k.depts.includes(a.dept)));
+  const CI=kCis(k),D=kDims(k);
+  const L=(!CI.length||CI.some(i=>i<0))?[]:dashAudits().filter(a=>!isQuick(a)&&!a.pending&&a.sc&&(a.dis||'').startsWith(y)&&opOk(a,k.pop==='all'?'':k.pop)&&(!k.depts||!k.depts.length||k.depts.includes(a.dept)));
   return MON.map((m,i)=>{const key=`${y}-${String(i+1).padStart(2,'0')}`;let n=0,d=0,unk=0;
-    for(const a of L){if(!a.dis.startsWith(key))continue;const ch=D.map(j=>a.sc[ci*3+j]||'?');const scored=ch.filter(c=>c==='1'||c==='0');
-      if(ch.some(c=>c==='?'||c==='')){unk++;continue}if(!scored.length)continue;d++;if(scored.every(c=>c==='1'))n++}
+    for(const a of L){if(!a.dis.startsWith(key))continue;const st=kFileState(a,CI,D);
+      if(st==='?'){unk++;continue}if(st==='na')continue;d++;if(st==='met')n++}
     return kpiOv(k,key,m,n,d,unk)})}
 const kMult=k=>k.mult||100;
 function kpiOv(k,key,m,n,d,unk){const o=k.ov&&k.ov[key];if(o&&o.d!==''&&o.d!=null)return {m,key,n:+o.n||0,d:+o.d,unk:0,r:+o.d?(+o.n||0)/(+o.d)*kMult(k):null,man:true,an:n,ad:d};return {m,key,n,d,unk,r:d?n/d*kMult(k):null}}
@@ -1515,7 +1521,7 @@ const kUnit=k=>kMult(k)===100?'%':' per 1,000';
 const kTrig=k=>`${k.lower?'&gt;':'&lt;'}${k.trigger}${kUnit(k)}`;
 const kpiFormula=k=>(k.kind||'std')==='event'
   ?`Adult discharges (≥ ${k.minAge} years) with a stay of ${k.minLos} or more days that you marked “Hospital-associated VTE” (VTE as an additional diagnosis, or an emergency readmission with VTE within 90 days) ÷ all adult discharges (≥ ${k.minAge} years) with a stay of ${k.minLos} or more days${k.depts&&k.depts.length?' · '+k.depts.join(', '):''} × ${kMult(k).toLocaleString('en')}`
-  :`Files where “${k.crit||'?'}” was ${k.dim==='ALL'?'met for Timely, Appropriate and Complete':KDIM[k.dim]} ÷ files where it applies (not NA) · ${KPOP[k.pop]}${k.depts&&k.depts.length?' · '+k.depts.join(', '):''} × 100`;
+  :`Files where ${kCrits(k).length>1?'all of “'+kCrits(k).join('” + “')+'” were':'“'+(kCrits(k)[0]||'?')+'” was'} ${k.dim==='ALL'?'met for Timely, Appropriate and Complete':k.dim==='TC'?'met for Timely and Complete':KDIM[k.dim]} ÷ files where ${kCrits(k).length>1?'they apply':'it applies'} (not NA) · ${KPOP[k.pop]}${k.depts&&k.depts.length?' · '+k.depts.join(', '):''} × 100`;
 let kpiOpen=null;
 function kpiChart(k,R,y){const W=760,H=190,pl=34,pr=10,pt=24,pb=22,vals=R.filter(r=>r.r!=null).map(r=>r.r);let lo,hi;
   if(k.lower||kMult(k)!==100){lo=0;hi=Math.max(k.trigger*2,...vals.map(v=>v*1.25),1)}else{lo=Math.max(0,Math.floor((Math.min(k.trigger-5,...vals,k.target-10)-6)/5)*5);hi=Math.max(100,k.target)+10}
@@ -1531,7 +1537,7 @@ function kpiForm(k){const depts=[...new Set(dashAudits().map(a=>a.dept).filter(B
     <label class="f">KPI name<input data-k="name" value="${esc(k.name)}"></label><label class="f">Code<input data-k="code" class="mono" value="${esc(k.code||'')}"></label>
     ${ev?`<label class="f">Minimum age (years)<input data-k="minAge" type="number" min="0" value="${k.minAge}"></label><label class="f">Minimum stay (days)<input data-k="minLos" type="number" min="0" value="${k.minLos}"></label>
       <label class="f">Multiply by<select data-k="mult"><option value="1000" ${kMult(k)===1000?'selected':''}>× 1,000 (per 1,000 discharges)</option><option value="100" ${kMult(k)===100?'selected':''}>× 100 (%)</option></select></label>`
-    :`<label class="f" style="grid-column:span 2">Standard (from the full audit)<select data-k="crit">${S.criteria.map(c=>`<option ${c===k.crit?'selected':''}>${esc(c)}</option>`).join('')}</select></label>
+    :`<div style="grid-column:1/-1"><b class="small">Standards (from the full audit)</b> <span class="small muted">(tick one or more: a file counts as met only when every ticked standard is ✓)</span><div class="chips" style="margin-top:6px;max-height:190px;overflow:auto">${S.criteria.map(c=>`<label class="btn sm" style="gap:6px"><input type="checkbox" data-crit="${esc(c)}" ${kCrits(k).includes(c)?'checked':''}> ${esc(c)}</label>`).join('')}</div></div>
     <label class="f">Counts as met when<select data-k="dim">${Object.entries(KDIM).map(([v,l])=>`<option value="${v}" ${v===k.dim?'selected':''}>${l} is ✓</option>`).join('')}</select></label>
     <label class="f">Patients<select data-k="pop">${Object.entries(KPOP).map(([v,l])=>`<option value="${v}" ${v===k.pop?'selected':''}>${l}</option>`).join('')}</select></label>`}
     <label class="f">Target${ev?'':' %'}<input data-k="target" type="number" step="any" min="0" value="${k.target}"></label><label class="f">Trigger: alert ${k.lower?'above':'below'}<input data-k="trigger" type="number" step="any" min="0" value="${k.trigger}"></label>
@@ -1540,9 +1546,9 @@ function kpiForm(k){const depts=[...new Set(dashAudits().map(a=>a.dept).filter(B
     <div><b class="small">Type a month yourself</b> <span class="small muted">(${y}: leave empty to use the automatic count; the grey number is the automatic one)</span>
       <div class="tablewrap"><table><thead><tr><th></th>${MON.map(m=>`<th class="r">${m}</th>`).join('')}</tr></thead><tbody>${['n','d'].map(f=>`<tr><td class="small">${f==='n'?'Numerator':'Denominator'}</td>${kpiCalcAuto(k,y).map(r=>`<td><input class="mono" style="width:52px;padding:2px 4px;text-align:center" data-ov="${r.key}" data-f="${f}" value="${k.ov&&k.ov[r.key]&&k.ov[r.key][f]!==''&&k.ov[r.key][f]!=null?k.ov[r.key][f]:''}" placeholder="${r.d?r[f]:''}"></td>`).join('')}</tr>`).join('')}</tbody></table></div></div>
     <div class="row"><button class="btn sm primary" type="button" data-kact="done">Done</button><span class="spacer"></span><button class="btn sm danger" type="button" data-kact="del">Delete this KPI</button></div></div>`}
-function kpiStdExcluded(k,y){const ci=critFind(k.crit);if(ci<0)return '';const D=k.dim==='ALL'?[0,1,2]:[{T:0,A:1,C:2}[k.dim]];
+function kpiStdExcluded(k,y){const CI=kCis(k);if(!CI.length||CI.some(i=>i<0))return '';const D=kDims(k);
   const L=dashAudits().filter(a=>!isQuick(a)&&a.sc&&(a.dis||'').startsWith(y)&&opOk(a,k.pop==='all'?'':k.pop)&&(!k.depts||!k.depts.length||k.depts.includes(a.dept)));const out=[];
-  for(const a of L){const ch=D.map(j=>a.sc[ci*3+j]||'?');let why='';if(a.pending)why='pending (audit not final)';else if(ch.some(c=>c==='?'||c===''))why='standard not audited yet (—)';else if(!ch.some(c=>c==='1'||c==='0'))why='standard marked NA';if(why)out.push({a,why})}
+  for(const a of L){const st=kFileState(a,CI,D);let why='';if(a.pending)why='pending (audit not final)';else if(st==='?')why='standard not audited yet (—)';else if(st==='na')why='standard marked NA';if(why)out.push({a,why})}
   if(!out.length)return '';const by={};out.forEach(o=>{(by[o.why]=by[o.why]||[]).push(o.a)});
   return `<details class="small"><summary><b>${out.length} file${out.length===1?'':'s'} in ${y} not counted</b> <span class="muted">(${Object.entries(by).map(([w,l])=>`${l.length} ${w}`).join(' · ')})</span></summary><div style="margin-top:4px">${Object.entries(by).map(([w,l])=>`<div><b>${esc(w)}:</b> ${l.map(a=>`<a href="#" data-kfile="${esc(a.id)}">${esc(a.fileNo)}</a> <span class="muted">(${fmtD(a.dis)})</span>`).join(' · ')}</div>`).join('')}</div></details>`}
 function kpiEventExtras(k,y){const L=dashAudits().filter(a=>!a.pending&&(a.dis||'').startsWith(y));const marked=L.filter(a=>a[k.flag||'hav']);const RA=readmits();const cand=L.filter(a=>RA.has(a)&&!a[k.flag||'hav']);
@@ -1553,7 +1559,7 @@ function kpiEventExtras(k,y){const L=dashAudits().filter(a=>!a.pending&&(a.dis||
 function renderKpi(){const show=!!S.settings.kpiShow;$('#kpiShow').textContent=show?'Hide':'Show';$('#kpiTools').hidden=!show;$('#kpiWrap').hidden=!show;$('#kpiPanel').querySelector('.small.muted').textContent=show?'Worked out every month from your data (by discharge month). Edit a KPI to change its formula or type a month yourself.':'Hidden. Only you see them when you press Show; they are not in the report summary or the dashboard export.';if(!show)return;
   const K=kpiList(),ysel=$('#kpiYear'),now=String(new Date().getFullYear()),cy=ysel.value||now;
   const ys=[...new Set([now,...dashAudits().map(a=>(a.dis||'').slice(0,4)).filter(Boolean)])].sort().reverse();ysel.innerHTML=ys.map(y=>`<option>${y}</option>`).join('');ysel.value=ys.includes(cy)?cy:ys[0];const y=ysel.value;
-  $('#kpiWrap').innerHTML=K.map(k=>{const ev=(k.kind||'std')==='event',R=kpiCalc(k,y),done=R.filter(r=>r.r!=null),mean=done.length?done.reduce((s,r)=>s+r.r,0)/done.length:null,sn=done.reduce((s,r)=>s+r.n,0),sd=done.reduce((s,r)=>s+r.d,0),unk=R.reduce((s,r)=>s+r.unk,0),bad=!ev&&critFind(k.crit)<0,yr=sd?sn/sd*kMult(k):null;
+  $('#kpiWrap').innerHTML=K.map(k=>{const ev=(k.kind||'std')==='event',R=kpiCalc(k,y),done=R.filter(r=>r.r!=null),mean=done.length?done.reduce((s,r)=>s+r.r,0)/done.length:null,sn=done.reduce((s,r)=>s+r.n,0),sd=done.reduce((s,r)=>s+r.d,0),unk=R.reduce((s,r)=>s+r.unk,0),bad=!ev&&(!kCrits(k).length||kCis(k).some(i=>i<0)),yr=sd?sn/sd*kMult(k):null;
     return `<div class="kpicard" data-id="${k.id}"><div class="row"><div><b>${esc(k.name)}</b> <span class="small muted mono">${esc(k.code||'')}</span><div class="small muted">Target ${k.target}${kUnit(k)} · Trigger ${kTrig(k)}${ev?` · adults ≥ ${k.minAge} · stay ≥ ${k.minLos} days`:' · '+KPOP[k.pop]}${k.depts&&k.depts.length?' · '+esc(k.depts.join(', ')):''}</div></div><span class="spacer"></span>
       <button class="btn sm" type="button" data-kact="edit">${kpiOpen===k.id?'Close':'Edit'}</button><button class="btn sm" type="button" data-kact="copy">Copy table for Word</button></div>
       <div class="small">Formula: ${esc(kpiFormula(k))}</div>${bad?'<div class="small" style="color:var(--late)">This standard is not in your standards list any more. Press Edit and choose it again.</div>':''}
@@ -1581,7 +1587,8 @@ $('#kpiWrap').addEventListener('click',async e=>{
     try{await navigator.clipboard.writeText(t);toast('Table copied: paste it into the Word report')}catch(err){toast('Could not copy')}}});
 $('#kpiWrap').addEventListener('change',e=>{const f=e.target.closest('[data-form]');if(!f)return;const k=kpiList().find(x=>x.id===f.dataset.form);if(!k)return;
   if(e.target.dataset.ov){const key=e.target.dataset.ov,f2=e.target.dataset.f;k.ov=k.ov||{};const m=k.ov[key]||{n:'',d:''};m[f2]=e.target.value===''?'':+e.target.value;if(m.n===''&&m.d==='')delete k.ov[key];else k.ov[key]=m;save();renderKpi();return}
-  if(e.target.dataset.dep!=null)k.depts=[...f.querySelectorAll('input[data-dep]:checked')].map(x=>x.dataset.dep);
+  if(e.target.dataset.crit!=null){k.crits=[...f.querySelectorAll('input[data-crit]:checked')].map(x=>x.dataset.crit);k.crit=k.crits[0]||''}
+  else if(e.target.dataset.dep!=null)k.depts=[...f.querySelectorAll('input[data-dep]:checked')].map(x=>x.dataset.dep);
   else{const key=e.target.dataset.k;if(!key)return;const v=e.target.value;k[key]=['target','trigger','minAge','minLos','mult'].includes(key)?(+v||0):key==='lower'?!!v:v}save();renderKpi()});
 $('#kpiXls').onclick=()=>{const y=$('#kpiYear').value,wb=XLSX.utils.book_new();
   for(const k of kpiList()){const R=kpiCalc(k,y),done=R.filter(r=>r.r!=null),mean=done.length?done.reduce((s,r)=>s+r.r,0)/done.length:null,sn=done.reduce((s,r)=>s+r.n,0),sd=done.reduce((s,r)=>s+r.d,0),pc=kMult(k)===100,val=v=>v==null?'':pc?v/100:Math.round(v*100)/100;
