@@ -637,6 +637,7 @@ input[type=range]{accent-color:var(--accent)}
           <button class="btn primary" type="button" id="pAdd">Add my files to my worklists</button>
           <button class="btn primary" type="button" id="pMailX" title="Saves the FULL and QUICK Excel files and opens Outlook; attach the two files">Send to colleague as Excel</button>
           <button class="btn primary" type="button" id="pMail" title="Opens Outlook with a link the colleague pastes into the app">Send to colleague as link</button>
+          <label class="small" style="display:inline-flex;align-items:center;gap:6px">Colleague's file<select id="pMateFmt" style="width:auto"><option value="grid">Grid layout: one file, he splits it</option><option value="fq">Full + Quick files, already split</option></select></label>
           <button class="btn" type="button" id="pDlMate">Download colleague's files only</button>
           <button class="btn" type="button" id="pDlAll">Download cleaned file (all)</button>
           <button class="btn sm" type="button" id="pDlMine">My full + quick files</button>
@@ -2118,10 +2119,17 @@ async function packFiles(L,from){const dict=[],di=new Map();const d=v=>{v=v||'';
 async function unpackFiles(t){const o=JSON.parse(await unzip(t));if(o.v!==1)throw 0;const day=n=>n===''?'':addDays('2020-01-01',n);
   return {from:o.f||'',items:o.r.map(x=>({id:uid(),type:x[8]?'quick':'full',fileNo:String(x[0]),adm:day(x[1]),dis:day(x[2]),los:x[3]===''?null:x[3],dept:o.d[x[4]],ward:o.d[x[5]],doc:o.d[x[6]],dischargeTo:o.d[x[7]],name:x[9]||'',age:x[10]??'',admT:x[11]!==''&&x[11]!=null&&day(x[1])?serialOf(day(x[1]))+x[11]/1440:null,disT:x[12]!==''&&x[12]!=null&&day(x[2])?serialOf(day(x[2]))+x[12]/1440:null}))}}
 const appBase=()=>location.origin+location.pathname;
+const mateFmt=()=>S.settings.mateFmt||'grid';
+function mateGrid(L,name){const R=[...L].sort((a,b)=>(a._dis||'')<(b._dis||'')?-1:(a._dis||'')>(b._dis||'')?1:0);const fn=`Grid_${slug(name)}_${isoDay(new Date())}.xlsx`;prepDownload(fn,[['Sheet1',R]]);return fn}
 async function sendMate(mode){if(!prepRes)return;const p=prepReadUI();const to=$('#pMateEmail').value.trim();p.mateEmail=to;save();
   const L=[...prepRes.mf.map(r=>({...r,_t:'full'})),...prepRes.mq.map(r=>({...r,_t:'quick'}))];if(!L.length){toast('No files for your colleague in this split');return}
   const name=p.mate||'colleague',me=S.settings.auditor||'',fileBase=`Discharges_${slug(name)}_${isoDay(new Date())}`,sign=`\n\nThanks,\n${S.settings.sender||me}`;
   const subj=`Discharge files to audit: ${prepRes.mf.length} full + ${prepRes.mq.length} quick`,intro=`Hi ${name},\n\nYour share of the discharge list: ${prepRes.mf.length} full audit + ${prepRes.mq.length} quick audit (${L.length} files).\n\n`;
+  if(mode==='excel'&&mateFmt()==='grid'){const fn=mateGrid(L,name);
+    const body=intro+`Attached: ${fn}. It is in the same layout as the hospital Grid (file number, patient name, admission and discharge dates, LOS, department, ward, doctor, discharge type, age), with ID and phone numbers removed.\n\nTo split it into your full and quick audits in the MR Follow-up app (${appBase()}): Data → Prepare discharge list (Grid) → choose this file → set "Your share" to 100% and your full-audit % → Add my files to my worklists.`+sign;
+    setTimeout(()=>openMailto(to,subj.replace(/: .*/,`: ${L.length} files`),body.replace(/Your share of the discharge list: .*?\n\n/,`Your share of the discharge list: ${L.length} files.\n\n`)),1200);
+    $('#pNote').textContent=`Outlook cannot attach files by itself: drag ${fn} from your Downloads folder into the email before sending.`;
+    toast(`Grid file saved. Attach ${fn} from Downloads to the email.`);return}
   if(mode==='excel'){
     const names=exportFQ(prepRes.mf.map(recFromPrep),prepRes.mq.map(recFromPrep),fileBase);if(!names.length)return;
     const body=intro+`Attached: ${names.join(' and ')}. They have the same layout as our MR (full audit) and quick audit sheets, with patient name, dates, LOS, department, ward, doctor and discharge type filled in.\n\nYou can:\n- audit directly in the Excel files, or\n- add them to the MR Follow-up app (${appBase()}): Data → Full audit worklist → choose both files together. Each goes to its own list.`+sign;
@@ -2135,6 +2143,7 @@ async function sendMate(mode){if(!prepRes)return;const p=prepReadUI();const to=$
   const body=intro+`To add them to your worklists:\n1. Copy this link:\n${linkOk?link:'[PASTE THE LINK HERE WITH Ctrl+V]'}\n2. Open your MR Follow-up app.\n3. Go to Data → Receive files from a colleague, paste the link and press Read files.\n\n(Opening the link directly also works if it opens in the same browser as your app.)`+sign;
   openMailto(to,subj,body);$('#pNote').textContent='';
   toast(linkOk?`Outlook should open with the link for ${name}.`:`Outlook should open. The link was copied: replace [PASTE THE LINK HERE] with Ctrl+V.`)}
+$('#pMateFmt').value=mateFmt();$('#pMateFmt').addEventListener('change',e=>{S.settings.mateFmt=e.target.value;save();$('#pMailX').title=e.target.value==='grid'?'Saves one Grid-layout Excel file and opens Outlook; attach the file':'Saves the FULL and QUICK Excel files and opens Outlook; attach the two files'});
 $('#pMail').onclick=()=>sendMate('link');$('#pMailX').onclick=()=>sendMate('excel');
 function fillMailList(){$('#dlMail').innerHTML=S.contacts.slice(0,1500).map(c=>`<option value="${esc(c.email)}">${esc(c.name)}</option>`).join('')}
 let pendingImport=null;
@@ -2276,7 +2285,7 @@ $('#pDepts').addEventListener('change',e=>{const c=e.target.closest('[data-xd]')
 $('#pAdd').onclick=()=>{if(!prepRes)return;leaveSample();const have=new Set(S.queue.map(q=>(q.type||'full')+'|'+q.fileNo+'|'+q.dis));let n=0;
   let nf=0,nq=0;for(const [L,t] of [[prepRes.full,'full'],[prepRes.quick,'quick']])for(const r of L){const k=t+'|'+r._reg+'|'+r._dis;if(have.has(k))continue;S.queue.push(prepToQueue(r,t));have.add(k);n++;t==='full'?nf++:nq++}
   save();renderAll();runPrep();toast(n?`${n} files added: ${nf} to full audit, ${nq} to quick audit`:'Your files are already in your worklists')};
-$('#pDlMate').onclick=()=>{if(!prepRes)return;const nm=slug(prepRes.p.mate||'colleague');exportFQ(prepRes.mf.map(recFromPrep),prepRes.mq.map(recFromPrep),`Discharges_${nm}_${isoDay(new Date())}`)};
+$('#pDlMate').onclick=()=>{if(!prepRes)return;if(mateFmt()==='grid'){const L=[...prepRes.mf,...prepRes.mq];if(!L.length){toast('No files for your colleague in this split');return}mateGrid(L,prepRes.p.mate||'colleague');return}const nm=slug(prepRes.p.mate||'colleague');exportFQ(prepRes.mf.map(recFromPrep),prepRes.mq.map(recFromPrep),`Discharges_${nm}_${isoDay(new Date())}`)};
 $('#pDlAll').onclick=()=>{if(!prepRes)return;prepDownload(`Discharges_clean_${isoDay(new Date())}.xlsx`,[['Sheet1',prepRes.out]])};
 $('#pDlMine').onclick=()=>{if(!prepRes)return;exportFQ(prepRes.full.map(recFromPrep),prepRes.quick.map(recFromPrep),`Discharges_mine_${isoDay(new Date())}`)};
 
