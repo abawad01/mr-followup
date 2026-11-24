@@ -346,11 +346,19 @@ input[type=range]{accent-color:var(--accent)}
       <div class="row">
         <select id="ckRule" style="max-width:320px" aria-label="Check"></select>
         <input id="ckQ" placeholder="Search file, department, doctor" style="max-width:240px" aria-label="Search">
+        <label class="small row" style="gap:6px">Discharged from <input type="date" id="ckFrom" style="max-width:150px"></label>
+        <label class="small row" style="gap:6px">to <input type="date" id="ckTo" style="max-width:150px"></label>
         <label class="small row" style="gap:6px"><input type="checkbox" id="ckShowDis"> Show "not an error"</label>
         <span class="spacer"></span><span class="small muted" id="ckCount"></span>
       </div>
+      <div class="row" id="ckBulk" hidden style="position:sticky;top:0;z-index:3;background:var(--accent-soft);border:1px solid var(--line);border-radius:8px;padding:8px 10px">
+        <b id="ckSelN"></b><span class="small muted" id="ckSelHint"></span><span class="spacer"></span>
+        <button class="btn sm primary" type="button" id="ckBulkFix">Fix selected</button>
+        <button class="btn sm" type="button" id="ckBulkOk">Not an error</button>
+        <button class="btn sm" type="button" id="ckSelNone">Clear selection</button>
+      </div>
       <div class="tablewrap"><table>
-        <thead><tr><th>File</th><th>What looks wrong</th><th>Entered</th><th>Actions</th></tr></thead>
+        <thead><tr><th style="width:34px"><input type="checkbox" id="ckAllBox" aria-label="Select all shown" title="Select every finding that matches the filters"></th><th>File</th><th>What looks wrong</th><th>Entered</th><th>Actions</th></tr></thead>
         <tbody id="ckRows"></tbody>
       </table></div>
     </div>
@@ -3366,7 +3374,7 @@ document.addEventListener('click',e=>{if(POP&&!POP.contains(e.target))closePop()
    opening the audit with the suggested change applied. Rules are assumptions: each can be turned off.
    A finding is raised only when a standard is NA although other entries say it applies (or the reverse);
    a 0 is a recorded deficiency, never an audit-entry error. */
-const CKS={pendingFix:null,bypass:false,dlg:null,choice:null};
+const CKS={pendingFix:null,bypass:false,dlg:null,choice:null,sel:new Set(),list:[],busy:false};
 const ckKey=s=>String(s||'').toLowerCase().replace(/[^a-z0-9]+/g,'');
 const CK_C={op:'4.3.10. Operative notes',anes:'4.3.11. pre Anesthesia',preop:'4.3.13. Nursing pre-operative Checklist',cons:'4.3.9. General Consent and Informed Consent',
   death:'4.3.22. Death Summary',trf:'4.3.17. Transfer to Another facility',vte:'4.3.24. VTE',docA:'4.3.3 DOCTOR Assessment',hp:'4.3.2.PT history and Physical Examination',
@@ -3418,7 +3426,7 @@ function ckEval(a){const out=[];if(!a||!a.sc)return out;const to=String(a.discha
     out.push({r,ev,miss})}
   return out}
 const ckDisKey=(a,r)=>a.id+'|'+r.id;
-function ckPeriodOk(a){const p=$('#ckPeriod')?.value||'';if(!p)return true;const m=(a.dis||'').slice(0,7);if(/Q\d$/.test(p)){const y=p.slice(0,4),q=+p.slice(-1);return m.slice(0,4)===y&&Math.ceil(+m.slice(5,7)/3)===q}return m===p}
+function ckPeriodOk(a){const fr=$('#ckFrom')?.value||'',to=$('#ckTo')?.value||'';if(fr&&(a.dis||'')<fr)return false;if(to&&(a.dis||'')>to)return false;const p=$('#ckPeriod')?.value||'';if(!p)return true;const m=(a.dis||'').slice(0,7);if(/Q\d$/.test(p)){const y=p.slice(0,4),q=+p.slice(-1);return m.slice(0,4)===y&&Math.ceil(+m.slice(5,7)/3)===q}return m===p}
 function ckAll(){const L=[];for(const a of S.audits){if(isQuick(a)||!a.sc||a.pending)continue;for(const f of ckEval(a))L.push({a,...f,dis:!!(S.ckDis&&S.ckDis[ckDisKey(a,f.r)])})}return L}
 function ckCount(){try{if(S.sample)return 0;return ckAll().filter(x=>!x.dis).length}catch(e){return 0}}
 function ckEvText(f){return [...f.ev.map(e=>e.to!=null?`Discharge to: <b>${esc(e.to)}</b>`:e.age!=null?`Age <b>${esc(e.age)}</b>`:`${esc(S.criteria[e.i])}: <b>${ckStLabel(e.s)}</b>`),
@@ -3434,18 +3442,24 @@ function renderChecks(){if(!$('#view-checks'))return;
   const q=normC($('#ckQ').value||''),showDis=$('#ckShowDis').checked,rid=rs.value;
   const L=all.filter(x=>(showDis||!x.dis)&&(!rid||x.r.id===rid)&&(!q||normC([x.a.fileNo,x.a.dept,x.a.doc,x.a.ward].join(' ')).includes(q)))
     .sort((x,y)=>(x.dis-y.dis)||((x.r.sev==='High'?0:1)-(y.r.sev==='High'?0:1))||String(y.a.dis).localeCompare(String(x.a.dis)));
-  $('#ckCount').textContent=`${L.length} shown`;
-  $('#ckRows').innerHTML=L.slice(0,400).map(x=>{const di=S.ckDis&&S.ckDis[ckDisKey(x.a,x.r)];return `<tr style="${x.dis?'opacity:.55':''}">
+  CKS.list=L;const selectable=new Set(L.filter(x=>!x.dis).map(x=>ckDisKey(x.a,x.r)));for(const k of [...CKS.sel])if(!selectable.has(k))CKS.sel.delete(k);
+  $('#ckCount').textContent=`${L.length} shown`+(L.length>400?' (first 400 listed; select all still covers every one)':'');
+  const ab=$('#ckAllBox');ab.checked=selectable.size>0&&CKS.sel.size===selectable.size;ab.indeterminate=CKS.sel.size>0&&CKS.sel.size<selectable.size;ab.disabled=!selectable.size;ckRenderBulk();
+  $('#ckRows').innerHTML=L.slice(0,400).map(x=>{const key=ckDisKey(x.a,x.r),di=S.ckDis&&S.ckDis[key];return `<tr style="${x.dis?'opacity:.55':''}">
+    <td>${x.dis?'':`<input type="checkbox" data-cksel="${esc(key)}" ${CKS.sel.has(key)?'checked':''} aria-label="Select file ${esc(x.a.fileNo)}">`}</td>
     <td><div class="mono"><b>${esc(x.a.fileNo)}</b></div><div class="small muted">${fmtS(x.a.dis)} · ${esc(x.a.dept||'—')}${x.a.ward?' · '+esc(x.a.ward):''}</div></td>
     <td><span class="pill ${x.r.sev==='High'?'p-late':'p-e2'}">${x.r.sev}</span> ${esc(x.r.name)}${x.dis?`<div class="small muted">Not an error${di.note?': '+esc(di.note):''} · ${esc(di.d||'')}</div>`:''}</td>
     <td class="small">${ckEvText(x)}</td>
     <td class="nowrap">${x.dis?`<button class="btn sm" type="button" data-ckundo="${esc(ckDisKey(x.a,x.r))}">Restore</button>`:`<button class="btn sm primary" type="button" data-ckfix="${esc(x.a.id)}" data-ckr="${x.r.id}">Fix</button> <button class="btn sm" type="button" data-ckok="${esc(x.a.id)}" data-ckr="${x.r.id}">Not an error</button>`}</td></tr>`}).join('')
-    ||`<tr><td colspan="4" class="muted small" style="padding:16px">${S.sample?'Sample data: checks run on your own audits only.':'Nothing to review. Every full audit in this period is consistent.'}</td></tr>`;
+    ||`<tr><td colspan="5" class="muted small" style="padding:16px">${S.sample?'Sample data: checks run on your own audits only.':'Nothing to review. Every full audit in this period is consistent.'}</td></tr>`;
   const LG=(S.ckLog||[]).slice().reverse().slice(0,200);
   $('#ckLog').innerHTML=LG.map(l=>`<tr><td class="small nowrap">${fmtS(l.d)}</td><td class="mono">${esc(l.fileNo)}</td><td class="small">${esc(l.rule)}</td><td class="small">${l.ch.map(c=>`${esc(c.what)}: ${esc(c.from)} → <b>${esc(c.to)}</b>`).join('<br>')}</td></tr>`).join('')||'<tr><td colspan="4" class="muted small" style="padding:12px">No fixes yet.</td></tr>';
   $('#ckRuleList').innerHTML=CK_RULES.map(r=>`<label class="small row" style="gap:8px"><input type="checkbox" data-ckrule="${r.id}" ${ckOn(r)?'checked':''}><span class="pill ${r.sev==='High'?'p-late':'p-e2'}">${r.sev}</span>${esc(r.name)}${[...(r.when&&r.when.c||[]),...(r.need.c||[])].some(k=>ckIdx(k)<0)?' <span class="muted">(standard not found in your list, check is skipped)</span>':''}</label>`).join('')}
 function ckBadge(){const b=$('#ckBadge');if(!b)return;const n=ckCount();b.hidden=!n;b.textContent=n}
-['#ckPeriod','#ckRule','#ckShowDis'].forEach(s=>$(s).addEventListener('change',renderChecks));$('#ckQ').addEventListener('input',renderChecks);
+['#ckPeriod','#ckRule','#ckShowDis','#ckFrom','#ckTo'].forEach(s=>$(s).addEventListener('change',renderChecks));$('#ckQ').addEventListener('input',renderChecks);
+$('#ckRows').addEventListener('change',e=>{const k=e.target.dataset.cksel;if(k==null)return;e.target.checked?CKS.sel.add(k):CKS.sel.delete(k);renderChecks()});
+$('#ckAllBox').addEventListener('change',e=>{CKS.sel.clear();if(e.target.checked)CKS.list.filter(x=>!x.dis).forEach(x=>CKS.sel.add(ckDisKey(x.a,x.r)));renderChecks()});
+$('#ckSelNone').onclick=()=>{CKS.sel.clear();renderChecks()};
 $('#ckRuleList').addEventListener('change',e=>{const id=e.target.dataset.ckrule;if(!id)return;S.ckOff=S.ckOff||{};if(e.target.checked)delete S.ckOff[id];else S.ckOff[id]=true;save();renderChecks();ckBadge()});
 $('#ckRows').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;
   if(b.dataset.ckundo){const k=b.dataset.ckundo,old=S.ckDis[k];delete S.ckDis[k];save();renderChecks();ckBadge();toast('Restored to the review list',()=>{S.ckDis[k]=old;save();renderChecks();ckBadge()});return}
@@ -3465,10 +3479,16 @@ function ckOpen(a,f,notErr){CKS.dlg={a,f,opts:ckOptions(a,f)};CKS.choice=notErr?
   $('#ckWhat').innerHTML=`<span class="pill ${f.r.sev==='High'?'p-late':'p-e2'}">${f.r.sev}</span> <b>${esc(f.r.name)}</b><div class="muted" style="margin-top:6px">${ckEvText(f)}</div>`;
   ckRenderOpts();$('#ckNote').value='';$('#ckDlg').showModal()}
 function ckRenderOpts(){const O=CKS.dlg.opts;$('#ckOpts').innerHTML=O.map((o,i)=>`<label class="stopt"><input type="radio" name="ckv" value="${i}" ${CKS.choice===i?'checked':''}><span><b>${esc(o.label)}</b><br><span class="small muted">${esc(o.sub)}</span></span></label>`).join('');
-  const o=CKS.choice!=null?O[CKS.choice]:null;$('#ckNoteBox').hidden=!(o&&o.notErr);$('#ckGo').disabled=!o;$('#ckGo').textContent=o&&o.notErr?'Mark as not an error':'Open audit with this fix';$('#ckHint').hidden=!!(o&&o.notErr)}
+  const o=CKS.choice!=null?O[CKS.choice]:null;$('#ckNoteBox').hidden=!(o&&o.notErr);$('#ckGo').disabled=!o;const B=CKS.dlg.bulk,n=B?CKS.dlg.sel.length:1;
+  $('#ckGo').textContent=o&&o.notErr?(B?`Mark ${n} as not an error`:'Mark as not an error'):(B?`Apply to ${new Set(CKS.dlg.sel.map(x=>x.a.id)).size} files`:'Open audit with this fix');
+  $('#ckHint').hidden=!!(o&&o.notErr);$('#ckHint').innerHTML=B?`Saved straight away and logged. You can undo right after.${o&&o.warn?' <b style="color:var(--late)">0 adds these files to Stalled files.</b>':''}`:'Fixes open the audit with the change applied. Check it and press Save changes.'}
 $('#ckOpts').addEventListener('change',e=>{CKS.choice=+e.target.value;ckRenderOpts()});
 $('#ckClose').onclick=()=>$('#ckDlg').close();
 $('#ckGo').onclick=()=>{const {a,f,opts}=CKS.dlg,o=opts[CKS.choice];if(!o)return;$('#ckDlg').close();
+  if(CKS.dlg.bulk){const sel=CKS.dlg.sel;
+    if(o.notErr){S.ckDis=S.ckDis||{};const note=$('#ckNote').value.trim(),d=isoDay(new Date()),keys=sel.map(x=>ckDisKey(x.a,x.r));keys.forEach(k=>S.ckDis[k]={d,note,by:S.settings.auditor||''});CKS.sel.clear();save();renderChecks();ckBadge();
+      toast(`${keys.length} marked as not an error`,()=>{keys.forEach(k=>delete S.ckDis[k]);save();renderChecks();ckBadge()});return}
+    ckBulkApply(sel,o);return}
   if(o.notErr){S.ckDis=S.ckDis||{};const k=ckDisKey(a,f.r);S.ckDis[k]={d:isoDay(new Date()),note:$('#ckNote').value.trim(),by:S.settings.auditor||''};save();renderChecks();ckBadge();toast('Marked as not an error',()=>{delete S.ckDis[k];save();renderChecks();ckBadge()});return}
   ckApplyInEditor(a,f,o)};
 function ckApplyInEditor(a,f,o){go('audit');editAudit(a);
@@ -3484,6 +3504,53 @@ function ckLogFix(){const p=CKS.pendingFix;if(!p||form.id===p.auditId)return;con
   for(let i=0;i<S.criteria.length;i++){const o=String(p.sc||'').slice(i*3,i*3+3),n=String(a.sc||'').slice(i*3,i*3+3);if(o!==n)ch.push({what:S.criteria[i],from:o.split('').map(c=>c==='-'?'NA':c==='?'?'—':c).join('/'),to:n.split('').map(c=>c==='-'?'NA':c==='?'?'—':c).join('/')})}
   if((a.dischargeTo||'')!==p.to)ch.push({what:'Discharge to',from:p.to||'—',to:a.dischargeTo||'—'});
   CKS.pendingFix=null;if(!ch.length)return;S.ckLog=S.ckLog||[];S.ckLog.push({d:isoDay(new Date()),fileNo:a.fileNo,dis:a.dis,rule:p.rule,ch,by:S.settings.auditor||''});save();ckBadge()}
+/* ---------- bulk fix ---------- */
+function ckSelected(){const m=new Map(CKS.list.map(x=>[ckDisKey(x.a,x.r),x]));return [...CKS.sel].map(k=>m.get(k)).filter(Boolean)}
+function ckRenderBulk(){const sel=ckSelected(),bar=$('#ckBulk');bar.hidden=!sel.length;if(!sel.length)return;
+  const rules=[...new Set(sel.map(x=>x.r.id))],files=new Set(sel.map(x=>x.a.id)).size;
+  $('#ckSelN').textContent=`${sel.length} selected${files!==sel.length?` (${files} files)`:''}`;
+  $('#ckBulkFix').disabled=rules.length!==1||!ckBulkOpts(sel[0].r).length;
+  $('#ckSelHint').textContent=rules.length!==1?' · Fix works on one check at a time: pick a check in the filter above.':''}
+/* fixes that make sense for every file of one check, without opening each file */
+function ckBulkOpts(r){const O=[];
+  for(const k of (r.need.c||[])){const i=ckIdx(k);if(i<0)continue;const n=S.criteria[i];
+    O.push({label:`${n} → ✓ on all`,sub:'The form is in these files; the row was missed. Sets T, A and C to ✓.',set:[{i,v:'111'}]});
+    O.push({label:`${n} → 0 on all`,sub:'The form is missing in these files. Sets T, A and C to 0, and the files go to Stalled files.',set:[{i,v:'000'}],warn:true})}
+  for(const k of (r.when&&r.when.c||[])){const i=ckIdx(k);if(i<0)continue;O.push({label:`${S.criteria[i]} → NA on all`,sub:'Ticked by mistake in these files. Sets it back to NA.',set:[{i,v:'---'}]})}
+  if(r.need.to){const t=CK_TO[r.need.to];O.push({label:`Discharge to → "${t.value}" on all`,sub:'The discharge type was entered wrong in these files.',to:t.value})}
+  return O}
+function ckOpenBulk(notErr){const sel=ckSelected();if(!sel.length)return;const r=sel[0].r;
+  const opts=notErr?[{label:'Not an error',sub:'The entries are right. These files will not be flagged again for this check.',notErr:true}]:ckBulkOpts(r);
+  CKS.dlg={bulk:true,sel,opts};CKS.choice=opts.length===1?0:null;
+  const files=[...new Set(sel.map(x=>x.a.fileNo))];
+  $('#ckTitle').textContent=notErr?`Not an error · ${sel.length} selected`:`Fix ${files.length} file${files.length>1?'s':''}`;
+  $('#ckWhat').innerHTML=`${notErr&&new Set(sel.map(x=>x.r.id)).size>1?'<b>Several checks</b>':`<span class="pill ${r.sev==='High'?'p-late':'p-e2'}">${r.sev}</span> <b>${esc(r.name)}</b>`}<div class="muted mono" style="margin-top:6px;max-height:70px;overflow:auto">${files.map(esc).join(' · ')}</div>`;
+  ckRenderOpts();$('#ckNote').value='';$('#ckDlg').showModal()}
+$('#ckBulkFix').onclick=()=>ckOpenBulk(false);$('#ckBulkOk').onclick=()=>ckOpenBulk(true);
+/* load an audit into the form without moving the screen, then save it through the normal save path */
+function ckSilentSave(a,mut){if(typeOf(a)!==auMode)setMode(typeOf(a),true);
+  form={id:a.id,sc:(a.sc+('?'.repeat(Math.max(0,S.criteria.length*3-a.sc.length)))).split(''),result:a.result||null};
+  $('#aFile').value=a.fileNo;$('#aAdm').value=a.adm||'';$('#aDis').value=a.dis||'';$('#aLos').value=a.los??'';$('#aDept').value=a.dept||'';$('#aWard').value=a.ward||'';$('#aDoc').value=a.doc||'';$('#aTo').value=a.dischargeTo||'';$('#aDate').value=a.auditDate||'';$('#aAuditor').value=a.auditor||'';$('#aPending').checked=!!a.pending;$('#aHav').checked=!!a.hav;$('#aNote').value=a.note||'';
+  mut();CKS.bypass=true;$('#auForm').dispatchEvent(new Event('submit',{cancelable:true}));CKS.bypass=false}
+function ckDiff(sc0,to0,a){const ch=[];for(let i=0;i<S.criteria.length;i++){const o=String(sc0||'').slice(i*3,i*3+3),n=String(a.sc||'').slice(i*3,i*3+3);if(o!==n)ch.push({what:S.criteria[i],from:o.split('').map(c=>c==='-'?'NA':c==='?'?'—':c).join('/'),to:n.split('').map(c=>c==='-'?'NA':c==='?'?'—':c).join('/')})}
+  if((a.dischargeTo||'')!==(to0||''))ch.push({what:'Discharge to',from:to0||'—',to:a.dischargeTo||'—'});return ch}
+function ckBulkApply(sel,o){if(CKS.busy)return;CKS.busy=true;const bid=uid(),fu0=S.fu.length,keepMode=auMode,undo=[],failed=[];let done=0;
+  const msg0=$('#auMsg').innerHTML;
+  try{for(const x of sel){const a=S.audits.find(y=>y.id===x.a.id);if(!a||!ckEval(a).some(f=>f.r.id===x.r.id))continue;
+      const sc0=a.sc,to0=a.dischargeTo||'';
+      ckSilentSave(a,()=>{if(o.set)for(const s of o.set)for(let j=0;j<3;j++)form.sc[s.i*3+j]=s.v[j];if(o.to)$('#aTo').value=o.to});
+      const ch=ckDiff(sc0,to0,a);
+      if(!ch.length){failed.push(a.fileNo);continue}
+      undo.push({id:a.id,sc:sc0,to:to0});done++;
+      S.ckLog=S.ckLog||[];S.ckLog.push({d:isoDay(new Date()),fileNo:a.fileNo,dis:a.dis,rule:x.r.name+' (bulk)',ch,by:S.settings.auditor||'',bid})}
+  }finally{CKS.busy=false;resetAudit();if(auMode!==keepMode)setMode(keepMode,true);$('#auMsg').innerHTML=msg0}
+  save();CKS.sel.clear();renderAll();
+  const nf=S.fu.length-fu0;
+  toast(`Fixed ${done} file${done!==1?'s':''}${nf>0?` · ${nf} added to Stalled files`:nf<0?` · ${-nf} removed from Stalled files`:''}${failed.length?` · ${failed.length} not saved: ${failed.slice(0,5).join(', ')}`:''}`,
+    undo.length?()=>ckBulkUndo(undo,bid):null)}
+function ckBulkUndo(undo,bid){const keepMode=auMode;try{for(const u of undo){const a=S.audits.find(y=>y.id===u.id);if(!a)continue;ckSilentSave(a,()=>{form.sc=(u.sc+('?'.repeat(Math.max(0,S.criteria.length*3-u.sc.length)))).split('');$('#aTo').value=u.to})}}
+  finally{resetAudit();if(auMode!==keepMode)setMode(keepMode,true);$('#auMsg').textContent=''}
+  S.ckLog=(S.ckLog||[]).filter(l=>l.bid!==bid);save();renderAll();toast(`Undone: ${undo.length} file${undo.length>1?'s':''} restored`)}
 /* save-time check: runs before the audit form's own submit handler */
 function ckWarnList(fs){return fs.slice(0,6).map((x,k)=>{const m=x.miss[0],i=m&&m.i!=null?m.i:(x.ev.find(e=>e.i!=null)||{}).i;return `<div style="margin-top:4px">• ${esc(x.r.name)} ${i!=null?`<button class="btn sm" type="button" data-ckgo="${i}">Show row</button>`:m&&m.needTo?'<button class="btn sm" type="button" data-ckgo="to">Show Discharge to</button>':''}</div>`}).join('')+(fs.length>6?`<div class="muted">+${fs.length-6} more</div>`:'')}
 document.addEventListener('submit',e=>{if(!e.target||e.target.id!=='auForm')return;
