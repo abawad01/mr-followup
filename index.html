@@ -833,6 +833,7 @@ input[type=range]{accent-color:var(--accent)}
   <div class="row"><h2 id="ckTitle" style="margin:0">Fix</h2><span class="spacer"></span><button class="btn sm" id="ckClose" type="button">Close</button></div>
   <div class="small" id="ckWhat"></div>
   <div style="display:grid;gap:6px" class="stopts" id="ckOpts"></div>
+  <div id="ckPer" hidden></div>
   <label class="f" id="ckNoteBox" hidden>Why it is not an error (optional)<input id="ckNote" placeholder="e.g. Local anesthesia, no pre-anesthesia form needed"></label>
   <div class="row"><button class="btn primary" id="ckGo" type="button" disabled>Continue</button><span class="small muted" id="ckHint">Fixes open the audit with the change applied. Check it and press Save changes.</span></div>
 </div></dialog>
@@ -3479,16 +3480,22 @@ function ckOpen(a,f,notErr){CKS.dlg={a,f,opts:ckOptions(a,f)};CKS.choice=notErr?
   $('#ckWhat').innerHTML=`<span class="pill ${f.r.sev==='High'?'p-late':'p-e2'}">${f.r.sev}</span> <b>${esc(f.r.name)}</b><div class="muted" style="margin-top:6px">${ckEvText(f)}</div>`;
   ckRenderOpts();$('#ckNote').value='';$('#ckDlg').showModal()}
 function ckRenderOpts(){const O=CKS.dlg.opts;$('#ckOpts').innerHTML=O.map((o,i)=>`<label class="stopt"><input type="radio" name="ckv" value="${i}" ${CKS.choice===i?'checked':''}><span><b>${esc(o.label)}</b><br><span class="small muted">${esc(o.sub)}</span></span></label>`).join('');
-  const o=CKS.choice!=null?O[CKS.choice]:null;$('#ckNoteBox').hidden=!(o&&o.notErr);$('#ckGo').disabled=!o;const B=CKS.dlg.bulk,n=B?CKS.dlg.sel.length:1;
-  $('#ckGo').textContent=o&&o.notErr?(B?`Mark ${n} as not an error`:'Mark as not an error'):(B?`Apply to ${new Set(CKS.dlg.sel.map(x=>x.a.id)).size} files`:'Open audit with this fix');
-  $('#ckHint').hidden=!!(o&&o.notErr);$('#ckHint').innerHTML=B?`Saved straight away and logged. You can undo right after.${o&&o.warn?' <b style="color:var(--late)">0 adds these files to Stalled files.</b>':''}`:'Fixes open the audit with the change applied. Check it and press Save changes.'}
+  const o=CKS.choice!=null?O[CKS.choice]:null;$('#ckNoteBox').hidden=!(o&&o.notErr);
+  const P=$('#ckPer'),D=CKS.dlg;P.hidden=!(D.bulk&&o&&!o.notErr);
+  if(!P.hidden){const short=x=>x.label.replace(/ on all$/,'');
+    P.innerHTML=`<div class="small" style="margin:2px 0 6px"><b>Per file</b> <span class="muted">· every file gets the choice above; change any file that needs something else.</span></div>
+    <div class="tablewrap" style="max-height:260px;overflow:auto"><table><tbody>${D.sel.map(x=>{const k=ckDisKey(x.a,x.r),v=D.per[k]??CKS.choice;return `<tr><td class="mono nowrap"><b>${esc(x.a.fileNo)}</b><div class="small muted">${fmtS(x.a.dis)}</div></td><td><select data-ckper="${esc(k)}" style="max-width:100%">${O.map((q,i)=>`<option value="${i}" ${String(v)===String(i)?'selected':''}>${esc(short(q))}</option>`).join('')}<option value="skip" ${v==='skip'?'selected':''}>Skip this file</option></select></td></tr>`}).join('')}</tbody></table></div>`}$('#ckGo').disabled=!o;const B=CKS.dlg.bulk,n=B?CKS.dlg.sel.length:1;
+  const nApply=B?CKS.dlg.sel.filter(x=>(CKS.dlg.per[ckDisKey(x.a,x.r)]??CKS.choice)!=='skip').length:0;
+  $('#ckGo').textContent=o&&o.notErr?(B?`Mark ${n} as not an error`:'Mark as not an error'):(B?`Apply to ${nApply} file${nApply!==1?'s':''}`:'Open audit with this fix');if(B&&o&&!o.notErr)$('#ckGo').disabled=!nApply;
+  $('#ckHint').hidden=!!(o&&o.notErr);$('#ckHint').innerHTML=B?`Saved straight away and logged. You can undo right after.${B&&CKS.dlg.sel.some(x=>{const v=CKS.dlg.per[ckDisKey(x.a,x.r)]??CKS.choice;return v!=='skip'&&CKS.dlg.opts[v]&&CKS.dlg.opts[v].warn})?' <b style="color:var(--late)">Files set to 0 go to Stalled files.</b>':''}`:'Fixes open the audit with the change applied. Check it and press Save changes.'}
 $('#ckOpts').addEventListener('change',e=>{CKS.choice=+e.target.value;ckRenderOpts()});
+$('#ckPer').addEventListener('change',e=>{const k=e.target.dataset.ckper;if(k==null)return;CKS.dlg.per[k]=e.target.value==='skip'?'skip':+e.target.value;const w=$('#ckPer .tablewrap'),y=w?w.scrollTop:0;ckRenderOpts();const w2=$('#ckPer .tablewrap');if(w2)w2.scrollTop=y});
 $('#ckClose').onclick=()=>$('#ckDlg').close();
 $('#ckGo').onclick=()=>{const {a,f,opts}=CKS.dlg,o=opts[CKS.choice];if(!o)return;$('#ckDlg').close();
   if(CKS.dlg.bulk){const sel=CKS.dlg.sel;
     if(o.notErr){S.ckDis=S.ckDis||{};const note=$('#ckNote').value.trim(),d=isoDay(new Date()),keys=sel.map(x=>ckDisKey(x.a,x.r));keys.forEach(k=>S.ckDis[k]={d,note,by:S.settings.auditor||''});CKS.sel.clear();save();renderChecks();ckBadge();
       toast(`${keys.length} marked as not an error`,()=>{keys.forEach(k=>delete S.ckDis[k]);save();renderChecks();ckBadge()});return}
-    ckBulkApply(sel,o);return}
+    ckBulkApply(sel.map(x=>{const v=CKS.dlg.per[ckDisKey(x.a,x.r)]??CKS.choice;return v==='skip'?null:{...x,opt:opts[v]}}).filter(Boolean));return}
   if(o.notErr){S.ckDis=S.ckDis||{};const k=ckDisKey(a,f.r);S.ckDis[k]={d:isoDay(new Date()),note:$('#ckNote').value.trim(),by:S.settings.auditor||''};save();renderChecks();ckBadge();toast('Marked as not an error',()=>{delete S.ckDis[k];save();renderChecks();ckBadge()});return}
   ckApplyInEditor(a,f,o)};
 function ckApplyInEditor(a,f,o){go('audit');editAudit(a);
@@ -3521,7 +3528,7 @@ function ckBulkOpts(r){const O=[];
   return O}
 function ckOpenBulk(notErr){const sel=ckSelected();if(!sel.length)return;const r=sel[0].r;
   const opts=notErr?[{label:'Not an error',sub:'The entries are right. These files will not be flagged again for this check.',notErr:true}]:ckBulkOpts(r);
-  CKS.dlg={bulk:true,sel,opts};CKS.choice=opts.length===1?0:null;
+  CKS.dlg={bulk:true,sel,opts,per:{}};CKS.choice=opts.length===1?0:null;
   const files=[...new Set(sel.map(x=>x.a.fileNo))];
   $('#ckTitle').textContent=notErr?`Not an error · ${sel.length} selected`:`Fix ${files.length} file${files.length>1?'s':''}`;
   $('#ckWhat').innerHTML=`${notErr&&new Set(sel.map(x=>x.r.id)).size>1?'<b>Several checks</b>':`<span class="pill ${r.sev==='High'?'p-late':'p-e2'}">${r.sev}</span> <b>${esc(r.name)}</b>`}<div class="muted mono" style="margin-top:6px;max-height:70px;overflow:auto">${files.map(esc).join(' · ')}</div>`;
@@ -3534,11 +3541,11 @@ function ckSilentSave(a,mut){if(typeOf(a)!==auMode)setMode(typeOf(a),true);
   mut();CKS.bypass=true;$('#auForm').dispatchEvent(new Event('submit',{cancelable:true}));CKS.bypass=false}
 function ckDiff(sc0,to0,a){const ch=[];for(let i=0;i<S.criteria.length;i++){const o=String(sc0||'').slice(i*3,i*3+3),n=String(a.sc||'').slice(i*3,i*3+3);if(o!==n)ch.push({what:S.criteria[i],from:o.split('').map(c=>c==='-'?'NA':c==='?'?'—':c).join('/'),to:n.split('').map(c=>c==='-'?'NA':c==='?'?'—':c).join('/')})}
   if((a.dischargeTo||'')!==(to0||''))ch.push({what:'Discharge to',from:to0||'—',to:a.dischargeTo||'—'});return ch}
-function ckBulkApply(sel,o){if(CKS.busy)return;CKS.busy=true;const bid=uid(),fu0=S.fu.length,keepMode=auMode,undo=[],failed=[];let done=0;
+function ckBulkApply(sel){if(CKS.busy)return;CKS.busy=true;const bid=uid(),fu0=S.fu.length,keepMode=auMode,undo=[],failed=[];let done=0;
   const msg0=$('#auMsg').innerHTML;
   try{for(const x of sel){const a=S.audits.find(y=>y.id===x.a.id);if(!a||!ckEval(a).some(f=>f.r.id===x.r.id))continue;
       const sc0=a.sc,to0=a.dischargeTo||'';
-      ckSilentSave(a,()=>{if(o.set)for(const s of o.set)for(let j=0;j<3;j++)form.sc[s.i*3+j]=s.v[j];if(o.to)$('#aTo').value=o.to});
+      const o=x.opt;ckSilentSave(a,()=>{if(o.set)for(const s of o.set)for(let j=0;j<3;j++)form.sc[s.i*3+j]=s.v[j];if(o.to)$('#aTo').value=o.to});
       const ch=ckDiff(sc0,to0,a);
       if(!ch.length){failed.push(a.fileNo);continue}
       undo.push({id:a.id,sc:sc0,to:to0});done++;
